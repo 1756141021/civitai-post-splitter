@@ -464,6 +464,7 @@ def create_upload_manifest(
     pixiv_allow_tag_edits: bool,
     tagger_bridge: HainTagTaggerBridge | None = None,
     jp_alias_cache: dict | None = None,
+    general_jp_data: dict | None = None,
     pixiv_page=None,
     censor_engine: CensorEngine | None = None,
     censor_classes=None,
@@ -510,6 +511,7 @@ def create_upload_manifest(
             extra_candidates=extra_candidates,
             extra_groups=extra_groups,
             jp_alias_cache=jp_alias_cache if jp_alias_cache is not None else {},
+            general_jp_data=general_jp_data or {},
             pixiv_page=pixiv_page,
             live_lookup=True,
             live_jp_lookup=True,
@@ -680,6 +682,7 @@ def cmd_upload(args):
     hain_bridge = HainTagBridge(SCRIPT_DIR.parent / "haintag")
     tagger_bridge = HainTagTaggerBridge(SCRIPT_DIR.parent / "haintag")
     jp_alias_cache = load_json(files["jp_aliases"], {})
+    general_jp_data = load_json(files["general_jp"], {})
 
     UPLOAD_DIR.mkdir(exist_ok=True)
     DONE_DIR.mkdir(exist_ok=True)
@@ -777,6 +780,7 @@ def cmd_upload(args):
                 pixiv_allow_tag_edits=parse_bool_flag(args.pixiv_allow_tag_edits),
                 tagger_bridge=tagger_bridge,
                 jp_alias_cache=jp_alias_cache,
+                general_jp_data=general_jp_data,
                 pixiv_page=pixiv_page,
                 censor_engine=censor_engine,
                 censor_classes=censor_classes,

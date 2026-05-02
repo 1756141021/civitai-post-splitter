@@ -523,6 +523,61 @@ def save_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+DEFAULT_GENERAL_JP = {
+    "_comment": "Danbooru / WD14 tag → Pixiv 高频日文形式。Pixiv ajax 翻不出来的通用词用这个表。删了重启会重生默认值。",
+    "force_r18": True,
+    "force_original": True,
+    "mappings": {
+        "1girl": "女の子", "1boy": "男の子",
+        "multiple_girls": "複数人", "multiple_boys": "複数人",
+        "long_hair": "ロングヘア", "short_hair": "ショートヘア", "very_long_hair": "ロングヘア",
+        "twin_tails": "ツインテール", "twintails": "ツインテール", "ponytail": "ポニーテール",
+        "blonde_hair": "金髪", "black_hair": "黒髪", "white_hair": "白髪", "silver_hair": "銀髪",
+        "pink_hair": "ピンク髪", "red_hair": "赤髪", "purple_hair": "紫髪",
+        "green_hair": "緑髪", "brown_hair": "茶髪", "multicolored_hair": "メッシュ",
+        "blue_eyes": "青眼", "red_eyes": "赤眼", "green_eyes": "緑眼",
+        "yellow_eyes": "金眼", "purple_eyes": "紫眼",
+        "pointy_ears": "尖り耳", "animal_ears": "けものみみ",
+        "cat_ears": "猫耳", "fox_ears": "狐耳", "rabbit_ears": "うさみみ",
+        "wings": "翼", "ice_wings": "氷の翼", "halo": "天使の輪",
+        "skirt": "スカート", "dress": "ドレス", "bow": "リボン", "ribbon": "リボン",
+        "bra": "ブラ", "panties": "パンツ", "thigh_highs": "ニーソックス", "thighhighs": "ニーソックス",
+        "white_panties": "白パンツ", "school_uniform": "制服", "swimsuit": "水着", "bikini": "ビキニ",
+        "gloves": "手袋", "fingerless_gloves": "フィンガーレスグローブ",
+        "short_sleeves": "半袖", "sleeveless": "ノースリーブ",
+        "shirt": "シャツ", "shoes": "靴", "stockings": "ストッキング", "necktie": "ネクタイ",
+        "spread_legs": "M字開脚", "on_back": "仰向け", "lying": "寝そべり",
+        "sitting": "座り", "standing": "立ち",
+        "looking_at_viewer": "見つめる", "looking_back": "振り向き", "open_mouth": "開口",
+        "fingering": "指マン", "handjob": "手コキ", "blowjob": "フェラ",
+        "paizuri": "パイズリ", "thighjob": "太股コキ", "anal": "アナル", "uncensored": "無修正",
+        "nude": "裸", "nipples": "乳首", "navel": "おへそ",
+        "cum": "ザーメン", "saliva": "唾液", "sweat": "汗", "tears": "涙",
+        "blush": "赤面", "tongue_out": "舌出し", "smile": "笑顔",
+        "outdoors": "屋外", "indoors": "室内", "beach": "ビーチ", "bedroom": "ベッドルーム",
+        "night": "夜", "forest": "森", "sky": "空", "cloud": "雲", "ocean": "海",
+        "water": "水", "tree": "木", "grass": "草原", "flower": "花",
+        "weapon": "武器", "sword": "刀", "katana": "刀", "gun": "銃",
+        "petite": "ロリ", "loli": "ロリ",
+        "flat_chest": "貧乳", "small_breasts": "小ぶり", "medium_breasts": "美乳",
+        "fang": "牙", "small_fangs": "牙",
+    },
+    "selling_points": [
+        {"trigger": ["large_breasts", "huge_breasts", "gigantic_breasts", "oversized_breasts"], "tag": "巨乳", "min_score": 0.5},
+        {"trigger": ["thick_thighs", "thicc_thighs", "thick_legs"], "tag": "魅惑のふともも", "min_score": 0.5},
+        {"trigger": ["huge_ass", "big_ass", "large_ass", "plump_ass", "bubble_butt"], "tag": "お尻", "min_score": 0.5},
+        {"trigger": ["futanari", "futa"], "tag": "ふたなり", "min_score": 0.5},
+        {"trigger": ["lactation", "breast_milk", "milk"], "tag": "母乳", "min_score": 0.5},
+        {"trigger": ["pregnant", "pregnancy"], "tag": "妊娠", "min_score": 0.5},
+        {"trigger": ["bondage", "tied_up", "rope_bondage"], "tag": "緊縛", "min_score": 0.5},
+        {"trigger": ["maid", "maid_outfit", "maid_uniform"], "tag": "メイド", "min_score": 0.5},
+        {"trigger": ["nun", "nun_outfit"], "tag": "シスター", "min_score": 0.5},
+        {"trigger": ["yandere"], "tag": "ヤンデレ", "min_score": 0.5},
+        {"trigger": ["nipple_piercing"], "tag": "乳首ピアス", "min_score": 0.5},
+    ],
+}
+
+
 DEFAULT_CENSOR_CONFIG = {
     "_comment": "自动打码配置。删了重启会重生默认值。",
     "_help": {
@@ -546,6 +601,7 @@ def ensure_runtime_files(script_dir: Path) -> dict[str, Path]:
         "validation": script_dir / "pixiv_validation_cases.json",
         "age_rules": script_dir / "pixiv_age_rules.json",
         "jp_aliases": script_dir / "pixiv_jp_aliases.json",
+        "general_jp": script_dir / "pixiv_general_jp.json",
         "censor_config": script_dir / "pixiv_censor.json",
         "manifests": script_dir / "manifests",
         "rule_fit_root": rule_fit_root,
@@ -561,6 +617,7 @@ def ensure_runtime_files(script_dir: Path) -> dict[str, Path]:
         "validation": DEFAULT_VALIDATION_CASES,
         "age_rules": DEFAULT_AGE_RULES,
         "jp_aliases": {},
+        "general_jp": DEFAULT_GENERAL_JP,
         "censor_config": DEFAULT_CENSOR_CONFIG,
     }
     for key, payload in defaults.items():
@@ -1122,19 +1179,15 @@ def lookup_jp_alias(
     page=None,
     live: bool = True,
     wiki_fallback: bool = True,
+    builtin_map: dict[str, str] | None = None,
 ) -> str | None:
-    """Resolve a Danbooru tag's Pixiv-canonical form, using cache + live fetch.
+    """Resolve a Danbooru tag's Pixiv-canonical form.
 
-    Lookup priority when not in cache:
-      1. Pixiv ajax (via logged-in `page`) — gives the form pixiv users actually
-         use (e.g. `cirno → チルノ`, `touhou → 東方Project`).
-      2. Danbooru wiki — fallback when pixiv has no canonical AND wiki_fallback=True.
-         Disabled for general-category tags because wiki gives noisy CN/JP mixes.
-
-    Cache values:
-      - str: canonical form
-      - None / "": looked up before, no form found
-      - missing key: never looked up
+    Lookup priority:
+      1. cache (in-session + persisted via pixiv_jp_aliases.json)
+      2. builtin_map — curated Danbooru→Pixiv-JP table (pixiv_general_jp.json)
+      3. Pixiv ajax (via logged-in `page`) — for character/copyright authority
+      4. Danbooru wiki — character/copyright fallback (wiki_fallback=True only)
     """
     if not tag:
         return None
@@ -1144,6 +1197,13 @@ def lookup_jp_alias(
     if key in cache:
         cached = cache[key]
         return cached if isinstance(cached, str) and cached else None
+    # 2. builtin map (case-insensitive)
+    if builtin_map:
+        for k_in_map in (key, key.lower()):
+            v = builtin_map.get(k_in_map)
+            if isinstance(v, str) and v.strip():
+                cache[key] = v.strip()
+                return v.strip()
     if not live:
         return None
     found = None
@@ -1165,6 +1225,7 @@ def build_pixiv_payload(
     extra_candidates: list[str] | None = None,
     extra_groups: dict[str, list[tuple[str, float]]] | None = None,
     jp_alias_cache: dict[str, Any] | None = None,
+    general_jp_data: dict[str, Any] | None = None,
     pixiv_page: Any = None,
     live_lookup: bool = True,
     live_jp_lookup: bool = True,
@@ -1188,6 +1249,8 @@ def build_pixiv_payload(
     extra_groups = extra_groups or {}
     if jp_alias_cache is None:
         jp_alias_cache = {}
+    general_jp_data = general_jp_data or {}
+    builtin_jp_map = general_jp_data.get("mappings") or {}
     # normalized_key -> (display, semantic_class, domain_hint, score)
     direct_pass: dict[str, tuple[str, str, str, float]] = {}
     cat_meta = {
@@ -1219,9 +1282,9 @@ def build_pixiv_payload(
             display = tag.strip()
             if not display:
                 continue
-            # Translate via Pixiv ajax (cached). character/copyright also fall
-            # back to Danbooru wiki if pixiv has no data; general tags don't —
-            # wiki returns CN-form kanji like "蓝发" which isn't pixiv-native.
+            # Translate priority: builtin map → pixiv ajax → wiki fallback
+            # (latter for character/copyright only, wiki gives noisy results
+            # for generic words).
             if category in jp_lookup_categories:
                 jp_form = lookup_jp_alias(
                     tag,
@@ -1229,6 +1292,7 @@ def build_pixiv_payload(
                     page=pixiv_page,
                     live=live_jp_lookup,
                     wiki_fallback=(category != "general"),
+                    builtin_map=builtin_jp_map,
                 )
                 if jp_form:
                     display = jp_form
@@ -1373,6 +1437,51 @@ def build_pixiv_payload(
         final_tag_translations.append(item["zh"])
         if len(final_tags) >= 10:
             break
+
+    # === Pixiv tag-habit alignment (per pixiv_general_jp.json) ===
+    # 1) Selling-point injection: if tagger detected high-score body/style triggers,
+    #    add the popular pixiv tag (巨乳 / お尻 / 魅惑のふともも / ふたなり / ...).
+    selling_points = general_jp_data.get("selling_points") or []
+    tagger_keys: dict[str, float] = {}
+    for entries in extra_groups.values():
+        for entry in entries:
+            if isinstance(entry, (tuple, list)) and len(entry) == 2:
+                t, s = entry[0], float(entry[1])
+            else:
+                t, s = str(entry), 1.0
+            k = normalize_key(t)
+            if k:
+                tagger_keys[k] = max(tagger_keys.get(k, 0.0), s)
+    for rule in selling_points:
+        triggers = rule.get("trigger") or []
+        threshold = float(rule.get("min_score", 0.5))
+        sp_tag = rule.get("tag")
+        if not sp_tag or sp_tag in seen_display:
+            continue
+        if any(tagger_keys.get(normalize_key(t), 0) >= threshold for t in triggers):
+            final_tags.append(sp_tag)
+            final_tag_translations.append(sp_tag)
+            seen_display.add(sp_tag)
+
+    # 2) Prepend R-18 / オリジナル so they don't get cut by the 10-tag cap.
+    forced: list[str] = []
+    if general_jp_data.get("force_r18", True):
+        if age_restriction == "r18g" and "R-18G" not in seen_display:
+            forced.append("R-18G")
+        elif age_restriction == "r18" and "R-18" not in seen_display:
+            forced.append("R-18")
+    if general_jp_data.get("force_original", True):
+        if domain == "original" and "オリジナル" not in seen_display:
+            forced.append("オリジナル")
+    if forced:
+        final_tags = forced + final_tags
+        final_tag_translations = forced + final_tag_translations
+        seen_display.update(forced)
+
+    # 3) Re-cap to 10 (selling points + forced may have pushed us over).
+    if len(final_tags) > 10:
+        final_tags = final_tags[:10]
+        final_tag_translations = final_tag_translations[:10]
 
     subject = next((item for item in semantic_entries if item["class"] in {"character", "identity", "franchise"}), None)
     theme = next((item for item in semantic_entries if item["class"] in {"theme", "feature"}), None)
