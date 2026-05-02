@@ -1,0 +1,147 @@
+{
+  "groups": {
+    "original": {
+      "winner": "オリジナル",
+      "counts": {
+        "オリジナル": 0,
+        "創作": 0
+      },
+      "updated_at": ""
+    },
+    "oc": {
+      "winner": "うちの子",
+      "counts": {
+        "うちの子": 0,
+        "オリキャラ": 0
+      },
+      "updated_at": ""
+    },
+    "ai_art": {
+      "winner": "AIイラスト",
+      "counts": {
+        "AIイラスト": 0,
+        "AI生成": 0
+      },
+      "updated_at": ""
+    },
+    "glasses": {
+      "winner": "眼鏡",
+      "counts": {
+        "眼鏡": 0,
+        "メガネ": 0,
+        "めがね": 0
+      },
+      "updated_at": ""
+    },
+    "blue_eyes": {
+      "winner": "碧眼",
+      "counts": {
+        "碧眼": 0,
+        "青い目": 0
+      },
+      "updated_at": ""
+    },
+    "purple_eyes": {
+      "winner": "紫目",
+      "counts": {
+        "紫目": 0,
+        "紫眼": 0
+      },
+      "updated_at": ""
+    },
+    "school_uniform": {
+      "winner": "制服",
+      "counts": {
+        "制服": 0,
+        "学生服": 0
+      },
+      "updated_at": ""
+    },
+    "kimono": {
+      "winner": "着物",
+      "counts": {
+        "着物": 0,
+        "和服": 0
+      },
+      "updated_at": ""
+    },
+    "honkai_star_rail": {
+      "winner": "崩壊スターレイル",
+      "counts": {
+        "崩壊スターレイル": 0,
+        "崩坏：星穹铁道": 0
+      },
+      "updated_at": ""
+    },
+    "blonde_hair": {
+      "winner": "金髪",
+      "counts": {
+        "金髪": 0
+      },
+      "updated_at": ""
+    },
+    "long_hair": {
+      "winner": "ロングヘア",
+      "counts": {
+        "ロングヘア": 0
+      },
+      "updated_at": ""
+    },
+    "smile": {
+      "winner": "笑顔",
+      "counts": {
+        "笑顔": 0
+      },
+      "updated_at": ""
+    },
+    "white_hair": {
+      "winner": "白髪",
+      "counts": {
+        "白髪": 0
+      },
+      "updated_at": ""
+    },
+    "blush": {
+      "winner": "赤面",
+      "counts": {
+        "赤面": 0
+      },
+      "updated_at": ""
+    },
+    "twintails": {
+      "winner": "ツインテール",
+      "counts": {
+        "ツインテール": 0
+      },
+      "updated_at": ""
+    },
+    "swimsuit": {
+      "winner": "水着",
+      "counts": {
+        "水着": 0
+      },
+      "updated_at": ""
+    },
+    "barefeet": {
+      "winner": "素足",
+      "counts": {
+        "素足": 0
+      },
+      "updated_at": ""
+    },
+    "cat_ears": {
+      "winner": "猫耳",
+      "counts": {
+        "猫耳": 0
+      },
+      "updated_at": ""
+    },
+    "dress": {
+      "winner": "ワンピース",
+      "counts": {
+        "ワンピース": 0
+      },
+      "updated_at": ""
+    }
+  }
+}

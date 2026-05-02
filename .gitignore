@@ -13,16 +13,11 @@ progress/
 # Logs (auto-archived, capped to 100/10 days each group)
 logs/
 
-# Personal data caches (auto-regenerate on first run)
-pixiv_jp_aliases.json
-pixiv_tag_popularity.json
+# Personal upload history (huge, contains post URLs)
 pixiv_validation_cases.json
 
 # User-tunable config (auto-generated with defaults; private once tuned)
 pixiv_censor.json
-
-# Research data
-pixiv_rule_fit/
 
 # Model files (50+ MB, fetched via setup_censor.py)
 models/

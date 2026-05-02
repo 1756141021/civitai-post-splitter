@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-04-30T21:03:49",
+  "sample_count": 1,
+  "top_missing": [
+    {
+      "tag": "金髪",
+      "count": 1
+    },
+    {
+      "tag": "笑顔",
+      "count": 1
+    },
+    {
+      "tag": "眼鏡",
+      "count": 1
+    }
+  ],
+  "top_extra": [
+    {
+      "tag": "赤面",
+      "count": 1
+    },
+    {
+      "tag": "白髪",
+      "count": 1
+    },
+    {
+      "tag": "ロングヘア",
+      "count": 1
+    }
+  ],
+  "top_synonym_mismatch": [],
+  "domain_patterns": {
+    "original": {
+      "count": 1,
+      "avg_missing": 3.0,
+      "avg_extra": 3.0,
+      "avg_synonym": 0.0
+    },
+    "fanart": {
+      "count": 0,
+      "avg_missing": 0.0,
+      "avg_extra": 0.0,
+      "avg_synonym": 0.0
+    }
+  },
+  "age_patterns": {
+    "all_ages": {
+      "count": 1,
+      "avg_missing": 3.0,
+      "avg_extra": 3.0,
+      "avg_synonym": 0.0
+    },
+    "r18": {
+      "count": 0,
+      "avg_missing": 0.0,
+      "avg_extra": 0.0,
+      "avg_synonym": 0.0
+    }
+  }
+}

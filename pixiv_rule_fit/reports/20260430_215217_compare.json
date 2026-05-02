@@ -1,0 +1,710 @@
+{
+  "results": [
+    {
+      "compared_at": "2026-04-30T21:52:16",
+      "compare_stage": "image_missing",
+      "illust_id": "143909891",
+      "sample_image_path": "",
+      "work_url": "https://www.pixiv.net/artworks/143909891",
+      "domain": "original",
+      "visible_age_restriction": "all_ages",
+      "traffic_review": {
+        "bookmark_count": 10069,
+        "like_count": 8043,
+        "view_count": 60764,
+        "traffic_score": 146476.1,
+        "engagement_ratio": 0.1657,
+        "passes": true,
+        "passed_by": [
+          "bookmark_count",
+          "like_count",
+          "view_count",
+          "traffic_score"
+        ],
+        "thresholds": {
+          "min_bookmarks": 800,
+          "min_likes": 200,
+          "min_views": 12000,
+          "min_score": 12000.0
+        }
+      },
+      "pixiv_tags": [
+        "オリジナル",
+        "仕事絵",
+        "創作",
+        "女の子",
+        "ChupaChups",
+        "チュッパチャプス",
+        "ラムネ",
+        "オリジナル10000users入り"
+      ],
+      "selected_image_variant": "",
+      "image_download_status": "failed",
+      "image_download_error": "RuntimeError: pixiv_image_download_failed: % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current\n                                 Dload  Upload   Total   Spent    Left  Speed\n\n  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0\n  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0\n  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0\n  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0\n  0     0    0     0    0     0      0      0 --:--:--  0:00:04 --:--:--     0\n  0     0    0     0    0     0      0      0 --:--:--  0:00:05 --:--:--     0\n  0     0    0     0    0     0      0      0 --:--:--  0:00:06 --:--:--     0\n  0     0    0     0    0     0      0      0 --:--:--  0:00:07 --:--:--     0\n  0     0    0     0    0     0      0      0 --:--:--  0:00:07 --:--:--     0\ncurl: (35) schannel: failed to receive handshake, SSL/TLS connection failed",
+      "local": {
+        "raw_candidates": [],
+        "final_tags": [],
+        "rejected_tags": [],
+        "popularity_decisions": [],
+        "title_ja": "",
+        "title_zh": "",
+        "caption_ja": "",
+        "caption_zh": ""
+      },
+      "tagger": {
+        "status": "image_missing",
+        "available": false,
+        "top_tags": []
+      },
+      "diffs": {
+        "missing": [],
+        "extra": [],
+        "synonym_mismatch": [],
+        "ordering_mismatch": [],
+        "category_mismatch": []
+      }
+    },
+    {
+      "compared_at": "2026-04-30T21:52:17",
+      "compare_stage": "full_compare",
+      "illust_id": "local_smoke_1",
+      "sample_image_path": "E:\\MAA\\1111\\civitai-post-splitter\\upload\\13-09-25-10586927121210_通用放大_00001_.png",
+      "work_url": "https://www.pixiv.net/artworks/local_smoke_1",
+      "domain": "original",
+      "visible_age_restriction": "all_ages",
+      "traffic_review": {
+        "bookmark_count": 1234,
+        "like_count": 321,
+        "view_count": 23456,
+        "traffic_score": 23048.4,
+        "engagement_ratio": 0.0526,
+        "passes": true,
+        "passed_by": [
+          "bookmark_count",
+          "like_count",
+          "view_count",
+          "traffic_score"
+        ],
+        "thresholds": {
+          "min_bookmarks": 800,
+          "min_likes": 150,
+          "min_views": 12000,
+          "min_score": 12000
+        }
+      },
+      "pixiv_tags": [
+        "AIイラスト",
+        "金髪",
+        "眼鏡",
+        "笑顔"
+      ],
+      "selected_image_variant": "",
+      "image_download_status": "",
+      "image_download_error": "",
+      "local": {
+        "raw_candidates": [
+          "@m0tcha",
+          "@rv0ganzha0",
+          "@4x0style",
+          "@nihirumastyle",
+          "1girl",
+          "solo focus",
+          "loli",
+          "oppai loli",
+          "petite",
+          "rabbit girl",
+          "rabbit ears",
+          "purple inner ears",
+          "white hair",
+          "very long hair",
+          "gradient hair",
+          "ahoge",
+          "one side up",
+          "hair between eyes",
+          "purple hair bow",
+          "black choker",
+          "blonde neck bell",
+          "aqua eyes",
+          "heart-shaped pupils",
+          "purple pupils",
+          "purple eyelashes",
+          "large breasts",
+          "blush",
+          "nipples",
+          "navel",
+          "cowboy shot",
+          "arms behind head",
+          "arms up",
+          "looking to the side",
+          "grabbing another's breast",
+          "grabbing",
+          "nipple tweak",
+          "nipple stimulation",
+          "lactation",
+          "projectile lactation",
+          "disembodied hand",
+          "hetero",
+          "1boy",
+          "cloak",
+          "zipper",
+          "zipper pull tab",
+          "maebari",
+          "white background",
+          "highres",
+          "high resolution",
+          "aesthetic",
+          "excellent",
+          "medium resolution",
+          "year 2025",
+          "masterpiece",
+          "best quality",
+          "amazing quality",
+          "absurdres",
+          "newest",
+          "very awa",
+          "very aesthetic",
+          "extreme aesthetic",
+          "sensitive",
+          "incredibly absurdres",
+          "8K",
+          "ultra detailed",
+          "HDR",
+          "high detail RAW color art",
+          "detailed",
+          "greasy_skin",
+          "shiny_skin",
+          "shiny",
+          "skindentation",
+          "curvy",
+          "wet_skin",
+          "detailed_skin",
+          "3D",
+          "blender_\\(medium\\",
+          "handmade",
+          "octane_render",
+          "c4d",
+          "perfect_rendering",
+          "realistic_rendering",
+          "detailed_textures",
+          "steam",
+          "heavy breath",
+          "steaming_body",
+          "fine_fabric_emphasis",
+          "extremely oily skin",
+          "heavy sweat",
+          "glistening body",
+          "heavily blushing",
+          "extremely tight clothes",
+          "clothes bursting",
+          "unbuttoned",
+          "heavy blush",
+          "drooling",
+          "heavy breathing",
+          "detail on skin texture",
+          "anima-highres-aesthetic-boost",
+          "matcha-anima-lokrC1_epoch72",
+          "ruoganzhao-anima-lokrC1_epoch4",
+          "anima_ushiki_epoch70",
+          "nihirumaanima_preview3_1",
+          "anima_villainchin_epoch60"
+        ],
+        "final_tags": [
+          "AIイラスト",
+          "赤面",
+          "ロングヘア",
+          "白髪"
+        ],
+        "rejected_tags": [
+          {
+            "tag": "@m0tcha",
+            "reason": "style_marker"
+          },
+          {
+            "tag": "@rv0ganzha0",
+            "reason": "style_marker"
+          },
+          {
+            "tag": "@4x0style",
+            "reason": "style_marker"
+          },
+          {
+            "tag": "@nihirumastyle",
+            "reason": "style_marker"
+          },
+          {
+            "tag": "1girl",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "solo focus",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "loli",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "oppai loli",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "petite",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "rabbit girl",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "rabbit ears",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "purple inner ears",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "gradient hair",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "ahoge",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "one side up",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "hair between eyes",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "purple hair bow",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "black choker",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "blonde neck bell",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "aqua eyes",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "heart-shaped pupils",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "purple pupils",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "purple eyelashes",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "large breasts",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "nipples",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "navel",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "cowboy shot",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "arms behind head",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "arms up",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "looking to the side",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "grabbing another's breast",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "grabbing",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "nipple tweak",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "nipple stimulation",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "lactation",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "projectile lactation",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "disembodied hand",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "hetero",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "1boy",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "cloak",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "zipper",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "zipper pull tab",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "maebari",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "white background",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "highres",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "high resolution",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "aesthetic",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "excellent",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "medium resolution",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "year 2025",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "masterpiece",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "best quality",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "amazing quality",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "absurdres",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "newest",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "very awa",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "very aesthetic",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "extreme aesthetic",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "sensitive",
+            "reason": "drop_tag"
+          },
+          {
+            "tag": "incredibly absurdres",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "8K",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "ultra detailed",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "HDR",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "high detail RAW color art",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "detailed",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "greasy_skin",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "shiny_skin",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "shiny",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "skindentation",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "curvy",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "wet_skin",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "detailed_skin",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "3D",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "blender_\\(medium\\",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "handmade",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "octane_render",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "c4d",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "perfect_rendering",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "realistic_rendering",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "detailed_textures",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "steam",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "heavy breath",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "steaming_body",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "fine_fabric_emphasis",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "extremely oily skin",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "heavy sweat",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "glistening body",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "heavily blushing",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "extremely tight clothes",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "clothes bursting",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "unbuttoned",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "heavy blush",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "drooling",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "heavy breathing",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "detail on skin texture",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "anima-highres-aesthetic-boost",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "matcha-anima-lokrC1_epoch72",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "ruoganzhao-anima-lokrC1_epoch4",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "anima_ushiki_epoch70",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "nihirumaanima_preview3_1",
+            "reason": "unmapped"
+          },
+          {
+            "tag": "anima_villainchin_epoch60",
+            "reason": "unmapped"
+          }
+        ],
+        "popularity_decisions": [
+          {
+            "semantic": "white_hair",
+            "candidates": [
+              "白髪"
+            ],
+            "winner": "白髪",
+            "source": "single",
+            "counts": {
+              "白髪": 0
+            },
+            "winner_count": 0
+          },
+          {
+            "semantic": "long_hair",
+            "candidates": [
+              "ロングヘア"
+            ],
+            "winner": "ロングヘア",
+            "source": "single",
+            "counts": {
+              "ロングヘア": 0
+            },
+            "winner_count": 0
+          },
+          {
+            "semantic": "blush",
+            "candidates": [
+              "赤面"
+            ],
+            "winner": "赤面",
+            "source": "single",
+            "counts": {
+              "赤面": 0
+            },
+            "winner_count": 0
+          },
+          {
+            "semantic": "ai_art",
+            "candidates": [
+              "AIイラスト",
+              "AI生成"
+            ],
+            "winner": "AIイラスト",
+            "source": "default",
+            "counts": {
+              "AIイラスト": 0,
+              "AI生成": 0
+            },
+            "winner_count": 0
+          }
+        ],
+        "title_ja": "AIイラスト 赤面",
+        "title_zh": "AI插画 脸红",
+        "caption_ja": "AIイラストのイラストです。AIイラスト、赤面、ロングヘア、白髪を中心にまとめました。AI生成作品です。",
+        "caption_zh": "这是一张AI插画插画，主要标签包括AI插画、脸红、长发、白发。本作含 AI 生成流程。"
+      },
+      "tagger": {
+        "status": "model_not_found",
+        "available": false,
+        "top_tags": []
+      },
+      "diffs": {
+        "missing": [
+          "眼鏡",
+          "金髪",
+          "笑顔"
+        ],
+        "extra": [
+          "ロングヘア",
+          "白髪",
+          "赤面"
+        ],
+        "synonym_mismatch": [],
+        "ordering_mismatch": [],
+        "category_mismatch": [
+          {
+            "tag": "赤面",
+            "reason": "background_or_theme_overweighted"
+          }
+        ]
+      }
+    }
+  ],
+  "count": 2,
+  "compared_count": 1,
+  "skipped_image_missing_count": 1
+}
