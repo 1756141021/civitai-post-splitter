@@ -53,6 +53,22 @@ DONE_DAYS = 7
 _LORA_RE = re.compile(r"<lora:([^:>]+):([^>]+)>")
 TARGETS = {"civitai", "pixiv"}
 
+MODEL_HASH_PATCHES = {
+    "anima-preview3-base": "14fffe8ad5",
+}
+
+
+def _inject_model_hash(settings_line: str) -> str:
+    if not settings_line or "Model hash:" in settings_line:
+        return settings_line
+    for model_name, hash_value in MODEL_HASH_PATCHES.items():
+        target = f"Model: {model_name}"
+        if target in settings_line:
+            return settings_line.replace(
+                target, f"Model hash: {hash_value}, {target}", 1
+            )
+    return settings_line
+
 
 def setup_logging():
     LOG_DIR.mkdir(exist_ok=True)
@@ -177,6 +193,8 @@ def strip_prompts_keep_lora(image_path: Path, dest_dir: Path) -> Path:
     else:
         prompt_block = old_params
         settings_line = ""
+
+    settings_line = _inject_model_hash(settings_line)
 
     lora_tags = _LORA_RE.findall(prompt_block)
     parts = []
