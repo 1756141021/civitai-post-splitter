@@ -1050,6 +1050,12 @@ _QUOTED_JP_RE = re.compile(r"「([^」]+)」")
 
 
 def _extract_canonical_from_pixpedia(body: dict, input_tag: str) -> str | None:
+    """Extract pixiv-canonical JP form from /ajax/search/tags response.
+
+    Only uses structured fields. abstract is intentionally NOT parsed because
+    it's prose ("XXX is the English form of YYY") and grabbing arbitrary JP
+    runs from it produces garbage like の複数形 / アルファベットでの.
+    """
     pixpedia = body.get("pixpedia") if isinstance(body, dict) else None
     pixpedia = pixpedia if isinstance(pixpedia, dict) else {}
     input_lower = input_tag.strip().lower()
@@ -1073,19 +1079,7 @@ def _extract_canonical_from_pixpedia(body: dict, input_tag: str) -> str | None:
                 if isinstance(v, str) and _looks_japanese(v):
                     return v.strip()
 
-    # 4. abstract — extract first non-trivial JP run (skip pure-hiragana
-    # function words like "とは", "の", "です"). Quoted 「XXX」 has highest priority.
-    abstract = pixpedia.get("abstract") or ""
-    if abstract:
-        for m in _QUOTED_JP_RE.finditer(abstract):
-            inner = m.group(1).strip()
-            if _looks_japanese(inner) and len(inner) >= 1:
-                return inner
-        for run in _JP_RUN_RE.findall(abstract):
-            if len(run) >= 2 and not _PURE_HIRAGANA_RE.match(run):
-                return run
-
-    # 5. pixpedia.tag if differs and JP-looking
+    # 4. pixpedia.tag if differs from input AND is JP-looking
     pixp_tag = pixpedia.get("tag")
     if isinstance(pixp_tag, str) and _looks_japanese(pixp_tag) and pixp_tag.strip().lower() != input_lower:
         return pixp_tag.strip()
