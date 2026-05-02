@@ -5,6 +5,7 @@ import importlib
 import json
 import logging
 import os
+import random
 import re
 import subprocess
 import sys
@@ -1126,13 +1127,15 @@ def lookup_jp_alias(
     cache: dict[str, Any],
     page=None,
     live: bool = True,
+    wiki_fallback: bool = True,
 ) -> str | None:
     """Resolve a Danbooru tag's Pixiv-canonical form, using cache + live fetch.
 
     Lookup priority when not in cache:
       1. Pixiv ajax (via logged-in `page`) — gives the form pixiv users actually
          use (e.g. `cirno → チルノ`, `touhou → 東方Project`).
-      2. Danbooru wiki — fallback when pixiv has no canonical or page is None.
+      2. Danbooru wiki — fallback when pixiv has no canonical AND wiki_fallback=True.
+         Disabled for general-category tags because wiki gives noisy CN/JP mixes.
 
     Cache values:
       - str: canonical form
@@ -1152,7 +1155,7 @@ def lookup_jp_alias(
     found = None
     if page is not None:
         found = _fetch_pixiv_tag_canonical_via_page(page, key)
-    if not found:
+    if not found and wiki_fallback:
         found = _fetch_danbooru_jp_alias(key)
     cache[key] = found if found else ""
     return found
@@ -1198,9 +1201,11 @@ def build_pixiv_payload(
         "copyright": ("franchise", "fanart"),
         "general": ("feature", "both"),
     }
-    # Only translate character/copyright via Danbooru wiki lookup.
-    # General tags are too noisy and Pixiv has its own JP alias system.
-    jp_lookup_categories = {"character", "copyright"}
+    # Translate character/copyright/general via Pixiv ajax (with Danbooru wiki
+    # fallback for character/copyright only — wiki is unreliable for generic
+    # words like "shirt"/"panties"). General tags that have no pixiv canonical
+    # stay in their original Danbooru English form.
+    jp_lookup_categories = {"character", "copyright", "general"}
     for category in ("character", "copyright", "general"):
         cls, dom = cat_meta[category]
         threshold = TAGGER_SCORE_THRESHOLDS.get(category, 0.5)
@@ -1220,10 +1225,17 @@ def build_pixiv_payload(
             display = tag.strip()
             if not display:
                 continue
-            # For character/copyright, try Pixiv ajax (via page) first, then
-            # Danbooru wiki, to get the form pixiv users actually use.
+            # Translate via Pixiv ajax (cached). character/copyright also fall
+            # back to Danbooru wiki if pixiv has no data; general tags don't —
+            # wiki returns CN-form kanji like "蓝发" which isn't pixiv-native.
             if category in jp_lookup_categories:
-                jp_form = lookup_jp_alias(tag, jp_alias_cache, page=pixiv_page, live=live_jp_lookup)
+                jp_form = lookup_jp_alias(
+                    tag,
+                    jp_alias_cache,
+                    page=pixiv_page,
+                    live=live_jp_lookup,
+                    wiki_fallback=(category != "general"),
+                )
                 if jp_form:
                     display = jp_form
             direct_pass.setdefault(key, (display, cls, dom, score))
@@ -2261,6 +2273,41 @@ def ensure_on_pixiv_upload_page(page) -> None:
         input()
 
 
+def _alert_captcha(page) -> None:
+    """Notification chime + bring browser to front so user notices the captcha."""
+    try:
+        page.bring_to_front()
+    except Exception:
+        pass
+    try:
+        import winsound
+        wav = r"C:\Windows\Media\chimes.wav"
+        if os.path.isfile(wav):
+            winsound.PlaySound(wav, winsound.SND_FILENAME | winsound.SND_ASYNC)
+        else:
+            winsound.MessageBeep(winsound.MB_ICONASTERISK)
+    except Exception:
+        try:
+            sys.stdout.write("\a")
+            sys.stdout.flush()
+        except Exception:
+            pass
+
+
+def _jsleep(base: float, jitter: float = 0.4) -> None:
+    """Sleep base seconds plus uniform random jitter (±jitter*base) to humanize timing.
+
+    Default jitter=0.4 means actual sleep ranges over [0.6*base, 1.4*base].
+    """
+    delta = random.uniform(-jitter, jitter) * base
+    time.sleep(max(0.05, base + delta))
+
+
+def _typing_delay() -> int:
+    """Per-character typing delay in ms, randomized 25-75."""
+    return random.randint(25, 75)
+
+
 def _first_visible_locator(page, selectors: list[str]):
     for selector in selectors:
         locator = page.locator(selector)
@@ -2394,7 +2441,7 @@ def _set_checkbox_by_text(page, name: str, texts: list[str], desired: bool) -> P
         except Exception as exc:
             last_detail = f"click failed for '{text}': {type(exc).__name__}: {exc}"
             continue
-        time.sleep(0.4)
+        _jsleep(0.4)
         final = _read_checked_state(locator)
         if final == desired:
             return PixivStep(name, True, detail=f"toggled to {desired}, text='{text}'")
@@ -2419,7 +2466,7 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
             continue
         try:
             locator.click()
-            time.sleep(0.3)
+            _jsleep(0.3)
             # Clear any leftover input via select-all + delete instead of fill(""),
             # which on Pixiv's React tag input can rewrite the previously committed chip.
             try:
@@ -2429,12 +2476,12 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
             if value_now:
                 page.keyboard.press("Control+A")
                 page.keyboard.press("Delete")
-                time.sleep(0.2)
-            page.keyboard.type(tag, delay=40)
+                _jsleep(0.2)
+            page.keyboard.type(tag, delay=_typing_delay())
             # Wait for autocomplete dropdown to render. Pixiv uses this to suggest
             # canonical Japanese forms (e.g. cirno → チルノ, touhou → 東方Project).
             # Selecting first suggestion is preferred; fall back to raw Enter.
-            time.sleep(1.2)
+            _jsleep(1.2)
             listbox = _first_visible_locator(page, listbox_selectors) if listbox_selectors else None
             if listbox is None and autocomplete_debug_dumps < 3:
                 # No listbox detected — dump page HTML so we can see what real
@@ -2472,7 +2519,7 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
             else:
                 page.keyboard.press("Enter")
                 raw_used += 1
-            time.sleep(0.6)
+            _jsleep(0.6)
             # Verify input actually cleared (commit succeeded)
             try:
                 value_after = locator.input_value()
@@ -2482,14 +2529,14 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
                 # Try one more Enter, then if still not cleared, try Tab as commit fallback
                 try:
                     locator.press("Enter")
-                    time.sleep(0.4)
+                    _jsleep(0.4)
                     value_after = locator.input_value()
                 except Exception:
                     pass
                 if value_after:
                     try:
                         locator.press("Tab")
-                        time.sleep(0.4)
+                        _jsleep(0.4)
                         value_after = locator.input_value()
                     except Exception:
                         pass
@@ -2517,7 +2564,7 @@ def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str) -> Pixi
             locator.check()
         except Exception:
             locator.click()
-        time.sleep(0.2)
+        _jsleep(0.2)
         try:
             checked = bool(locator.is_checked())
         except Exception:
@@ -2546,7 +2593,7 @@ def _set_checkbox_by_attr(page, name: str, attr_name: str, desired: bool) -> Pix
         locator.click()
     except Exception as exc:
         return PixivStep(name, False, "exception", f"{type(exc).__name__}: {exc}")
-    time.sleep(0.4)
+    _jsleep(0.4)
     final = _read_checked_state(locator)
     if final == desired:
         return PixivStep(name, True, detail=f"toggled to {desired}")
@@ -2595,18 +2642,21 @@ def create_pixiv_post(
         record(PixivStep("select_file", False, "exception", f"{type(exc).__name__}: {exc}"))
         return None, steps
 
-    time.sleep(4)
+    _jsleep(4.0)
 
     record(_fill_if_found(
         page, "fill_title", PIXIV_SELECTORS["title"],
         payload["title_ja"],
     ))
+    _jsleep(0.5)
     caption_text = "\n".join(s for s in (payload.get("caption_ja", ""), payload.get("caption_zh", "")) if s).strip()
     if caption_text:
         record(_fill_if_found(page, "fill_caption", PIXIV_SELECTORS["caption"], caption_text))
     else:
         record(PixivStep("fill_caption", True, detail="empty (skipped)"))
+    _jsleep(0.4)
     record(_fill_tag_input(page, "fill_tags", PIXIV_SELECTORS["tag_input"], payload["final_tags"]))
+    _jsleep(0.6)
 
     # Age restriction: prefer name=value attr, fallback to text
     age = payload["age_restriction"]
@@ -2695,6 +2745,14 @@ def create_pixiv_post(
     #   - URL no longer contains upload.php / illustration/create
     #   - file input gone (form unmounted) — page transitioned away from upload form
     artwork_re = re.compile(r"/artworks/\d+")
+    captcha_selectors = [
+        'iframe[src*="hcaptcha"]',
+        'iframe[src*="captcha"]',
+        'div:has-text("安全检查")',
+        'div:has-text("セキュリティチェック")',
+        'div:has-text("Security check")',
+    ]
+    captcha_detected = False
     deadline = time.time() + 30
     while time.time() < deadline:
         time.sleep(1.5)
@@ -2713,6 +2771,14 @@ def create_pixiv_post(
             time.sleep(delay)
             record(PixivStep("redirect", True, detail=f"left upload page url={url}"))
             return url, steps
+        # Captcha detection: pixiv pops hCaptcha (安全检查) on some posts.
+        # Script can't solve it; extend deadline so user can do it manually.
+        if not captcha_detected:
+            if _first_visible_locator(page, captcha_selectors) is not None:
+                captcha_detected = True
+                log.warning("    pixiv: 触发人机验证！在浏览器里完成验证 → 点'投稿'，脚本等你 5 分钟")
+                deadline = time.time() + 300
+                _alert_captcha(page)
         # Form gone? (file input no longer in DOM) — also a success indicator
         try:
             if _first_visible_locator(page, PIXIV_SELECTORS["file_input"]) is None:
@@ -2721,5 +2787,10 @@ def create_pixiv_post(
                 return url, steps
         except Exception:
             pass
-    record(PixivStep("redirect", False, "verify_failed", "30 秒内未检测到跳转/表单卸载"))
+    timeout_msg = (
+        "5 分钟内未检测到跳转/表单卸载（人机验证未完成？）"
+        if captcha_detected
+        else "30 秒内未检测到跳转/表单卸载"
+    )
+    record(PixivStep("redirect", False, "verify_failed", timeout_msg))
     return None, steps

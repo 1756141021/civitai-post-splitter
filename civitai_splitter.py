@@ -720,9 +720,15 @@ def cmd_upload(args):
             )
         else:
             log.info("自动打码: 未启用（如需放模型到 models/auto_censor.pt + pip install ultralytics opencv-python）")
-    count = min(random.randint(1, 5), len(all_images))
+    requested = max(0, int(args.count or 0))
+    if requested > 0:
+        count = min(requested, len(all_images))
+        mode_desc = f"按指定数量选 {count} 张"
+    else:
+        count = min(random.randint(1, 5), len(all_images))
+        mode_desc = f"随机选 {count} 张"
     image_files = random.sample(all_images, count)
-    log.info(f"upload/ 有 {len(all_images)} 张图片，本次随机选择 {count} 张上传。目标：{targets}\n")
+    log.info(f"upload/ 有 {len(all_images)} 张图片，本次{mode_desc}上传。目标：{targets}\n")
 
     temp_dir = make_temp_dir("civitai_upload_")
     civitai_dir = temp_dir / "civitai"
@@ -1040,6 +1046,7 @@ def main():
     sp_upload.add_argument("--pixiv-allow-tag-edits", default="false", help="Pixiv 是否允许他人编辑标签（true/false）")
     sp_upload.add_argument("--pixiv-max-retries", type=int, default=1, help="Pixiv 失败重试次数（默认 1，publish 已点击则不重试）")
     sp_upload.add_argument("--abort-after-failures", type=int, default=3, help="连续失败 N 张后中断批次，避免触发风控（默认 3）")
+    sp_upload.add_argument("--count", type=int, default=0, help="本次发几张（默认 0 = 随机 1-5）")
 
     sp_collect = subparsers.add_parser("pixiv-fit-collect", help="采集 Pixiv 规则拟合样本")
     sp_collect.add_argument("--target-count", type=int, default=50, help="目标样本数（默认50）")

@@ -45,12 +45,29 @@ def cmd_split() -> None:
     run(["civitai_splitter.py", "split"], extra_env={"CIVITAI_API_KEY": api_key})
 
 
+def _ask_count() -> list[str]:
+    """问用户上传几张。留空 -> 随机 1-5（不传 --count）。"""
+    raw = input("  本次上传几张？（留空=随机 1-5）: ").strip()
+    if not raw:
+        return []
+    try:
+        n = int(raw)
+        if n > 0:
+            return ["--count", str(n)]
+    except ValueError:
+        pass
+    print("  无效数字，使用默认随机 1-5")
+    return []
+
+
 def cmd_upload_dual() -> None:
-    run(["civitai_splitter.py", "upload", "--targets", "civitai,pixiv"])
+    extra = _ask_count()
+    run(["civitai_splitter.py", "upload", "--targets", "civitai,pixiv", *extra])
 
 
 def cmd_upload_pixiv() -> None:
-    run(["civitai_splitter.py", "upload", "--targets", "pixiv"])
+    extra = _ask_count()
+    run(["civitai_splitter.py", "upload", "--targets", "pixiv", *extra])
 
 
 def cmd_setup_censor() -> None:
