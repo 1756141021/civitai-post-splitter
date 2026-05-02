@@ -1,0 +1,29 @@
+{
+  "default": "all_ages",
+  "rules": [
+    {
+      "match": "r18g",
+      "age_restriction": "r18g"
+    },
+    {
+      "match": "guro",
+      "age_restriction": "r18g"
+    },
+    {
+      "match": "r18",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "nsfw",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "sensitive",
+      "age_restriction": "mild_sensitive"
+    },
+    {
+      "match": "mild",
+      "age_restriction": "mild_sensitive"
+    }
+  ]
+}

@@ -1,0 +1,499 @@
+{
+  "drop_tags": [
+    "1girl",
+    "1boy",
+    "2girls",
+    "multiple girls",
+    "multiple boys",
+    "solo",
+    "solo focus",
+    "looking at viewer",
+    "looking back",
+    "facing viewer",
+    "absurdres",
+    "highres",
+    "lowres",
+    "masterpiece",
+    "best quality",
+    "amazing quality",
+    "very aesthetic",
+    "quality",
+    "safe",
+    "sensitive",
+    "questionable",
+    "explicit",
+    "artist name",
+    "signature",
+    "watermark",
+    "commentary",
+    "speech bubble",
+    "text",
+    "jpeg artifacts"
+  ],
+  "filename_drop_tokens": [
+    "底图",
+    "通用放大",
+    "00001",
+    "0001",
+    "0000",
+    "copy",
+    "cleaned",
+    "pixiv",
+    "civitai"
+  ],
+  "semantics": {
+    "original": {
+      "candidates": [
+        "オリジナル",
+        "創作"
+      ],
+      "default": "オリジナル",
+      "zh": "原创",
+      "class": "identity",
+      "domain": "original"
+    },
+    "oc": {
+      "candidates": [
+        "うちの子",
+        "オリキャラ"
+      ],
+      "default": "うちの子",
+      "zh": "自设角色",
+      "class": "identity",
+      "domain": "original"
+    },
+    "ai_art": {
+      "candidates": [
+        "AIイラスト",
+        "AI生成"
+      ],
+      "default": "AIイラスト",
+      "zh": "AI插画",
+      "class": "meta",
+      "domain": "both"
+    },
+    "r18": {
+      "candidates": [
+        "R-18"
+      ],
+      "default": "R-18",
+      "zh": "R18",
+      "class": "rating",
+      "domain": "both"
+    },
+    "r18g": {
+      "candidates": [
+        "R-18G"
+      ],
+      "default": "R-18G",
+      "zh": "R18G",
+      "class": "rating",
+      "domain": "both"
+    },
+    "glasses": {
+      "candidates": [
+        "眼鏡",
+        "メガネ",
+        "めがね"
+      ],
+      "default": "眼鏡",
+      "zh": "眼镜",
+      "class": "feature",
+      "domain": "both"
+    },
+    "twintails": {
+      "candidates": [
+        "ツインテール"
+      ],
+      "default": "ツインテール",
+      "zh": "双马尾",
+      "class": "feature",
+      "domain": "both"
+    },
+    "blonde_hair": {
+      "candidates": [
+        "金髪"
+      ],
+      "default": "金髪",
+      "zh": "金发",
+      "class": "feature",
+      "domain": "both"
+    },
+    "blue_eyes": {
+      "candidates": [
+        "碧眼",
+        "青い目"
+      ],
+      "default": "碧眼",
+      "zh": "蓝眼",
+      "class": "feature",
+      "domain": "both"
+    },
+    "purple_eyes": {
+      "candidates": [
+        "紫目",
+        "紫眼"
+      ],
+      "default": "紫目",
+      "zh": "紫眼",
+      "class": "feature",
+      "domain": "both"
+    },
+    "school_uniform": {
+      "candidates": [
+        "制服",
+        "学生服"
+      ],
+      "default": "制服",
+      "zh": "制服",
+      "class": "theme",
+      "domain": "both"
+    },
+    "maid": {
+      "candidates": [
+        "メイド"
+      ],
+      "default": "メイド",
+      "zh": "女仆",
+      "class": "theme",
+      "domain": "both"
+    },
+    "swimsuit": {
+      "candidates": [
+        "水着"
+      ],
+      "default": "水着",
+      "zh": "泳装",
+      "class": "theme",
+      "domain": "both"
+    },
+    "bikini": {
+      "candidates": [
+        "ビキニ"
+      ],
+      "default": "ビキニ",
+      "zh": "比基尼",
+      "class": "theme",
+      "domain": "both"
+    },
+    "dress": {
+      "candidates": [
+        "ワンピース"
+      ],
+      "default": "ワンピース",
+      "zh": "连衣裙",
+      "class": "theme",
+      "domain": "both"
+    },
+    "kimono": {
+      "candidates": [
+        "着物",
+        "和服"
+      ],
+      "default": "着物",
+      "zh": "和服",
+      "class": "theme",
+      "domain": "both"
+    },
+    "cat_ears": {
+      "candidates": [
+        "猫耳"
+      ],
+      "default": "猫耳",
+      "zh": "猫耳",
+      "class": "feature",
+      "domain": "both"
+    },
+    "long_hair": {
+      "candidates": [
+        "ロングヘア"
+      ],
+      "default": "ロングヘア",
+      "zh": "长发",
+      "class": "feature",
+      "domain": "both"
+    },
+    "white_hair": {
+      "candidates": [
+        "白髪"
+      ],
+      "default": "白髪",
+      "zh": "白发",
+      "class": "feature",
+      "domain": "both"
+    },
+    "barefeet": {
+      "candidates": [
+        "素足"
+      ],
+      "default": "素足",
+      "zh": "赤脚",
+      "class": "theme",
+      "domain": "both"
+    },
+    "bed": {
+      "candidates": [
+        "ベッド"
+      ],
+      "default": "ベッド",
+      "zh": "床",
+      "class": "theme",
+      "domain": "both"
+    },
+    "smile": {
+      "candidates": [
+        "笑顔"
+      ],
+      "default": "笑顔",
+      "zh": "微笑",
+      "class": "theme",
+      "domain": "both"
+    },
+    "blush": {
+      "candidates": [
+        "赤面"
+      ],
+      "default": "赤面",
+      "zh": "脸红",
+      "class": "theme",
+      "domain": "both"
+    },
+    "hatsune_miku": {
+      "candidates": [
+        "初音ミク"
+      ],
+      "default": "初音ミク",
+      "zh": "初音未来",
+      "class": "character",
+      "domain": "fanart"
+    },
+    "vocaloid": {
+      "candidates": [
+        "VOCALOID"
+      ],
+      "default": "VOCALOID",
+      "zh": "VOCALOID",
+      "class": "franchise",
+      "domain": "fanart"
+    },
+    "genshin_impact": {
+      "candidates": [
+        "原神"
+      ],
+      "default": "原神",
+      "zh": "原神",
+      "class": "franchise",
+      "domain": "fanart"
+    },
+    "honkai_star_rail": {
+      "candidates": [
+        "崩壊スターレイル",
+        "崩坏：星穹铁道"
+      ],
+      "default": "崩壊スターレイル",
+      "zh": "崩坏：星穹铁道",
+      "class": "franchise",
+      "domain": "fanart"
+    }
+  },
+  "mappings": {
+    "original": {
+      "semantic": "original"
+    },
+    "創作": {
+      "semantic": "original"
+    },
+    "オリジナル": {
+      "semantic": "original"
+    },
+    "oc": {
+      "semantic": "oc"
+    },
+    "オリキャラ": {
+      "semantic": "oc"
+    },
+    "うちの子": {
+      "semantic": "oc"
+    },
+    "ai art": {
+      "semantic": "ai_art"
+    },
+    "ai generated": {
+      "semantic": "ai_art"
+    },
+    "glasses": {
+      "semantic": "glasses"
+    },
+    "megane": {
+      "semantic": "glasses"
+    },
+    "メガネ": {
+      "semantic": "glasses"
+    },
+    "めがね": {
+      "semantic": "glasses"
+    },
+    "眼鏡": {
+      "semantic": "glasses"
+    },
+    "twintails": {
+      "semantic": "twintails"
+    },
+    "twin tails": {
+      "semantic": "twintails"
+    },
+    "ツインテール": {
+      "semantic": "twintails"
+    },
+    "blonde hair": {
+      "semantic": "blonde_hair"
+    },
+    "金髪": {
+      "semantic": "blonde_hair"
+    },
+    "blue eyes": {
+      "semantic": "blue_eyes"
+    },
+    "碧眼": {
+      "semantic": "blue_eyes"
+    },
+    "purple eyes": {
+      "semantic": "purple_eyes"
+    },
+    "紫目": {
+      "semantic": "purple_eyes"
+    },
+    "紫眼": {
+      "semantic": "purple_eyes"
+    },
+    "school uniform": {
+      "semantic": "school_uniform"
+    },
+    "制服": {
+      "semantic": "school_uniform"
+    },
+    "学生服": {
+      "semantic": "school_uniform"
+    },
+    "maid": {
+      "semantic": "maid"
+    },
+    "メイド": {
+      "semantic": "maid"
+    },
+    "swimsuit": {
+      "semantic": "swimsuit"
+    },
+    "水着": {
+      "semantic": "swimsuit"
+    },
+    "bikini": {
+      "semantic": "bikini"
+    },
+    "ビキニ": {
+      "semantic": "bikini"
+    },
+    "dress": {
+      "semantic": "dress"
+    },
+    "one-piece": {
+      "semantic": "dress"
+    },
+    "ワンピース": {
+      "semantic": "dress"
+    },
+    "kimono": {
+      "semantic": "kimono"
+    },
+    "着物": {
+      "semantic": "kimono"
+    },
+    "和服": {
+      "semantic": "kimono"
+    },
+    "cat ears": {
+      "semantic": "cat_ears"
+    },
+    "猫耳": {
+      "semantic": "cat_ears"
+    },
+    "long hair": {
+      "semantic": "long_hair"
+    },
+    "very long hair": {
+      "semantic": "long_hair"
+    },
+    "ロングヘア": {
+      "semantic": "long_hair"
+    },
+    "white hair": {
+      "semantic": "white_hair"
+    },
+    "白髪": {
+      "semantic": "white_hair"
+    },
+    "bare feet": {
+      "semantic": "barefeet"
+    },
+    "素足": {
+      "semantic": "barefeet"
+    },
+    "bed": {
+      "semantic": "bed"
+    },
+    "ベッド": {
+      "semantic": "bed"
+    },
+    "round eyewear": {
+      "semantic": "glasses"
+    },
+    "gold-framed glasses": {
+      "semantic": "glasses"
+    },
+    "smile": {
+      "semantic": "smile"
+    },
+    "笑顔": {
+      "semantic": "smile"
+    },
+    "blush": {
+      "semantic": "blush"
+    },
+    "slight blush": {
+      "semantic": "blush"
+    },
+    "赤面": {
+      "semantic": "blush"
+    },
+    "hatsune miku": {
+      "semantic": "hatsune_miku",
+      "extras": [
+        "vocaloid"
+      ]
+    },
+    "初音ミク": {
+      "semantic": "hatsune_miku",
+      "extras": [
+        "vocaloid"
+      ]
+    },
+    "vocaloid": {
+      "semantic": "vocaloid"
+    },
+    "genshin impact": {
+      "semantic": "genshin_impact"
+    },
+    "原神": {
+      "semantic": "genshin_impact"
+    },
+    "honkai star rail": {
+      "semantic": "honkai_star_rail"
+    },
+    "崩壊スターレイル": {
+      "semantic": "honkai_star_rail"
+    },
+    "崩坏：星穹铁道": {
+      "semantic": "honkai_star_rail"
+    }
+  }
+}
