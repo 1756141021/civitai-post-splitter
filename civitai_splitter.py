@@ -683,6 +683,10 @@ def cmd_upload(args):
     tagger_bridge = HainTagTaggerBridge(SCRIPT_DIR.parent / "haintag")
     jp_alias_cache = load_json(files["jp_aliases"], {})
     general_jp_data = load_json(files["general_jp"], {})
+    danbooru_jp_map = load_json(files["danbooru_jp"], {})
+    if danbooru_jp_map:
+        general_jp_data["_danbooru_map"] = danbooru_jp_map
+        log.info(f"Danbooru→JP 词典已加载: {len(danbooru_jp_map)} 条")
 
     UPLOAD_DIR.mkdir(exist_ok=True)
     DONE_DIR.mkdir(exist_ok=True)

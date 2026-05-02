@@ -525,18 +525,28 @@ def save_json(path: Path, payload: Any) -> None:
 
 DEFAULT_GENERAL_JP = {
     "_comment": "Danbooru / WD14 tag → Pixiv 高频日文形式。Pixiv ajax 翻不出来的通用词用这个表。删了重启会重生默认值。",
+    "_help": {
+        "mappings": "Danbooru 形式 → 想在 Pixiv 上显示的日文 hashtag。新词加在这里",
+        "selling_points": "tagger 命中任一 trigger（>=min_score）就额外加 tag。Pixiv 高人气图常用卖点",
+        "force_r18": "true 时 age_restriction=r18 自动 prepend R-18 tag",
+        "force_original": "true 时 domain=original 自动 prepend オリジナル tag",
+    },
     "force_r18": True,
     "force_original": True,
     "mappings": {
         "1girl": "女の子", "1boy": "男の子",
         "multiple_girls": "複数人", "multiple_boys": "複数人",
         "long_hair": "ロングヘア", "short_hair": "ショートヘア", "very_long_hair": "ロングヘア",
+        "medium_hair": "ミディアムヘア",
         "twin_tails": "ツインテール", "twintails": "ツインテール", "ponytail": "ポニーテール",
+        "braid": "三つ編み", "bun": "お団子", "ahoge": "アホ毛",
+        "bangs": "前髪", "sidelocks": "もみあげ",
+        "hair_ornament": "髪飾り", "hair_ribbon": "髪リボン", "hair_between_eyes": "前髪",
         "blonde_hair": "金髪", "black_hair": "黒髪", "white_hair": "白髪", "silver_hair": "銀髪",
         "pink_hair": "ピンク髪", "red_hair": "赤髪", "purple_hair": "紫髪",
         "green_hair": "緑髪", "brown_hair": "茶髪", "multicolored_hair": "メッシュ",
         "blue_eyes": "青眼", "red_eyes": "赤眼", "green_eyes": "緑眼",
-        "yellow_eyes": "金眼", "purple_eyes": "紫眼",
+        "yellow_eyes": "金眼", "purple_eyes": "紫眼", "pink_eyes": "ピンク眼",
         "pointy_ears": "尖り耳", "animal_ears": "けものみみ",
         "cat_ears": "猫耳", "fox_ears": "狐耳", "rabbit_ears": "うさみみ",
         "wings": "翼", "ice_wings": "氷の翼", "halo": "天使の輪",
@@ -544,23 +554,48 @@ DEFAULT_GENERAL_JP = {
         "bra": "ブラ", "panties": "パンツ", "thigh_highs": "ニーソックス", "thighhighs": "ニーソックス",
         "white_panties": "白パンツ", "school_uniform": "制服", "swimsuit": "水着", "bikini": "ビキニ",
         "gloves": "手袋", "fingerless_gloves": "フィンガーレスグローブ",
-        "short_sleeves": "半袖", "sleeveless": "ノースリーブ",
-        "shirt": "シャツ", "shoes": "靴", "stockings": "ストッキング", "necktie": "ネクタイ",
-        "spread_legs": "M字開脚", "on_back": "仰向け", "lying": "寝そべり",
-        "sitting": "座り", "standing": "立ち",
-        "looking_at_viewer": "見つめる", "looking_back": "振り向き", "open_mouth": "開口",
+        "short_sleeves": "半袖", "sleeveless": "ノースリーブ", "long_sleeves": "長袖",
+        "shirt": "シャツ", "shoes": "靴", "boots": "ブーツ", "socks": "ソックス",
+        "stockings": "ストッキング", "necktie": "ネクタイ", "scarf": "スカーフ",
+        "hat": "帽子", "cap": "帽子", "earrings": "ピアス", "jewelry": "ジュエリー",
+        "necklace": "ネックレス", "bracelet": "ブレスレット", "choker": "チョーカー",
+        "collar": "首輪", "belt": "ベルト", "glasses": "眼鏡", "sunglasses": "サングラス",
+        "spread_legs": "M字開脚", "on_back": "仰向け", "on_stomach": "うつ伏せ",
+        "lying": "寝そべり", "sitting": "座り", "standing": "立ち",
+        "kneeling": "膝立ち", "squatting": "しゃがみ",
+        "bent_over": "屈み", "leaning_forward": "前かがみ",
+        "looking_at_viewer": "見つめる", "looking_back": "振り向き",
+        "looking_to_the_side": "横目", "looking_up": "上目遣い", "looking_down": "下目遣い",
+        "open_mouth": "開口", "closed_mouth": "口閉じ", "smile": "笑顔",
+        "frown": "しかめ顔", "grin": "ニッコリ",
+        "tongue_out": "舌出し", "tongue": "舌", "teeth": "歯",
         "fingering": "指マン", "handjob": "手コキ", "blowjob": "フェラ",
         "paizuri": "パイズリ", "thighjob": "太股コキ", "anal": "アナル", "uncensored": "無修正",
         "nude": "裸", "nipples": "乳首", "navel": "おへそ",
+        "breasts": "胸", "ass": "お尻", "thighs": "ふともも", "armpits": "腋",
+        "back": "背中", "shoulders": "肩", "collarbone": "鎖骨", "neck": "首",
+        "feet": "足", "barefoot": "裸足",
         "cum": "ザーメン", "saliva": "唾液", "sweat": "汗", "tears": "涙",
-        "blush": "赤面", "tongue_out": "舌出し", "smile": "笑顔",
+        "blush": "赤面",
         "outdoors": "屋外", "indoors": "室内", "beach": "ビーチ", "bedroom": "ベッドルーム",
-        "night": "夜", "forest": "森", "sky": "空", "cloud": "雲", "ocean": "海",
+        "night": "夜", "day": "昼", "morning": "朝", "evening": "夕方",
+        "forest": "森", "sky": "空", "cloud": "雲", "ocean": "海",
         "water": "水", "tree": "木", "grass": "草原", "flower": "花",
+        "white_background": "白背景", "simple_background": "シンプル背景",
+        "black_background": "黒背景", "gradient_background": "グラデーション背景",
+        "city": "街", "street": "通り", "park": "公園", "school": "学校",
+        "bedroom": "ベッドルーム", "bed": "ベッド", "bathroom": "浴室",
         "weapon": "武器", "sword": "刀", "katana": "刀", "gun": "銃",
+        "holding": "持つ", "holding_weapon": "武器を持つ", "holding_sword": "刀を持つ",
+        "holding_gun": "銃を持つ", "holding_cigarette": "タバコを持つ",
+        "cigarette": "タバコ", "bandaid": "絆創膏", "bottle": "ボトル",
+        "food": "食べ物", "drink": "飲み物", "book": "本", "phone": "携帯",
         "petite": "ロリ", "loli": "ロリ",
         "flat_chest": "貧乳", "small_breasts": "小ぶり", "medium_breasts": "美乳",
         "fang": "牙", "small_fangs": "牙",
+        "pale_skin": "白肌", "dark_skin": "褐色肌", "tan": "日焼け",
+        "sparkle": "キラキラ", "petals": "花びら", "snow": "雪", "rain": "雨",
+        "fingerless_gloves": "フィンガーレスグローブ",
     },
     "selling_points": [
         {"trigger": ["large_breasts", "huge_breasts", "gigantic_breasts", "oversized_breasts"], "tag": "巨乳", "min_score": 0.5},
@@ -602,6 +637,7 @@ def ensure_runtime_files(script_dir: Path) -> dict[str, Path]:
         "age_rules": script_dir / "pixiv_age_rules.json",
         "jp_aliases": script_dir / "pixiv_jp_aliases.json",
         "general_jp": script_dir / "pixiv_general_jp.json",
+        "danbooru_jp": script_dir / "pixiv_danbooru_jp.json",
         "censor_config": script_dir / "pixiv_censor.json",
         "manifests": script_dir / "manifests",
         "rule_fit_root": rule_fit_root,
@@ -1065,17 +1101,26 @@ TAGGER_SCORE_THRESHOLDS = {
 
 DANBOORU_BASE = "https://danbooru.donmai.us"
 JP_CHAR_RE = re.compile(r"[぀-ゟ゠-ヿ一-鿿]")
+KANA_RE = re.compile(r"[぀-ゟ゠-ヿ]")  # hiragana + katakana only — exclusive to Japanese
 
 
 def _looks_japanese(text: str) -> bool:
     return bool(text) and bool(JP_CHAR_RE.search(text))
 
 
-def _fetch_danbooru_jp_alias(tag: str) -> str | None:
+def _has_kana(text: str) -> bool:
+    """True only if the string contains hiragana or katakana (uniquely JP)."""
+    return bool(text) and bool(KANA_RE.search(text))
+
+
+def _fetch_danbooru_jp_alias(tag: str, strict_kana: bool = False) -> str | None:
     """Look up canonical Japanese form for a Danbooru tag via wiki page.
 
-    Returns the first `other_names` entry that contains hiragana/katakana/kanji.
-    Returns None on miss or any error (caller should cache None to avoid re-hits).
+    `other_names` may contain Chinese (e.g. blue_hair → 蓝发). When
+    `strict_kana=True`, only entries with hiragana or katakana are returned —
+    pure-kanji results are skipped because they could be Chinese. Use strict
+    mode for general tags; loose mode for character/copyright (where many
+    valid JP names are kanji-only, e.g. 東方).
     """
     if not tag or not tag.strip():
         return None
@@ -1092,9 +1137,19 @@ def _fetch_danbooru_jp_alias(tag: str) -> str | None:
             if not isinstance(data, list) or not data:
                 return None
             other_names = data[0].get("other_names") or []
+            kana_hits: list[str] = []
+            kanji_hits: list[str] = []
             for name in other_names:
-                if isinstance(name, str) and _looks_japanese(name):
-                    return name
+                if not isinstance(name, str) or not name.strip():
+                    continue
+                if _has_kana(name):
+                    kana_hits.append(name.strip())
+                elif _looks_japanese(name):
+                    kanji_hits.append(name.strip())
+            if kana_hits:
+                return kana_hits[0]
+            if not strict_kana and kanji_hits:
+                return kanji_hits[0]
             return None
     except Exception as exc:
         log.warning(f"Danbooru wiki lookup 失败 tag={tag!r}: {type(exc).__name__}: {exc}")
@@ -1178,7 +1233,7 @@ def lookup_jp_alias(
     cache: dict[str, Any],
     page=None,
     live: bool = True,
-    wiki_fallback: bool = True,
+    wiki_strict_kana: bool | None = None,
     builtin_map: dict[str, str] | None = None,
 ) -> str | None:
     """Resolve a Danbooru tag's Pixiv-canonical form.
@@ -1187,30 +1242,50 @@ def lookup_jp_alias(
       1. cache (in-session + persisted via pixiv_jp_aliases.json)
       2. builtin_map — curated Danbooru→Pixiv-JP table (pixiv_general_jp.json)
       3. Pixiv ajax (via logged-in `page`) — for character/copyright authority
-      4. Danbooru wiki — character/copyright fallback (wiki_fallback=True only)
+      4. Danbooru wiki — when `wiki_strict_kana` is not None (None = skip wiki).
+         True = only accept hiragana/katakana entries (rejects Chinese kanji);
+         False = also accept pure-kanji entries (needed for 東方 etc).
     """
     if not tag:
         return None
     key = tag.strip()
     if not key:
         return None
+    # 1. Cache (only respect non-empty hits — empty entries shouldn't block
+    # the builtin map, which may have grown since the cache was written).
     if key in cache:
         cached = cache[key]
-        return cached if isinstance(cached, str) and cached else None
-    # 2. builtin map (case-insensitive)
+        if isinstance(cached, str) and cached:
+            return cached
+        cache_seen_empty = True
+    else:
+        cache_seen_empty = False
+    # 2. builtin map (try multiple normalizations: lower-case, no-underscore,
+    # no-space — Danbooru tag-pair dataset stores `thighhighs`/`gardenofeden`
+    # while WD14 emits `thigh_highs` etc.)
     if builtin_map:
-        for k_in_map in (key, key.lower()):
+        kl = key.lower()
+        for k_in_map in (
+            key, kl,
+            kl.replace("_", ""),
+            kl.replace("_", " "),
+            kl.replace(" ", "_"),
+        ):
             v = builtin_map.get(k_in_map)
             if isinstance(v, str) and v.strip():
                 cache[key] = v.strip()
                 return v.strip()
+    # If cache previously recorded "no canonical" we trust that and skip the
+    # network lookups — builtin already had its chance above.
+    if cache_seen_empty:
+        return None
     if not live:
         return None
     found = None
     if page is not None:
         found = _fetch_pixiv_tag_canonical_via_page(page, key)
-    if not found and wiki_fallback:
-        found = _fetch_danbooru_jp_alias(key)
+    if not found and wiki_strict_kana is not None:
+        found = _fetch_danbooru_jp_alias(key, strict_kana=wiki_strict_kana)
     cache[key] = found if found else ""
     return found
 
@@ -1250,7 +1325,16 @@ def build_pixiv_payload(
     if jp_alias_cache is None:
         jp_alias_cache = {}
     general_jp_data = general_jp_data or {}
-    builtin_jp_map = general_jp_data.get("mappings") or {}
+    # Build a chained lookup: user-tunable overrides win, then the bulk
+    # 151k-entry Danbooru→JP dataset (loaded separately in cmd_upload and
+    # injected here via general_jp_data["_danbooru_map"] for simplicity).
+    user_overrides = general_jp_data.get("mappings") or {}
+    bulk_danbooru = general_jp_data.get("_danbooru_map") or {}
+    if user_overrides and bulk_danbooru:
+        builtin_jp_map = dict(bulk_danbooru)
+        builtin_jp_map.update(user_overrides)
+    else:
+        builtin_jp_map = user_overrides or bulk_danbooru
     # normalized_key -> (display, semantic_class, domain_hint, score)
     direct_pass: dict[str, tuple[str, str, str, float]] = {}
     cat_meta = {
@@ -1282,16 +1366,16 @@ def build_pixiv_payload(
             display = tag.strip()
             if not display:
                 continue
-            # Translate priority: builtin map → pixiv ajax → wiki fallback
-            # (latter for character/copyright only, wiki gives noisy results
-            # for generic words).
+            # Translate priority: cache → builtin → pixiv ajax → wiki fallback.
+            # general → strict (kana required, blocks Chinese kanji);
+            # character/copyright → loose (kanji-only forms like 東方 OK).
             if category in jp_lookup_categories:
                 jp_form = lookup_jp_alias(
                     tag,
                     jp_alias_cache,
                     page=pixiv_page,
                     live=live_jp_lookup,
-                    wiki_fallback=(category != "general"),
+                    wiki_strict_kana=(True if category == "general" else False) if live_jp_lookup else None,
                     builtin_map=builtin_jp_map,
                 )
                 if jp_form:
