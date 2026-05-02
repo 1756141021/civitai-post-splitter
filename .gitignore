@@ -26,3 +26,6 @@ models/
 .vscode/
 .idea/
 *.swp
+
+# Update check timestamp (per-machine)
+.last_update_check
