@@ -131,7 +131,11 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
             })}
           </div>
         </div>
-        <div style={{ padding: '10px 18px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <div style={{ padding: '10px 18px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
+                  onClick={() => onConfirm(cmd, [])} title="随机从 upload/ 选 1-5 张，和命令行行为一致">
+            随机 1-5
+          </button>
           <button className="mn-btn" onClick={onCancel}>取消</button>
           <button className="mn-btn mn-btn-accent" onClick={go}
                   disabled={selected.size === 0} style={{ opacity: selected.size === 0 ? 0.5 : 1 }}>
