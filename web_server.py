@@ -105,7 +105,7 @@ def _push_log_line(task_id: str, lvl: str, src: str, msg: str) -> None:
         with TASKS_LOCK:
             if task_id in TASKS:
                 snap = {k: v for k, v in TASKS[task_id].items()
-                        if k not in ("thread", "log_lines", "pending_input")}
+                        if k not in ("thread", "log_lines", "pending_input", "cancel_event")}
         _broadcast_sse("task_update", snap)
 
 
@@ -116,7 +116,7 @@ def _set_task_status(task_id: str, status: str, progress: float | None = None) -
         TASKS[task_id]["status"] = status
         if progress is not None:
             TASKS[task_id]["progress"] = progress
-        snap = {k: v for k, v in TASKS[task_id].items() if k not in ("thread", "log_lines", "pending_input")}
+        snap = {k: v for k, v in TASKS[task_id].items() if k not in ("thread", "log_lines", "pending_input", "cancel_event")}
     _broadcast_sse("task_update", snap)
 
 
@@ -300,7 +300,7 @@ def api_run(cmd):
     }
     with TASKS_LOCK:
         TASKS[task_id] = task
-    snap = {k: v for k, v in task.items() if k not in ("thread", "log_lines", "pending_input")}
+    snap = {k: v for k, v in task.items() if k not in ("thread", "log_lines", "pending_input", "cancel_event")}
     _broadcast_sse("task_update", snap)
 
     t = threading.Thread(target=_run_task, args=(task_id, cmd, params), daemon=True)
@@ -313,7 +313,7 @@ def api_run(cmd):
 def api_tasks():
     with TASKS_LOCK:
         result = [
-            {k: v for k, v in t.items() if k not in ("thread", "log_lines", "pending_input")}
+            {k: v for k, v in t.items() if k not in ("thread", "log_lines", "pending_input", "cancel_event")}
             for t in TASKS.values()
         ]
     return jsonify(result)
@@ -436,7 +436,7 @@ def api_stream():
         # Push current state snapshot on connect
         with TASKS_LOCK:
             all_tasks = [
-                {k: v for k, v in t.items() if k not in ("thread", "log_lines", "pending_input")}
+                {k: v for k, v in t.items() if k not in ("thread", "log_lines", "pending_input", "cancel_event")}
                 for t in TASKS.values()
             ]
             recent_logs = []
