@@ -28,24 +28,51 @@ function InputPromptOverlay({ prompt, task_id, onSubmit }) {
 }
 
 function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
-  const [images,   setImages]   = React.useState([]);
-  const [selected, setSelected] = React.useState(new Set());
-  const [loading,  setLoading]  = React.useState(true);
+  const [images,    setImages]    = React.useState([]);
+  const [selected,  setSelected]  = React.useState(new Set());
+  const [loading,   setLoading]   = React.useState(true);
+  const [uploading, setUploading] = React.useState(false);
+  const fileInputRef = React.useRef(null);
   const label = cmd === 2 ? 'Dual upload (Civitai + Pixiv)' : 'Pixiv only';
 
-  React.useEffect(() => {
+  const loadImages = () =>
     fetch('/api/images').then(r => r.json()).then(list => {
       setImages(list);
-      setSelected(new Set(list.map(f => f.name)));
+      setSelected(prev => {
+        const existing = new Set([...prev].filter(n => list.some(f => f.name === n)));
+        list.forEach(f => { if (!prev.size) existing.add(f.name); });
+        return prev.size === 0 ? new Set(list.map(f => f.name)) : existing;
+      });
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+
+  React.useEffect(() => { loadImages(); }, []);
 
   const toggle = name => setSelected(prev => {
     const next = new Set(prev);
     if (next.has(name)) next.delete(name); else next.add(name);
     return next;
   });
+
+  const addFiles = async e => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f));
+    await fetch('/api/add-upload-files', { method: 'POST', body: fd });
+    const newNames = files.map(f => f.name);
+    await fetch('/api/images').then(r => r.json()).then(list => {
+      setImages(list);
+      setSelected(prev => {
+        const next = new Set(prev);
+        newNames.forEach(n => next.add(n));
+        return next;
+      });
+    });
+    setUploading(false);
+    e.target.value = '';
+  };
 
   const go = () => {
     const files = images.filter(f => selected.has(f.name)).map(f => f.name);
@@ -58,14 +85,21 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
         <div style={{ padding: '14px 18px 10px', borderBottom: `1px solid ${M.line}` }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>{label}</div>
           <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>
-            {loading ? '加载中…' : `${images.length} 张图 · 已选 ${selected.size} 张`}
+            {loading ? '加载中…' : `upload/ 共 ${images.length} 张 · 已选 ${selected.size} 张`}
           </div>
         </div>
-        <div style={{ padding: '8px 18px', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', gap: 8 }}>
+        <div style={{ padding: '8px 18px', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
                   onClick={() => setSelected(new Set(images.map(f => f.name)))}>全选</button>
           <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
                   onClick={() => setSelected(new Set())}>清空</button>
+          <div style={{ marginLeft: 'auto' }}>
+            <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={addFiles} />
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                    onClick={() => fileInputRef.current.click()} disabled={uploading}>
+              <MIcon name="plus" size={12} /> {uploading ? '导入中…' : '添加文件'}
+            </button>
+          </div>
         </div>
         <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>
           {loading && (
@@ -73,7 +107,7 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
           )}
           {!loading && images.length === 0 && (
             <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>
-              upload/ 目录为空，没有可上传的图片。
+              upload/ 为空。点"添加文件"从电脑上选图。
             </div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
@@ -118,6 +152,7 @@ function MonoSingleApp() {
   const [pendingInput, setPendingInput] = React.useState(null);
   const [uploadDialog, setUploadDialog] = React.useState(null);
   const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false });
+  const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
 
   React.useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 800);
@@ -127,6 +162,13 @@ function MonoSingleApp() {
   React.useEffect(() => {
     fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
   }, []);
+
+  React.useEffect(() => {
+    const t = isDark ? _DARK : _LIGHT;
+    Object.assign(M, t);
+    updateCssVars(M);
+    localStorage.setItem('mn-theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
 
   React.useEffect(() => {
     const es = new EventSource('/api/stream');
@@ -146,8 +188,9 @@ function MonoSingleApp() {
       setTasks(prev => prev.filter(t => t.id !== id));
     });
     es.addEventListener('input_required', e => setPendingInput(JSON.parse(e.data)));
-    es.onopen  = () => setConnected(true);
-    es.onerror = () => setConnected(false);
+    let errTimer = null;
+    es.onopen  = () => { clearTimeout(errTimer); setConnected(true); };
+    es.onerror = () => { errTimer = setTimeout(() => { if (es.readyState !== 1) setConnected(false); }, 2000); };
     return () => es.close();
   }, []);
 
@@ -218,6 +261,10 @@ function MonoSingleApp() {
             R-18 mosaic {status.mosaic_installed ? 'ON' : 'OFF'}
           </span>
           <span className="mn-chip">upload/ {status.upload_count} imgs</span>
+          <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 8px' }}
+                  onClick={() => setIsDark(d => !d)} title={isDark ? '切换日间模式' : '切换夜间模式'}>
+            <MIcon name={isDark ? 'sun' : 'moon'} size={14} />
+          </button>
         </div>
       </header>
 

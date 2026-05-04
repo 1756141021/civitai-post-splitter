@@ -6,24 +6,28 @@
 // One-time CSS injection lives at the bottom — guarded by an id check so
 // re-loading the file in dev never duplicates the <style> tag.
 
+const _LIGHT = { bg:'#fafaf7', bg2:'#f3f2ed', panel:'#ffffff', ink:'#171513', ink2:'#3a3733', inkDim:'#6b6660', inkFaint:'#a39d95', line:'#e6e3dc', lineSoft:'#efece5', accent:'#e2552b', accentSoft:'#fde9df', ok:'#2f7d3a', warn:'#a36a00', red:'#b13b2c' };
+const _DARK  = { bg:'#0f0e0d', bg2:'#191816', panel:'#141312', ink:'#ede8e0', ink2:'#c4bdb3', inkDim:'#7d7570', inkFaint:'#4d4843', line:'#282521', lineSoft:'#1f1d1b', accent:'#e2552b', accentSoft:'#3d1a0a', ok:'#3ab54d', warn:'#c07a00', red:'#d04535' };
+
 const M = {
-  bg:        '#fafaf7',
-  bg2:       '#f3f2ed',
-  panel:     '#ffffff',
-  ink:       '#171513',
-  ink2:      '#3a3733',
-  inkDim:    '#6b6660',
-  inkFaint:  '#a39d95',
-  line:      '#e6e3dc',
-  lineSoft:  '#efece5',
-  accent:    '#e2552b',
-  accentSoft:'#fde9df',
-  ok:        '#2f7d3a',
-  warn:      '#a36a00',
-  red:       '#b13b2c',
+  ..._LIGHT,
   display: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
   mono:    '"IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace',
 };
+
+function updateCssVars(t) {
+  if (typeof document === 'undefined') return;
+  const r = document.documentElement;
+  ['bg','bg2','panel','ink','ink2','inkDim','inkFaint','line','lineSoft','accent','accentSoft','ok','warn','red']
+    .forEach(k => r.style.setProperty('--mn-' + k, t[k]));
+  r.style.setProperty('--mn-ink2a', t.ink2 + '33');
+  r.style.setProperty('--mn-inka',  t.ink  + '10');
+}
+
+// Apply saved theme before first render to avoid flash
+if (typeof localStorage !== 'undefined' && localStorage.getItem('mn-theme') === 'dark') {
+  Object.assign(M, _DARK);
+}
 
 // ─── Stroke icons ─────────────────────────────────────────────
 function TIcon({ name, size = 16, color = "currentColor" }) {
@@ -39,6 +43,9 @@ function TIcon({ name, size = 16, color = "currentColor" }) {
     case "stop":    return <svg {...p}><rect x="5" y="5" width="14" height="14" rx="2"/></svg>;
     case "x":       return <svg {...p}><path d="M6 6l12 12M18 6L6 18"/></svg>;
     case "folder":  return <svg {...p}><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>;
+    case "sun":     return <svg {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
+    case "moon":    return <svg {...p}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>;
+    case "plus":    return <svg {...p}><path d="M12 5v14M5 12h14"/></svg>;
     default: return null;
   }
 }
@@ -145,44 +152,45 @@ if (typeof document !== 'undefined' && !document.getElementById('mono-styles')) 
   s.id = 'mono-styles';
   s.textContent = `
     html, body, #root { height: 100%; margin: 0; padding: 0; }
-    body { background:${M.bg2}; font-family:${M.display}; color:${M.ink}; }
+    body { background:var(--mn-bg2); font-family:${M.display}; color:var(--mn-ink); }
     *, *::before, *::after { box-sizing: border-box; }
 
     .mn-mono { font-family:${M.mono}; }
     .mn-num  { font-variant-numeric: tabular-nums; }
-    .mn-btn  { font-family:${M.display}; font-size:13px; font-weight:500; padding:8px 14px; border-radius:6px; border:1px solid ${M.line}; background:${M.panel}; color:${M.ink}; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition: all .12s; }
-    .mn-btn:hover { background:${M.bg2}; border-color:${M.ink2}33; }
-    .mn-btn-accent { background:${M.accent}; border-color:${M.accent}; color:#fff; }
+    .mn-btn  { font-family:${M.display}; font-size:13px; font-weight:500; padding:8px 14px; border-radius:6px; border:1px solid var(--mn-line); background:var(--mn-panel); color:var(--mn-ink); cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition: all .12s; }
+    .mn-btn:hover { background:var(--mn-bg2); border-color:var(--mn-ink2a); }
+    .mn-btn-accent { background:var(--mn-accent); border-color:var(--mn-accent); color:#fff; }
     .mn-btn-accent:hover { background:#cc4a23; border-color:#cc4a23; }
-    .mn-btn-ghost { background:transparent; border-color:transparent; color:${M.inkDim}; }
-    .mn-btn-ghost:hover { background:${M.bg2}; color:${M.ink}; }
-    .mn-input { font-family:${M.mono}; background:${M.panel}; border:1px solid ${M.line}; color:${M.ink}; padding:8px 11px; border-radius:6px; font-size:12.5px; outline:none; }
-    .mn-input:focus { border-color:${M.ink}; box-shadow: 0 0 0 3px ${M.ink}10; }
-    .mn-chip { display:inline-flex; align-items:center; gap:6px; font-family:${M.mono}; font-size:10.5px; padding:3px 8px; border-radius:4px; border:1px solid ${M.line}; color:${M.inkDim}; background:${M.panel}; letter-spacing:.04em; }
-    .mn-progress { height:4px; background:${M.bg2}; border-radius:0; overflow:hidden; }
-    .mn-progress > div { height:100%; background:${M.ink}; transition: width .4s ease; }
-    .mn-progress.idle > div { background:${M.line}; }
-    .mn-progress.done > div { background:${M.ok}; }
-    .mn-progress.fail > div { background:${M.red}; }
-    .mn-progress.accent > div { background:${M.accent}; }
+    .mn-btn-ghost { background:transparent; border-color:transparent; color:var(--mn-inkDim); }
+    .mn-btn-ghost:hover { background:var(--mn-bg2); color:var(--mn-ink); }
+    .mn-input { font-family:${M.mono}; background:var(--mn-panel); border:1px solid var(--mn-line); color:var(--mn-ink); padding:8px 11px; border-radius:6px; font-size:12.5px; outline:none; }
+    .mn-input:focus { border-color:var(--mn-ink); box-shadow: 0 0 0 3px var(--mn-inka); }
+    .mn-chip { display:inline-flex; align-items:center; gap:6px; font-family:${M.mono}; font-size:10.5px; padding:3px 8px; border-radius:4px; border:1px solid var(--mn-line); color:var(--mn-inkDim); background:var(--mn-panel); letter-spacing:.04em; }
+    .mn-progress { height:4px; background:var(--mn-bg2); border-radius:0; overflow:hidden; }
+    .mn-progress > div { height:100%; background:var(--mn-ink); transition: width .4s ease; }
+    .mn-progress.idle > div { background:var(--mn-line); }
+    .mn-progress.done > div { background:var(--mn-ok); }
+    .mn-progress.fail > div { background:var(--mn-red); }
+    .mn-progress.accent > div { background:var(--mn-accent); }
     .mn-h1 { font-family:${M.display}; font-weight:700; letter-spacing:-.025em; line-height:1; }
     .mn-h2 { font-family:${M.display}; font-weight:600; letter-spacing:-.015em; }
     .mn-row-hover { transition: background .1s; }
-    .mn-row-hover:hover { background:${M.bg2}; }
+    .mn-row-hover:hover { background:var(--mn-bg2); }
 
-    .ms-section-label { font-family:${M.mono}; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:${M.inkFaint}; }
+    .ms-section-label { font-family:${M.mono}; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--mn-inkFaint); }
     .ms-scroll { overflow:auto; }
     .ms-scroll::-webkit-scrollbar { width:8px; height:8px; }
-    .ms-scroll::-webkit-scrollbar-thumb { background:${M.line}; border-radius:4px; }
+    .ms-scroll::-webkit-scrollbar-thumb { background:var(--mn-line); border-radius:4px; }
     .ms-op { padding:14px 14px; cursor:pointer; transition:background .12s; display:flex; flex-direction:column; min-height:108px; }
-    .ms-op:hover { background:${M.bg2}; }
-    .ms-op-key { font-family:${M.mono}; font-size:10px; color:${M.inkFaint}; letter-spacing:.12em; }
+    .ms-op:hover { background:var(--mn-bg2); }
+    .ms-op-key { font-family:${M.mono}; font-size:10px; color:var(--mn-inkFaint); letter-spacing:.12em; }
     @keyframes ms-pulse { 0%,100% { opacity:.45 } 50% { opacity:1 } }
     .ms-pulse { animation: ms-pulse 1.4s ease-in-out infinite; }
 
-    .ms-root { font-family:${M.display}; color:${M.ink}; background:${M.bg}; height:100%; width:100%; display:flex; flex-direction:column; overflow:hidden; }
+    .ms-root { font-family:${M.display}; color:var(--mn-ink); background:var(--mn-bg); height:100%; width:100%; display:flex; flex-direction:column; overflow:hidden; }
   `;
   document.head.appendChild(s);
+  updateCssVars(M);
 }
 
-Object.assign(window, { M, TIcon, MIcon, MOCK_TASKS: [], MOCK_LOG: [], MonoChannel, MonoTaskRow });
+Object.assign(window, { M, _LIGHT, _DARK, updateCssVars, TIcon, MIcon, MOCK_TASKS: [], MOCK_LOG: [], MonoChannel, MonoTaskRow });

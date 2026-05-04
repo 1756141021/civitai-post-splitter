@@ -368,6 +368,20 @@ def upload_file(filename):
     return send_from_directory(SCRIPT_DIR / "upload", filename)
 
 
+@app.route("/api/add-upload-files", methods=["POST"])
+def api_add_upload_files():
+    upload_dir = SCRIPT_DIR / "upload"
+    upload_dir.mkdir(exist_ok=True)
+    saved = []
+    for f in request.files.getlist("files"):
+        if f.filename:
+            fname = Path(f.filename).name
+            dest = upload_dir / fname
+            f.save(str(dest))
+            saved.append(fname)
+    return jsonify({"saved": saved})
+
+
 @app.route("/api/open-folder")
 def api_open_folder():
     upload_dir = SCRIPT_DIR / "upload"
