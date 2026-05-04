@@ -17,8 +17,8 @@ import httpx
 from PIL import Image, PngImagePlugin
 from playwright.sync_api import sync_playwright
 
-from pixiv_censor import CensorEngine, DEFAULT_CENSOR_CLASSES, parse_class_set
-from pixiv_support import (
+from pixiv.censor import CensorEngine, DEFAULT_CENSOR_CLASSES, parse_class_set
+from pixiv.support import (
     HainTagBridge,
     HainTagTaggerBridge,
     append_validation_case,
@@ -353,6 +353,10 @@ def safe_goto(page, url, wait=5):
 def ensure_on_create_page(page):
     safe_goto(page, f"{CIVITAI_BASE}/posts/create", wait=5)
     if "/login" in page.url or "signin" in page.url:
+        try:
+            page.evaluate("window.moveTo(100, 100); window.resizeTo(1280, 800);")
+        except Exception:
+            pass
         log.warning("未登录。请在浏览器里登录 Civitai，然后按 Enter 继续...")
         input()
         safe_goto(page, f"{CIVITAI_BASE}/posts/create", wait=5)
@@ -360,12 +364,28 @@ def ensure_on_create_page(page):
             log.warning("仍未登录。请确认登录后再按 Enter...")
             input()
             safe_goto(page, f"{CIVITAI_BASE}/posts/create", wait=5)
+        try:
+            page.evaluate("window.moveTo(-32000, -32000);")
+        except Exception:
+            pass
 
 
 def create_civitai_post(page, image_path: Path, delay: float) -> str | None:
     ensure_on_create_page(page)
 
-    file_input = page.locator('input[type="file"]').first
+    # Wait for file input to appear — safe_goto uses wait_until="commit" which
+    # only waits for response headers, so the DOM may still be loading.
+    file_input = None
+    for _ in range(12):
+        loc = page.locator('input[type="file"]')
+        if loc.count() > 0:
+            file_input = loc.first
+            break
+        time.sleep(1)
+    if file_input is None:
+        log.error("    未找到文件上传输入框（页面可能未加载完成），跳过")
+        return None
+
     try:
         file_input.set_input_files(str(image_path))
     except Exception as exc:
@@ -745,14 +765,23 @@ def cmd_upload(args):
             )
         else:
             log.info("自动打码: 未启用（如需放模型到 models/auto_censor.pt + pip install ultralytics opencv-python）")
-    requested = max(0, int(args.count or 0))
-    if requested > 0:
-        count = min(requested, len(all_images))
-        mode_desc = f"按指定数量选 {count} 张"
+    selected_names = getattr(args, "files", None) or []
+    if selected_names:
+        name_lower = {n.lower() for n in selected_names}
+        image_files = [f for f in all_images if f.name.lower() in name_lower]
+        if not image_files:
+            log.warning("指定的文件不在 upload/ 目录，改用随机选取")
+            image_files = random.sample(all_images, min(random.randint(1, 5), len(all_images)))
+        mode_desc = f"指定 {len(image_files)} 张"
     else:
-        count = min(random.randint(1, 5), len(all_images))
-        mode_desc = f"随机选 {count} 张"
-    image_files = random.sample(all_images, count)
+        requested = max(0, int(args.count or 0))
+        if requested > 0:
+            count = min(requested, len(all_images))
+            mode_desc = f"按指定数量选 {count} 张"
+        else:
+            count = min(random.randint(1, 5), len(all_images))
+            mode_desc = f"随机选 {count} 张"
+        image_files = random.sample(all_images, count)
     log.info(f"upload/ 有 {len(all_images)} 张图片，本次{mode_desc}上传。目标：{targets}\n")
 
     temp_dir = make_temp_dir("civitai_upload_")

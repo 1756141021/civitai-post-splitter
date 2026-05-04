@@ -629,21 +629,23 @@ DEFAULT_CENSOR_CONFIG = {
 
 
 def ensure_runtime_files(script_dir: Path) -> dict[str, Path]:
-    rule_fit_root = script_dir / "pixiv_rule_fit"
+    pixiv_dir = script_dir / "pixiv"
+    pixiv_dir.mkdir(exist_ok=True)
+    rule_fit_root = pixiv_dir / "rule_fit"
     files = {
-        "aliases": script_dir / "pixiv_tag_aliases.json",
-        "popularity": script_dir / "pixiv_tag_popularity.json",
-        "validation": script_dir / "pixiv_validation_cases.json",
-        "age_rules": script_dir / "pixiv_age_rules.json",
-        "jp_aliases": script_dir / "pixiv_jp_aliases.json",
-        "general_jp": script_dir / "pixiv_general_jp.json",
-        "danbooru_jp": script_dir / "pixiv_danbooru_jp.json",
-        "censor_config": script_dir / "pixiv_censor.json",
-        "manifests": script_dir / "manifests",
-        "rule_fit_root": rule_fit_root,
-        "rule_fit_samples": rule_fit_root / "samples",
+        "aliases":      pixiv_dir / "tag_aliases.json",
+        "popularity":   pixiv_dir / "tag_popularity.json",
+        "validation":   pixiv_dir / "validation_cases.json",
+        "age_rules":    pixiv_dir / "age_rules.json",
+        "jp_aliases":   pixiv_dir / "jp_aliases.json",
+        "general_jp":   pixiv_dir / "general_jp.json",
+        "danbooru_jp":  pixiv_dir / "danbooru_jp.json",
+        "censor_config": pixiv_dir / "censor.json",
+        "manifests":    script_dir / "manifests",
+        "rule_fit_root":      rule_fit_root,
+        "rule_fit_samples":   rule_fit_root / "samples",
         "rule_fit_manifests": rule_fit_root / "manifests",
-        "rule_fit_reports": rule_fit_root / "reports",
+        "rule_fit_reports":   rule_fit_root / "reports",
     }
     for key in ("manifests", "rule_fit_root", "rule_fit_samples", "rule_fit_manifests", "rule_fit_reports"):
         files[key].mkdir(exist_ok=True)
@@ -2945,6 +2947,7 @@ def create_pixiv_post(
         'iframe[title*="captcha" i]',
     ]
     captcha_detected = False
+    captcha_grace = time.time() + 6  # give 6 s for normal redirect before captcha detection
     deadline = time.time() + 30
     while time.time() < deadline:
         time.sleep(1.5)
@@ -2963,17 +2966,8 @@ def create_pixiv_post(
             time.sleep(delay)
             record(PixivStep("redirect", True, detail=f"left upload page url={url}"))
             return url, steps
-        # Captcha detection: pixiv pops hCaptcha on some posts.
-        # Only trigger if we're still on the upload/create page AND a real
-        # hCaptcha iframe is present — avoids false positives on the success
-        # modal (which shares the same URL while visible).
-        if not captcha_detected and upload_in_url:
-            if _first_visible_locator(page, captcha_selectors) is not None:
-                captcha_detected = True
-                log.warning("    pixiv: 触发人机验证！在浏览器里完成验证 → 点'投稿'，脚本等你 5 分钟")
-                deadline = time.time() + 300
-                _alert_captcha(page)
-        # Form gone? (file input no longer in DOM) — also a success indicator
+        # Form gone? (file input no longer in DOM) — success indicator.
+        # Check BEFORE captcha to avoid false positives during the success modal.
         try:
             if _first_visible_locator(page, PIXIV_SELECTORS["file_input"]) is None:
                 time.sleep(delay)
@@ -2981,6 +2975,13 @@ def create_pixiv_post(
                 return url, steps
         except Exception:
             pass
+        # Captcha detection: only after grace period so normal redirects finish first.
+        if not captcha_detected and upload_in_url and time.time() > captcha_grace:
+            if _first_visible_locator(page, captcha_selectors) is not None:
+                captcha_detected = True
+                log.warning("    pixiv: 触发人机验证！在浏览器里完成验证 → 点'投稿'，脚本等你 5 分钟")
+                deadline = time.time() + 300
+                _alert_captcha(page)
     timeout_msg = (
         "5 分钟内未检测到跳转/表单卸载（人机验证未完成？）"
         if captcha_detected

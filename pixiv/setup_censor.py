@@ -19,7 +19,7 @@ import zipfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
-MODEL_DIR = SCRIPT_DIR / "models"
+MODEL_DIR = SCRIPT_DIR.parent / "models"
 MODEL_PATH = MODEL_DIR / "auto_censor.pt"
 CIVITAI_MODEL_VERSION_ID = "1965032"
 CIVITAI_DOWNLOAD_URL = f"https://civitai.com/api/download/models/{CIVITAI_MODEL_VERSION_ID}"

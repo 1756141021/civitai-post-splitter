@@ -142,6 +142,20 @@
         "ワンピース": 0
       },
       "updated_at": ""
+    },
+    "bed": {
+      "winner": "ベッド",
+      "counts": {
+        "ベッド": 0
+      },
+      "updated_at": ""
+    },
+    "bikini": {
+      "winner": "ビキニ",
+      "counts": {
+        "ビキニ": 0
+      },
+      "updated_at": ""
     }
   }
 }

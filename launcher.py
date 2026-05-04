@@ -1,6 +1,7 @@
 """Interactive launcher menu. Single entry point for all functions."""
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -8,7 +9,19 @@ import time
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
-DEFAULT_API_KEY = ""  # 用户可以填自己的；github 发布版留空
+
+
+def _read_config_key() -> str:
+    cfg_file = SCRIPT_DIR / "config.json"
+    if cfg_file.exists():
+        try:
+            return json.loads(cfg_file.read_text(encoding="utf-8")).get("api_key", "")
+        except Exception:
+            pass
+    return ""
+
+
+DEFAULT_API_KEY = os.environ.get("CIVITAI_API_KEY", "") or _read_config_key()
 
 LAST_UPDATE_CHECK_FILE = SCRIPT_DIR / ".last_update_check"
 UPDATE_CHECK_INTERVAL_HOURS = 24  # 最多 24 小时检一次，避免每次启动联网
@@ -142,7 +155,7 @@ def cmd_upload_pixiv() -> None:
 
 
 def cmd_setup_censor() -> None:
-    run(["setup_censor.py"])
+    run([str(Path("pixiv") / "setup_censor.py")])
 
 
 def cmd_check_update() -> None:
