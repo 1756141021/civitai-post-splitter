@@ -2796,6 +2796,9 @@ def _record_step(steps: list[PixivStep], page, log_dir: Path | None, step: Pixiv
         if capture:
             step.detail = (step.detail + f" | {capture}").strip(" |")
         log.error(f"    pixiv: {step.name} ✗ [{step.reason}] {step.detail}")
+    # Small random pause after every recorded operation — reduces fingerprint
+    # similarity across requests and lowers risk of triggering Pixiv's bot check.
+    time.sleep(random.uniform(0.1, 0.5))
     return step
 
 
