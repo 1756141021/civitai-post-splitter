@@ -808,7 +808,11 @@ def cmd_upload(args):
         if playwright is not None and "pixiv" in targets:
             pixiv_context, pixiv_page = open_pixiv_browser(playwright)
 
+        _cancel_ev = getattr(args, "cancel_event", None)
         for index, orig_path in enumerate(image_files, 1):
+            if _cancel_ev and _cancel_ev.is_set():
+                log.info("收到取消信号，停止上传")
+                break
             log.info(f"[{index}/{len(image_files)}] {orig_path.name}")
             prior_successes = find_target_successes(files["manifests"], orig_path)
             skip_targets = {t for t in targets if t in prior_successes}

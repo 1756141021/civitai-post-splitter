@@ -175,8 +175,13 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
     builtins.input = _WebInput(task_id)
 
     cs_logger = logging.getLogger("civitai_splitter")
+    cs_logger.setLevel(logging.DEBUG)
     sse_handler = _SseLogHandler(task_id)
+    sse_handler.setFormatter(logging.Formatter('%(message)s'))
     cs_logger.addHandler(sse_handler)
+
+    with TASKS_LOCK:
+        cancel_event = TASKS[task_id].get("cancel_event")
 
     _set_task_status(task_id, "running")
     try:
@@ -201,6 +206,7 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 pixiv_allow_tag_edits="false",
                 pixiv_max_retries=1,
                 abort_after_failures=3,
+                cancel_event=cancel_event,
             )
             cmd_upload(args)
 
@@ -216,6 +222,7 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 pixiv_allow_tag_edits="false",
                 pixiv_max_retries=1,
                 abort_after_failures=3,
+                cancel_event=cancel_event,
             )
             cmd_upload(args)
 
@@ -240,7 +247,11 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
             import launcher as _launcher
             _launcher.cmd_check_update()
 
-        _set_task_status(task_id, "done", 1.0)
+        if cancel_event and cancel_event.is_set():
+            _push_log_line(task_id, "INFO", "worker", "任务已取消")
+            _set_task_status(task_id, "failed")
+        else:
+            _set_task_status(task_id, "done", 1.0)
 
     except Exception as exc:
         _push_log_line(task_id, "ERR", "worker", f"Task error: {exc}")
@@ -281,6 +292,7 @@ def api_run(cmd):
         "eta":        "—",
         "cmd":        cmd,
         "cancel_flag": False,
+        "cancel_event": threading.Event(),
         "created_at": datetime.now().strftime("%H:%M:%S"),
         "log_lines":  [],
         "pending_input": None,
@@ -313,6 +325,9 @@ def api_cancel(task_id):
         if task_id not in TASKS:
             return jsonify({"error": "not found"}), 404
         TASKS[task_id]["cancel_flag"] = True
+        ev = TASKS[task_id].get("cancel_event")
+    if ev:
+        ev.set()
     return jsonify({"ok": True})
 
 

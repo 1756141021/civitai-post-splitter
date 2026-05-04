@@ -2975,6 +2975,14 @@ def create_pixiv_post(
                 return url, steps
         except Exception:
             pass
+        # Success modal text ("作品投稿成功") — appears while URL is still the upload page.
+        try:
+            if page.locator('text=作品投稿成功').count() > 0:
+                time.sleep(delay)
+                record(PixivStep("redirect", True, detail=f"success modal text detected url={url}"))
+                return url, steps
+        except Exception:
+            pass
         # Captcha detection: only after grace period so normal redirects finish first.
         if not captcha_detected and upload_in_url and time.time() > captcha_grace:
             if _first_visible_locator(page, captcha_selectors) is not None:
