@@ -2932,12 +2932,14 @@ def create_pixiv_post(
     #   - URL no longer contains upload.php / illustration/create
     #   - file input gone (form unmounted) — page transitioned away from upload form
     artwork_re = re.compile(r"/artworks/\d+")
+    # Only match actual hCaptcha iframes — the broad div:has-text("安全检查")
+    # was firing false positives on Pixiv's footer/disclaimer text even on the
+    # success page. Require being still on the upload/create page too.
     captcha_selectors = [
         'iframe[src*="hcaptcha"]',
-        'iframe[src*="captcha"]',
-        'div:has-text("安全检查")',
-        'div:has-text("セキュリティチェック")',
-        'div:has-text("Security check")',
+        'iframe[src*="newcaptcha"]',
+        'iframe[title*="hCaptcha"]',
+        'iframe[title*="captcha" i]',
     ]
     captcha_detected = False
     deadline = time.time() + 30
@@ -2958,9 +2960,11 @@ def create_pixiv_post(
             time.sleep(delay)
             record(PixivStep("redirect", True, detail=f"left upload page url={url}"))
             return url, steps
-        # Captcha detection: pixiv pops hCaptcha (安全检查) on some posts.
-        # Script can't solve it; extend deadline so user can do it manually.
-        if not captcha_detected:
+        # Captcha detection: pixiv pops hCaptcha on some posts.
+        # Only trigger if we're still on the upload/create page AND a real
+        # hCaptcha iframe is present — avoids false positives on the success
+        # modal (which shares the same URL while visible).
+        if not captcha_detected and upload_in_url:
             if _first_visible_locator(page, captcha_selectors) is not None:
                 captcha_detected = True
                 log.warning("    pixiv: 触发人机验证！在浏览器里完成验证 → 点'投稿'，脚本等你 5 分钟")
