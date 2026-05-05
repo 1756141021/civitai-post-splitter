@@ -750,6 +750,10 @@ def cmd_upload(args):
     popularity_data = load_json(files["popularity"], {})
     age_rules = load_json(files["age_rules"], {})
     hain_bridge, tagger_bridge = _make_bridges()
+    _tagger_probe = getattr(tagger_bridge, "_model_dir", None)
+    if "pixiv" in getattr(args, "targets", ""):
+        if not _tagger_probe:
+            log.info("WD14 tagger: 未配置 model_dir，将仅用 prompt/文件名候选（可在 web 设置面板或 launcher [6] 配置）")
     jp_alias_cache = load_json(files["jp_aliases"], {})
     general_jp_data = load_json(files["general_jp"], {})
     danbooru_jp_map = load_json(files["danbooru_jp"], {})
@@ -874,7 +878,7 @@ def cmd_upload(args):
             # Persist any new JP aliases learned during this image's payload build
             save_json(files["jp_aliases"], jp_alias_cache)
             tagger_status = manifest.get("pixiv", {}).get("tagger", {}).get("status", "disabled")
-            if "pixiv" in targets and tagger_status not in {"ok", "disabled", "haintag_root_missing"}:
+            if "pixiv" in targets and tagger_status not in {"ok", "disabled", "haintag_root_missing", "model_dir_not_configured", "onnxruntime_not_installed"}:
                 log.warning(f"    tagger 不可用: {tagger_status}（继续上传，仅用 prompt/文件名候选）")
             manifest["dry_run"] = bool(args.dry_run)
             write_manifest(manifest_path, manifest)
