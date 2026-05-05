@@ -164,24 +164,27 @@ function TaggerSetupDialog({ onClose }) {
     }).catch(() => {});
   }, []);
 
-  const verify = () =>
-    fetch('/api/tagger-config').then(r => r.json()).then(d => {
-      setHaintagOk(d.haintag_ok);
-      setModelOk(d.model_ok);
-    }).catch(() => {});
-
-  const save = () => {
+  // POST current inputs → server saves + checks paths → update ok indicators
+  const postAndVerify = (closeAfter) => {
     setSaving(true);
     fetch('/api/tagger-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ haintag_root: haintag, model_dir: modelDir }),
-    }).then(r => r.json()).then(() => {
-      setSaving(false);
-      setSaved(true);
-      verify();
-      setTimeout(() => { setSaved(false); onClose(true); }, 1000);
-    }).catch(() => setSaving(false));
+    })
+      .then(r => r.json())
+      .then(() => fetch('/api/tagger-config'))
+      .then(r => r.json())
+      .then(d => {
+        setSaving(false);
+        setHaintagOk(d.haintag_ok);
+        setModelOk(d.model_ok);
+        if (closeAfter) {
+          setSaved(true);
+          setTimeout(() => { setSaved(false); onClose(true); }, 900);
+        }
+      })
+      .catch(() => setSaving(false));
   };
 
   const dismiss = () => {
@@ -191,49 +194,57 @@ function TaggerSetupDialog({ onClose }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 520, padding: '20px 24px' }}>
+      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 540, padding: '20px 24px' }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Tagger setup (WD14)</div>
         <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 18 }}>
           Both fields are optional — uploads still work without them.
         </div>
 
-        <div style={{ marginBottom: 14 }}>
+        {/* haintag root */}
+        <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
             <span style={{ fontSize: 12.5 }}>haintag root</span>
             <span className="mn-mono" style={{ marginLeft: 6, fontSize: 10.5, color: M.inkFaint }}>optional</span>
             {haintagOk !== null && (
               <span style={{ marginLeft: 'auto', fontSize: 11, color: haintagOk ? M.ok : M.red }}>
-                {haintagOk ? '✓ found' : '✗ not found'}
+                {haintagOk ? '✓ native_app/tagger.py found' : '✗ native_app/tagger.py not found'}
               </span>
             )}
           </div>
           <input className="mn-input" value={haintag} onChange={e => setHaintag(e.target.value)}
                  placeholder="e.g. E:\projects\haintag" style={{ width: '100%', fontSize: 12 }} />
-          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 3 }}>
-            Uses TaggerEngine via haintag. Leave empty to use standalone onnxruntime instead.
+          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
+            The folder that contains <span style={{ color: M.ink2 }}>native_app/tagger.py</span> (haintag repo root).<br />
+            Uses TaggerEngine subprocess mode — haintag's own venv handles onnxruntime.<br />
+            Leave empty → standalone mode (needs onnxruntime in current env).
           </div>
         </div>
 
+        {/* model directory */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
             <span style={{ fontSize: 12.5 }}>model directory</span>
             {modelOk !== null && (
               <span style={{ marginLeft: 'auto', fontSize: 11, color: modelOk ? M.ok : M.red }}>
-                {modelOk ? '✓ model found' : modelDir ? '✗ model not found' : '—'}
+                {modelOk ? '✓ .onnx + mapping found' : modelDir ? '✗ .onnx or mapping not found' : '—'}
               </span>
             )}
           </div>
           <input className="mn-input" value={modelDir} onChange={e => setModelDir(e.target.value)}
                  placeholder="e.g. E:\ComfyUI\models\onnx\cl_tagger" style={{ width: '100%', fontSize: 12 }} />
-          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 3 }}>
-            Needs a .onnx model file + tag mapping .json or .csv in the same folder.
+          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
+            Must contain: <span style={{ color: M.ink2 }}>*.onnx</span> (model file, e.g. <span style={{ color: M.ink2 }}>cl_tagger_1_02.onnx</span>)<br />
+            + <span style={{ color: M.ink2 }}>*tag*mapping*.json</span> or <span style={{ color: M.ink2 }}>*label*.json</span> or <span style={{ color: M.ink2 }}>*tag*.csv</span> (tag list).<br />
+            ComfyUI default: <span style={{ color: M.ink2 }}>ComfyUI\models\onnx\cl_tagger\</span>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button className="mn-btn mn-btn-ghost" onClick={dismiss} style={{ fontSize: 12 }}>Skip</button>
-          <button className="mn-btn" onClick={verify} style={{ fontSize: 12 }}>Verify</button>
-          <button className="mn-btn mn-btn-accent" onClick={save} disabled={saving} style={{ fontSize: 12 }}>
+          <button className="mn-btn" onClick={() => postAndVerify(false)} disabled={saving} style={{ fontSize: 12 }}>
+            {saving ? '…' : 'Verify'}
+          </button>
+          <button className="mn-btn mn-btn-accent" onClick={() => postAndVerify(true)} disabled={saving} style={{ fontSize: 12 }}>
             {saved ? '✓ Saved' : saving ? '…' : 'Save'}
           </button>
         </div>
