@@ -1679,7 +1679,12 @@ def open_pixiv_browser(pw, profile_dir: Path | None = None):
         str(target_profile),
         channel="chrome",
         headless=False,
-        args=["--disable-blink-features=AutomationControlled", "--start-maximized"],
+        args=[
+            "--disable-blink-features=AutomationControlled",
+            "--start-maximized",
+            "--disable-sync",           # prevent Google account sync (themes/wallpaper)
+            "--no-first-run",           # skip first-run setup that triggers sync prompts
+        ],
         ignore_default_args=["--enable-automation"],
     )
     page = context.pages[0] if context.pages else context.new_page()

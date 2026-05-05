@@ -104,6 +104,7 @@ def header():
     print("  [3] 仅上传到 Pixiv")
     print("  [4] 安装 / 检查 R-18 自动打码")
     print("  [5] 检查 / 拉取更新")
+    print("  [6] 配置图片打标 (cl_tagger / WD14)")
     print("  [Q] 退出")
     print()
 
@@ -158,6 +159,10 @@ def cmd_setup_censor() -> None:
     run([str(Path("pixiv") / "setup_censor.py")])
 
 
+def cmd_setup_tagger() -> None:
+    run([str(Path("pixiv") / "setup_tagger.py")])
+
+
 def cmd_check_update() -> None:
     global _update_banner
     print("正在检查更新...")
@@ -193,11 +198,12 @@ def main() -> int:
         "3": ("仅上传到 Pixiv", cmd_upload_pixiv),
         "4": ("安装 / 检查打码", cmd_setup_censor),
         "5": ("检查 / 拉取更新", cmd_check_update),
+        "6": ("配置图片打标 (cl_tagger)", cmd_setup_tagger),
     }
     while True:
         header()
         try:
-            choice = input("  请选择 [1-5, Q]: ").strip().lower()
+            choice = input("  请选择 [1-6, Q]: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             print()
             return 0

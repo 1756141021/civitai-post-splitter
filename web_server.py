@@ -426,6 +426,100 @@ def api_status():
     })
 
 
+APPDATA_DIR = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
+HAINTAG_SETTINGS_PATH = APPDATA_DIR / "HainTag" / "settings.json"
+
+
+def _load_haintag_settings() -> dict:
+    if HAINTAG_SETTINGS_PATH.exists():
+        try:
+            payload = json.loads(HAINTAG_SETTINGS_PATH.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                return payload.get("settings", payload)
+        except Exception:
+            pass
+    return {}
+
+
+def _save_haintag_settings(settings: dict) -> None:
+    HAINTAG_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict = {}
+    if HAINTAG_SETTINGS_PATH.exists():
+        try:
+            existing = json.loads(HAINTAG_SETTINGS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    if isinstance(existing, dict) and "settings" in existing:
+        existing["settings"].update(settings)
+    else:
+        existing = settings
+    HAINTAG_SETTINGS_PATH.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _scan_model_dir(path: str) -> tuple:
+    if not path or not os.path.isdir(path):
+        return None, None
+    model_file = mapping_file = None
+    for f in os.listdir(path):
+        fl = f.lower()
+        if fl.endswith(".onnx") and not model_file:
+            model_file = os.path.join(path, f)
+        elif fl.endswith(".json") and any(x in fl for x in ("tag", "mapping", "label")) and not mapping_file:
+            mapping_file = os.path.join(path, f)
+        elif fl.endswith(".csv") and any(x in fl for x in ("tag", "label")) and not mapping_file:
+            mapping_file = os.path.join(path, f)
+    return model_file, mapping_file
+
+
+@app.route("/api/tagger-config", methods=["GET"])
+def api_tagger_config_get():
+    cfg = _load_config()
+    ht = _load_haintag_settings()
+    haintag_root = cfg.get("haintag_root", "")
+    model_dir = ht.get("tagger_model_dir", "")
+
+    haintag_ok = False
+    if haintag_root:
+        tagger_mod = Path(haintag_root) / "native_app" / "tagger.py"
+        haintag_ok = tagger_mod.exists()
+
+    model_ok = False
+    if model_dir:
+        m, mp = _scan_model_dir(model_dir)
+        model_ok = bool(m and mp)
+
+    return jsonify({
+        "haintag_root": haintag_root,
+        "haintag_ok": haintag_ok,
+        "model_dir": model_dir,
+        "model_ok": model_ok,
+        "needs_setup": not model_dir,
+    })
+
+
+@app.route("/api/tagger-config", methods=["POST"])
+def api_tagger_config_post():
+    body = request.get_json(silent=True) or {}
+    changed = []
+
+    if "haintag_root" in body:
+        cfg = _load_config()
+        val = body["haintag_root"].strip()
+        if val:
+            cfg["haintag_root"] = val
+        else:
+            cfg.pop("haintag_root", None)
+        _save_config(cfg)
+        changed.append("haintag_root")
+
+    if "model_dir" in body:
+        val = body["model_dir"].strip()
+        _save_haintag_settings({"tagger_model_dir": val})
+        changed.append("model_dir")
+
+    return jsonify({"ok": True, "changed": changed})
+
+
 @app.route("/api/stream")
 def api_stream():
     client_q: queue.Queue = queue.Queue(maxsize=500)

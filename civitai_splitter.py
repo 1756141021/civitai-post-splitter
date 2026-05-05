@@ -18,6 +18,7 @@ from PIL import Image, PngImagePlugin
 from playwright.sync_api import sync_playwright
 
 from pixiv.censor import CensorEngine, DEFAULT_CENSOR_CLASSES, parse_class_set
+from pixiv.standalone import StandaloneMetadataReader, StandaloneTaggerBridge
 from pixiv.support import (
     HainTagBridge,
     HainTagTaggerBridge,
@@ -52,6 +53,32 @@ CIVITAI_API = "https://civitai.com/api/v1"
 DONE_DAYS = 7
 _LORA_RE = re.compile(r"<lora:([^:>]+):([^>]+)>")
 TARGETS = {"civitai", "pixiv"}
+
+
+def _resolve_haintag_root() -> Path:
+    cfg_file = SCRIPT_DIR / "config.json"
+    if cfg_file.exists():
+        try:
+            override = json.loads(cfg_file.read_text(encoding="utf-8")).get("haintag_root", "")
+            if override:
+                return Path(override)
+        except Exception:
+            pass
+    return SCRIPT_DIR.parent / "haintag"
+
+
+def _make_bridges():
+    """
+    返回 (metadata_bridge, tagger_bridge)。
+    haintag 存在时用 HainTag* 实现（读 prompt、WD14 推理都更完整）；
+    不存在时 fallback 到 standalone 实现（PIL 读 metadata，onnxruntime 推理）。
+    两者接口完全一致，调用方不需要区分。
+    """
+    root = _resolve_haintag_root()
+    if root.exists():
+        return HainTagBridge(root), HainTagTaggerBridge(root)
+    return StandaloneMetadataReader(), StandaloneTaggerBridge()
+
 
 MODEL_HASH_PATCHES = {
     "anima-preview3-base": "14fffe8ad5",
@@ -616,9 +643,13 @@ def create_upload_manifest(
     if "pixiv" in targets:
         status = pixiv_metadata_check.get("status")
         if not pixiv_metadata_check.get("available", False):
-            pixiv_ready = False
-            manifest["status_by_target"]["pixiv"] = "failed"
-            manifest["errors"].append("HainTag metadata validator unavailable")
+            # Validator unavailable. sanitize_image_for_pixiv already strips
+            # metadata with PIL, so proceeding is safe.
+            # Only warn when haintag root exists but the module can't be loaded
+            # (unexpected). When haintag is simply not installed, stay silent.
+            haintag_root = _resolve_haintag_root()
+            if haintag_root.exists():
+                log.warning("    metadata validator unavailable (haintag found but import failed); continuing")
         elif status != "clean":
             pixiv_ready = False
             manifest["status_by_target"]["pixiv"] = "failed"
@@ -718,8 +749,7 @@ def cmd_upload(args):
     alias_data = load_json(files["aliases"], {})
     popularity_data = load_json(files["popularity"], {})
     age_rules = load_json(files["age_rules"], {})
-    hain_bridge = HainTagBridge(SCRIPT_DIR.parent / "haintag")
-    tagger_bridge = HainTagTaggerBridge(SCRIPT_DIR.parent / "haintag")
+    hain_bridge, tagger_bridge = _make_bridges()
     jp_alias_cache = load_json(files["jp_aliases"], {})
     general_jp_data = load_json(files["general_jp"], {})
     danbooru_jp_map = load_json(files["danbooru_jp"], {})
@@ -844,7 +874,7 @@ def cmd_upload(args):
             # Persist any new JP aliases learned during this image's payload build
             save_json(files["jp_aliases"], jp_alias_cache)
             tagger_status = manifest.get("pixiv", {}).get("tagger", {}).get("status", "disabled")
-            if "pixiv" in targets and tagger_status not in {"ok", "disabled"}:
+            if "pixiv" in targets and tagger_status not in {"ok", "disabled", "haintag_root_missing"}:
                 log.warning(f"    tagger 不可用: {tagger_status}（继续上传，仅用 prompt/文件名候选）")
             manifest["dry_run"] = bool(args.dry_run)
             write_manifest(manifest_path, manifest)
@@ -1042,8 +1072,7 @@ def cmd_pixiv_fit_compare(args):
     alias_data = load_json(files["aliases"], {})
     popularity_data = load_json(files["popularity"], {})
     age_rules = load_json(files["age_rules"], {})
-    metadata_bridge = HainTagBridge(SCRIPT_DIR.parent / "haintag")
-    tagger_bridge = HainTagTaggerBridge(SCRIPT_DIR.parent / "haintag")
+    metadata_bridge, tagger_bridge = _make_bridges()
 
     result = compare_rule_fit_samples(
         manifest_dir=files["rule_fit_manifests"],

@@ -147,14 +147,111 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
   );
 }
 
+function TaggerSetupDialog({ onClose }) {
+  const [haintag,   setHaintag]   = React.useState('');
+  const [modelDir,  setModelDir]  = React.useState('');
+  const [haintagOk, setHaintagOk] = React.useState(null);
+  const [modelOk,   setModelOk]   = React.useState(null);
+  const [saving,    setSaving]    = React.useState(false);
+  const [saved,     setSaved]     = React.useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/tagger-config').then(r => r.json()).then(d => {
+      setHaintag(d.haintag_root || '');
+      setModelDir(d.model_dir || '');
+      setHaintagOk(d.haintag_ok);
+      setModelOk(d.model_ok);
+    }).catch(() => {});
+  }, []);
+
+  const verify = () =>
+    fetch('/api/tagger-config').then(r => r.json()).then(d => {
+      setHaintagOk(d.haintag_ok);
+      setModelOk(d.model_ok);
+    }).catch(() => {});
+
+  const save = () => {
+    setSaving(true);
+    fetch('/api/tagger-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ haintag_root: haintag, model_dir: modelDir }),
+    }).then(r => r.json()).then(() => {
+      setSaving(false);
+      setSaved(true);
+      verify();
+      setTimeout(() => { setSaved(false); onClose(true); }, 1000);
+    }).catch(() => setSaving(false));
+  };
+
+  const dismiss = () => {
+    localStorage.setItem('tagger-setup-dismissed', '1');
+    onClose(false);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 520, padding: '20px 24px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Tagger setup (WD14)</div>
+        <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 18 }}>
+          Both fields are optional — uploads still work without them.
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
+            <span style={{ fontSize: 12.5 }}>haintag root</span>
+            <span className="mn-mono" style={{ marginLeft: 6, fontSize: 10.5, color: M.inkFaint }}>optional</span>
+            {haintagOk !== null && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: haintagOk ? M.ok : M.red }}>
+                {haintagOk ? '✓ found' : '✗ not found'}
+              </span>
+            )}
+          </div>
+          <input className="mn-input" value={haintag} onChange={e => setHaintag(e.target.value)}
+                 placeholder="e.g. E:\projects\haintag" style={{ width: '100%', fontSize: 12 }} />
+          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 3 }}>
+            Uses TaggerEngine via haintag. Leave empty to use standalone onnxruntime instead.
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
+            <span style={{ fontSize: 12.5 }}>model directory</span>
+            {modelOk !== null && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: modelOk ? M.ok : M.red }}>
+                {modelOk ? '✓ model found' : modelDir ? '✗ model not found' : '—'}
+              </span>
+            )}
+          </div>
+          <input className="mn-input" value={modelDir} onChange={e => setModelDir(e.target.value)}
+                 placeholder="e.g. E:\ComfyUI\models\onnx\cl_tagger" style={{ width: '100%', fontSize: 12 }} />
+          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 3 }}>
+            Needs a .onnx model file + tag mapping .json or .csv in the same folder.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="mn-btn mn-btn-ghost" onClick={dismiss} style={{ fontSize: 12 }}>Skip</button>
+          <button className="mn-btn" onClick={verify} style={{ fontSize: 12 }}>Verify</button>
+          <button className="mn-btn mn-btn-accent" onClick={save} disabled={saving} style={{ fontSize: 12 }}>
+            {saved ? '✓ Saved' : saving ? '…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MonoSingleApp() {
   const [filter, setFilter] = React.useState('all');
   const [tick,   setTick]   = React.useState(0);
   const [tasks,  setTasks]  = React.useState([]);
   const [logs,   setLogs]   = React.useState([]);
-  const [connected,    setConnected]    = React.useState(false);
-  const [pendingInput, setPendingInput] = React.useState(null);
-  const [uploadDialog, setUploadDialog] = React.useState(null);
+  const [connected,      setConnected]      = React.useState(false);
+  const [pendingInput,   setPendingInput]   = React.useState(null);
+  const [uploadDialog,   setUploadDialog]   = React.useState(null);
+  const [taggerSetup,    setTaggerSetup]    = React.useState(false);
+  const [taggerConfigured, setTaggerConfigured] = React.useState(true);
   const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
 
@@ -165,6 +262,15 @@ function MonoSingleApp() {
 
   React.useEffect(() => {
     fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    fetch('/api/tagger-config').then(r => r.json()).then(d => {
+      setTaggerConfigured(d.model_ok || false);
+      if (d.needs_setup && !localStorage.getItem('tagger-setup-dismissed')) {
+        setTaggerSetup(true);
+      }
+    }).catch(() => {});
   }, []);
 
   React.useEffect(() => {
@@ -247,6 +353,12 @@ function MonoSingleApp() {
           onCancel={() => setUploadDialog(null)}
         />
       )}
+      {taggerSetup && (
+        <TaggerSetupDialog onClose={saved => {
+          setTaggerSetup(false);
+          if (saved) fetch('/api/tagger-config').then(r => r.json()).then(d => setTaggerConfigured(d.model_ok || false)).catch(() => {});
+        }} />
+      )}
 
       {/* ── Top bar ─────────────────────────────────────────────── */}
       <header style={{ padding: '14px 24px', borderBottom: `1px solid ${M.line}`, display: 'flex', alignItems: 'center', gap: 18, background: M.panel, flexShrink: 0 }}>
@@ -285,7 +397,9 @@ function MonoSingleApp() {
         {/* RIGHT column: log + settings */}
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <LogZone logs={logs} />
-          <SettingsZone status={status} onStatusReload={reloadStatus} />
+          <SettingsZone status={status} onStatusReload={reloadStatus}
+                       taggerConfigured={taggerConfigured}
+                       onTaggerSetup={() => setTaggerSetup(true)} />
         </div>
       </div>
 
@@ -511,7 +625,7 @@ function LogZone({ logs }) {
 }
 
 // ── Settings (right column bottom) ─────────────────────────────
-function SettingsZone({ status, onStatusReload }) {
+function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup }) {
   const [apiKey, setApiKey] = React.useState('');
   const [saved,  setSaved]  = React.useState(false);
 
@@ -533,6 +647,14 @@ function SettingsZone({ status, onStatusReload }) {
     <div style={{ background: M.panel, padding: '12px 18px 14px', flexShrink: 0 }}>
       <div className="ms-section-label" style={{ marginBottom: 8 }}>settings</div>
       <SetCompactRow label="Mosaic model" value={status.mosaic_installed ? 'installed' : 'not installed'} ok={status.mosaic_installed} />
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>WD14 tagger</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: taggerConfigured ? M.ok : M.red }} />
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{taggerConfigured ? 'configured' : 'not set'}</span>
+          <button className="mn-btn mn-btn-ghost" onClick={onTaggerSetup} style={{ padding: '2px 8px', fontSize: 11 }}>Configure</button>
+        </div>
+      </div>
       <SetCompactRow label="Upload queue" value={`${status.upload_count} imgs`} />
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
         <div style={{ fontSize: 12.5 }}>API key</div>
