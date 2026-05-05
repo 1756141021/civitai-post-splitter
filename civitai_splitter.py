@@ -687,23 +687,24 @@ def cmd_split(args):
             log.info(f"  下载 {len(remaining_images)} 张图片...")
             local_paths = download_and_embed_metadata(remaining_images, api_key, temp_dir)
 
-            log.info("  打开浏览器...")
+            log.info("  开始上传（每张独立开关浏览器，规避验证码）...")
             with sync_playwright() as pw:
-                context, page = open_civitai_browser(pw)
                 for idx, (img, local_path) in enumerate(zip(remaining_images, local_paths), 1):
                     log.info(f"\n  [{idx}/{len(remaining_images)}] 上传图片 {img['id']}...")
+                    context, page = open_civitai_browser(pw)
                     try:
                         new_url = create_civitai_post(page, local_path, args.delay)
                     except Exception as exc:
                         log.error(f"    图片 {img['id']} 发布异常: {exc}")
                         log.debug(traceback.format_exc())
                         new_url = None
+                    finally:
+                        context.close()
                     if new_url:
                         progress["completed"].append({"image_id": img["id"], "new_post_url": new_url})
                     else:
                         progress["failed"].append({"image_id": img["id"], "error": "发布失败"})
                     save_progress(progress_path, progress)
-                context.close()
         except Exception as exc:
             log.error(f"  Post {post_id} 处理异常: {exc}")
             log.debug(traceback.format_exc())

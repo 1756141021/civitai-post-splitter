@@ -1679,10 +1679,11 @@ def open_pixiv_browser(pw, profile_dir: Path | None = None):
         str(target_profile),
         channel="chrome",
         headless=False,
-        args=["--disable-blink-features=AutomationControlled"],
+        args=["--disable-blink-features=AutomationControlled", "--start-maximized"],
         ignore_default_args=["--enable-automation"],
     )
     page = context.pages[0] if context.pages else context.new_page()
+    page.set_viewport_size({"width": 1920, "height": 1080})
     return context, page
 
 
@@ -2462,17 +2463,31 @@ def ensure_on_pixiv_upload_page(page) -> None:
         input()
 
 
-def _alert_captcha(page) -> None:
-    """Notification chime + bring browser to front so user notices the captcha."""
+_ALERT_WAV = Path(__file__).parent.parent / "猫猫怕痛惹 - 许巍-蓝莲哈.wav"
+
+
+def _alert_captcha(page):
+    """Notification chime + bring browser to front so user notices the captcha.
+
+    Returns a stop() callable that silences the sound when the captcha is resolved.
+    """
     try:
         page.bring_to_front()
     except Exception:
         pass
     try:
         import winsound
-        wav = r"C:\Windows\Media\chimes.wav"
+        wav = str(_ALERT_WAV) if _ALERT_WAV.exists() else r"C:\Windows\Media\chimes.wav"
         if os.path.isfile(wav):
             winsound.PlaySound(wav, winsound.SND_FILENAME | winsound.SND_ASYNC)
+
+            def stop():
+                try:
+                    winsound.PlaySound(None, winsound.SND_PURGE)
+                except Exception:
+                    pass
+
+            return stop
         else:
             winsound.MessageBeep(winsound.MB_ICONASTERISK)
     except Exception:
@@ -2481,6 +2496,7 @@ def _alert_captcha(page) -> None:
             sys.stdout.flush()
         except Exception:
             pass
+    return lambda: None
 
 
 def _jsleep(base: float, jitter: float = 0.4) -> None:
@@ -2765,6 +2781,43 @@ def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str) -> Pixi
         return PixivStep(name, False, "exception", f"{type(exc).__name__}: {exc}")
 
 
+def _accept_safety_check(page) -> tuple:
+    """Detect Pixiv's 安全検査 section and alert if reCAPTCHA is present.
+
+    Returns (PixivStep, stop_fn). stop_fn silences the alert; no-op if no alert played.
+    """
+    stop_fn = lambda: None
+    actions: list[str] = []
+    try:
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        _jsleep(0.5, jitter=0.0)
+
+        section_present = any(
+            page.locator(f'text="{h}"').count() > 0
+            for h in ["安全検査", "安全检查", "Security Check"]
+        )
+        if not section_present:
+            return PixivStep("safety_check", True, detail="not_present"), stop_fn
+
+        actions.append("detected")
+
+        # reCAPTCHA inside the safety check section → alert user to complete it manually.
+        recaptcha_selectors = [
+            'iframe[src*="recaptcha"]',
+            'iframe[src*="google.com/recaptcha"]',
+            '.g-recaptcha',
+            '[data-sitekey]',
+        ]
+        if any(page.locator(sel).count() > 0 for sel in recaptcha_selectors):
+            log.warning("    pixiv: 安全检查区域出现 reCAPTCHA，请在浏览器里完成验证")
+            stop_fn = _alert_captcha(page)
+            actions.append("recaptcha_alert")
+
+        return PixivStep("safety_check", True, detail=", ".join(actions)), stop_fn
+    except Exception as exc:
+        return PixivStep("safety_check", True, detail=f"skipped: {exc}"), stop_fn
+
+
 def _set_checkbox_by_attr(page, name: str, attr_name: str, desired: bool) -> PixivStep:
     selector = f'input[name="{attr_name}"][type="checkbox"]'
     locator = _first_visible_locator(page, [selector])
@@ -2901,6 +2954,10 @@ def create_pixiv_post(
         bool(payload.get("allow_tag_edits", False)),
     ))
 
+    # Safety check (安全検査) — new Pixiv required section; always ok, won't abort on miss
+    safety_step, stop_alert = _accept_safety_check(page)
+    record(safety_step)
+
     if any(not s.ok for s in steps):
         log.error("    pixiv: 字段填写有失败步骤，放弃 publish")
         return None, steps
@@ -2922,7 +2979,9 @@ def create_pixiv_post(
         time.sleep(2)
     if not enabled:
         record(PixivStep("publish_enable", False, "verify_failed", "publish 按钮 120 秒内未启用"))
+        stop_alert()
         return None, steps
+    stop_alert()
     record(PixivStep("publish_enable", True))
 
     try:
@@ -2945,6 +3004,10 @@ def create_pixiv_post(
         'iframe[src*="newcaptcha"]',
         'iframe[title*="hCaptcha"]',
         'iframe[title*="captcha" i]',
+        'iframe[src*="recaptcha"]',
+        'iframe[src*="google.com/recaptcha"]',
+        '.g-recaptcha',
+        '[data-sitekey]',
     ]
     captcha_detected = False
     captcha_grace = time.time() + 6  # give 6 s for normal redirect before captcha detection
@@ -2959,12 +3022,14 @@ def create_pixiv_post(
         if artwork_re.search(url):
             time.sleep(delay)
             record(PixivStep("redirect", True, detail=f"artwork url={url}"))
+            stop_alert()
             return url, steps
         upload_in_url = "upload.php" in url or "illustration/create" in url
         if not upload_in_url:
             # Left the upload page → success (probably to user mypage / artwork list)
             time.sleep(delay)
             record(PixivStep("redirect", True, detail=f"left upload page url={url}"))
+            stop_alert()
             return url, steps
         # Form gone? (file input no longer in DOM) — success indicator.
         # Check BEFORE captcha to avoid false positives during the success modal.
@@ -2972,6 +3037,7 @@ def create_pixiv_post(
             if _first_visible_locator(page, PIXIV_SELECTORS["file_input"]) is None:
                 time.sleep(delay)
                 record(PixivStep("redirect", True, detail=f"form unmounted url={url}"))
+                stop_alert()
                 return url, steps
         except Exception:
             pass
@@ -2980,6 +3046,7 @@ def create_pixiv_post(
             if page.locator('text=作品投稿成功').count() > 0:
                 time.sleep(delay)
                 record(PixivStep("redirect", True, detail=f"success modal text detected url={url}"))
+                stop_alert()
                 return url, steps
         except Exception:
             pass
@@ -2989,7 +3056,7 @@ def create_pixiv_post(
                 captcha_detected = True
                 log.warning("    pixiv: 触发人机验证！在浏览器里完成验证 → 点'投稿'，脚本等你 5 分钟")
                 deadline = time.time() + 300
-                _alert_captcha(page)
+                stop_alert = _alert_captcha(page)
     timeout_msg = (
         "5 分钟内未检测到跳转/表单卸载（人机验证未完成？）"
         if captcha_detected
