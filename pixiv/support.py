@@ -628,6 +628,24 @@ DEFAULT_CENSOR_CONFIG = {
 }
 
 
+DEFAULT_CIVITAI_SAFETY = {
+    "_comment": "Civitai 安全过滤。命中 minor_tags 或 school_tags 且评级在 unsafe_ratings 内时跳过上传。删了重启会重生默认值。",
+    "minor_tags": [
+        "loli", "lolicon", "shota", "shotacon",
+        "child", "children", "young child", "little girl", "underage"
+    ],
+    "school_tags": [
+        "school uniform", "school_uniform",
+        "sailor uniform", "sailor_uniform",
+        "serafuku", "randoseru",
+        "school swimsuit", "school_swimsuit",
+        "gym uniform", "gym_uniform",
+        "jk", "js", "jc"
+    ],
+    "unsafe_ratings": ["r18", "r18g"]
+}
+
+
 def ensure_runtime_files(script_dir: Path) -> dict[str, Path]:
     pixiv_dir = script_dir / "pixiv"
     pixiv_dir.mkdir(exist_ok=True)
@@ -641,6 +659,7 @@ def ensure_runtime_files(script_dir: Path) -> dict[str, Path]:
         "general_jp":   pixiv_dir / "general_jp.json",
         "danbooru_jp":  pixiv_dir / "danbooru_jp.json",
         "censor_config": pixiv_dir / "censor.json",
+        "civitai_safety": script_dir / "civitai_safety.json",
         "manifests":    script_dir / "manifests",
         "rule_fit_root":      rule_fit_root,
         "rule_fit_samples":   rule_fit_root / "samples",
@@ -657,6 +676,7 @@ def ensure_runtime_files(script_dir: Path) -> dict[str, Path]:
         "jp_aliases": {},
         "general_jp": DEFAULT_GENERAL_JP,
         "censor_config": DEFAULT_CENSOR_CONFIG,
+        "civitai_safety": DEFAULT_CIVITAI_SAFETY,
     }
     for key, payload in defaults.items():
         if not files[key].exists():

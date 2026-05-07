@@ -30,6 +30,7 @@ from pixiv.support import (
     create_rule_fit_report_path,
     create_pixiv_post,
     find_target_successes,
+    infer_age_restriction,
     open_pixiv_browser,
     PIXIV_RULE_FIT_PROFILE_DIR,
     summarize_rule_fit_report,
@@ -53,6 +54,42 @@ CIVITAI_API = "https://civitai.com/api/v1"
 DONE_DAYS = 7
 _LORA_RE = re.compile(r"<lora:([^:>]+):([^>]+)>")
 TARGETS = {"civitai", "pixiv"}
+
+
+def check_civitai_safety(
+    image_path: Path,
+    source_meta: dict,
+    age_rules: dict,
+    safety_cfg: dict,
+) -> tuple[bool, str]:
+    """Return (should_skip, reason). Skips civitai when rating is unsafe AND loli/school tags hit."""
+    rating = infer_age_restriction(image_path, age_rules)
+    unsafe = {r.lower() for r in safety_cfg.get("unsafe_ratings", ["r18", "r18g"])}
+    if rating.lower() not in unsafe:
+        return False, ""
+
+    tokens: set[str] = set()
+    for part in re.split(r"[\s_\-\[\](){}|]+", image_path.stem.lower()):
+        tok = part.strip()
+        if tok:
+            tokens.add(tok)
+    metadata = source_meta.get("metadata")
+    if metadata:
+        prompt = _LORA_RE.sub("", getattr(metadata, "positive_prompt", "") or "")
+        for part in re.split(r"[,|\n]+", prompt.lower()):
+            tok = re.sub(r":\s*[\d.]+$", "", part.strip().replace("_", " ")).strip()
+            if tok:
+                tokens.add(tok)
+
+    minor_tags = {t.lower().replace("_", " ") for t in safety_cfg.get("minor_tags", [])}
+    school_tags = {t.lower().replace("_", " ") for t in safety_cfg.get("school_tags", [])}
+    hit_minor = tokens & minor_tags
+    hit_school = tokens & school_tags
+    if hit_minor:
+        return True, f"rating={rating}, loli/minor tags: {sorted(hit_minor)}"
+    if hit_school:
+        return True, f"rating={rating}, school tags: {sorted(hit_school)}"
+    return False, ""
 
 
 def _resolve_haintag_root() -> Path:
@@ -226,7 +263,7 @@ def strip_prompts_keep_lora(image_path: Path, dest_dir: Path) -> Path:
     lora_tags = _LORA_RE.findall(prompt_block)
     parts = []
     if lora_tags:
-        parts.append(", ".join(f"<lora:{name}:{weight}>" for name, weight in lora_tags))
+        parts.append(", ".join(f"<lora:{name}:1>" for name, weight in lora_tags))
     if settings_line:
         parts.append(settings_line)
 
@@ -533,8 +570,19 @@ def create_upload_manifest(
     pixiv_page=None,
     censor_engine: CensorEngine | None = None,
     censor_classes=None,
+    civitai_safety_cfg: dict | None = None,
 ) -> tuple[dict, bool]:
     source_meta = hain_bridge.read_metadata(image_path)
+
+    civitai_blocked = False
+    civitai_block_reason = ""
+    if "civitai" in targets and civitai_safety_cfg:
+        civitai_blocked, civitai_block_reason = check_civitai_safety(
+            image_path, source_meta, age_rules, civitai_safety_cfg
+        )
+        if civitai_blocked:
+            log.info(f"    Civitai 安全过滤：{civitai_block_reason}")
+
     civitai_copy = strip_prompts_keep_lora(image_path, civitai_dir) if "civitai" in targets else None
     pixiv_clean = sanitize_image_for_pixiv(image_path, pixiv_dir) if "pixiv" in targets else None
 
@@ -603,6 +651,7 @@ def create_upload_manifest(
         "civitai": {
             "clean_copy_path": str(civitai_copy) if civitai_copy else "",
             "post_url": "",
+            "skip_reason": civitai_block_reason,
         },
         "pixiv": {
             "clean_copy_path": str(pixiv_clean.output_path) if pixiv_clean else "",
@@ -656,6 +705,8 @@ def create_upload_manifest(
             manifest["errors"].append(
                 f"Pixiv clean copy metadata validation failed: {status} {pixiv_metadata_check.get('details', [])}"
             )
+    if civitai_blocked:
+        manifest["status_by_target"]["civitai"] = "skipped_civitai_safety"
     append_validation_case(image_path, files["validation"], manifest)
     return manifest, pixiv_ready
 
@@ -760,6 +811,7 @@ def cmd_upload(args):
     if danbooru_jp_map:
         general_jp_data["_danbooru_map"] = danbooru_jp_map
         log.info(f"Danbooru→JP 词典已加载: {len(danbooru_jp_map)} 条")
+    civitai_safety_cfg = load_json(files["civitai_safety"], {})
 
     UPLOAD_DIR.mkdir(exist_ok=True)
     DONE_DIR.mkdir(exist_ok=True)
@@ -874,6 +926,7 @@ def cmd_upload(args):
                 pixiv_page=pixiv_page,
                 censor_engine=censor_engine,
                 censor_classes=censor_classes,
+                civitai_safety_cfg=civitai_safety_cfg,
             )
             # Persist any new JP aliases learned during this image's payload build
             save_json(files["jp_aliases"], jp_alias_cache)
@@ -902,6 +955,9 @@ def cmd_upload(args):
                     manifest["civitai"]["post_url"] = inherited_url
                     manifest["status_by_target"]["civitai"] = "skipped_already_done"
                     log.info(f"    Civitai 已发过，跳过: {inherited_url}")
+                elif manifest["status_by_target"].get("civitai") == "skipped_civitai_safety":
+                    reason = manifest["civitai"].get("skip_reason", "")
+                    log.info(f"    Civitai 安全跳过: {reason}")
                 else:
                     civitai_copy = Path(manifest["civitai"]["clean_copy_path"])
                     try:
@@ -984,7 +1040,7 @@ def cmd_upload(args):
 
             for target in targets:
                 status = manifest["status_by_target"].get(target)
-                if status in {"success", "skipped_already_done"}:
+                if status in {"success", "skipped_already_done", "skipped_civitai_safety"}:
                     target_success_counts[target] += 1
                 elif status == "failed":
                     target_fail_counts[target] += 1
@@ -1002,6 +1058,8 @@ def cmd_upload(args):
                         target_summaries.append(f"{target} 成功")
                     elif status == "skipped_already_done":
                         target_summaries.append(f"{target} 已发过")
+                    elif status == "skipped_civitai_safety":
+                        target_summaries.append(f"{target} 安全过滤跳过")
                     elif status == "failed":
                         target_summaries.append(f"{target} 失败")
                     else:

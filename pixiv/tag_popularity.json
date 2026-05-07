@@ -156,6 +156,13 @@
         "ビキニ": 0
       },
       "updated_at": ""
+    },
+    "maid": {
+      "winner": "メイド",
+      "counts": {
+        "メイド": 0
+      },
+      "updated_at": ""
     }
   }
 }
