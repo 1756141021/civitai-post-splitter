@@ -876,7 +876,9 @@ class HainTagTaggerBridge:
             fl = f.lower()
             if fl.endswith(".onnx") and not model_file:
                 model_file = os.path.join(path, f)
-            elif fl.endswith(".json") and ("tag" in fl or "mapping" in fl) and not mapping_file:
+            elif fl.endswith(".json") and any(x in fl for x in ("tag", "mapping", "label")) and not mapping_file:
+                mapping_file = os.path.join(path, f)
+            elif fl.endswith(".csv") and any(x in fl for x in ("tag", "label")) and not mapping_file:
                 mapping_file = os.path.join(path, f)
         if model_file and mapping_file:
             return model_file, mapping_file
