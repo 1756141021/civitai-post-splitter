@@ -7,6 +7,7 @@ import logging
 import os
 import queue
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -17,6 +18,7 @@ from io import TextIOBase
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
+from pixiv.support import PIXIV_PROFILE_DIR
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 FRONTEND_DIR = SCRIPT_DIR / "frontend"
@@ -419,10 +421,11 @@ def api_status():
     else:
         masked = "*" * len(api_key)
     return jsonify({
-        "mosaic_installed": model_path.exists(),
-        "upload_count":     upload_count,
-        "has_api_key":      bool(api_key),
-        "api_key_masked":   masked,
+        "mosaic_installed":  model_path.exists(),
+        "upload_count":      upload_count,
+        "has_api_key":       bool(api_key),
+        "api_key_masked":    masked,
+        "pixiv_logged_in":   PIXIV_PROFILE_DIR.exists(),
     })
 
 
@@ -518,6 +521,19 @@ def api_tagger_config_post():
         changed.append("model_dir")
 
     return jsonify({"ok": True, "changed": changed})
+
+
+@app.route("/api/pixiv-logout", methods=["POST"])
+def api_pixiv_logout():
+    with TASKS_LOCK:
+        running_pixiv = any(
+            t.get("status") == "running" and t.get("cmd") in (2, 3)
+            for t in TASKS.values()
+        )
+    if running_pixiv:
+        return jsonify({"error": "pixiv task is running"}), 400
+    shutil.rmtree(PIXIV_PROFILE_DIR, ignore_errors=True)
+    return jsonify({"ok": True})
 
 
 @app.route("/api/stream")

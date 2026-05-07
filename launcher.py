@@ -105,6 +105,7 @@ def header():
     print("  [4] 安装 / 检查 R-18 自动打码")
     print("  [5] 检查 / 拉取更新")
     print("  [6] 配置图片打标 (cl_tagger / WD14)")
+    print("  [7] 切换 Pixiv 账号（清除登录状态）")
     print("  [Q] 退出")
     print()
 
@@ -163,6 +164,14 @@ def cmd_setup_tagger() -> None:
     run([str(Path("pixiv") / "setup_tagger.py")])
 
 
+def cmd_pixiv_logout() -> None:
+    import shutil
+    from pixiv.support import PIXIV_PROFILE_DIR
+    shutil.rmtree(PIXIV_PROFILE_DIR, ignore_errors=True)
+    print(f"已清除 Pixiv 登录状态（{PIXIV_PROFILE_DIR}）。")
+    print("下次上传时会重新打开登录页。")
+
+
 def cmd_check_update() -> None:
     global _update_banner
     print("正在检查更新...")
@@ -199,11 +208,12 @@ def main() -> int:
         "4": ("安装 / 检查打码", cmd_setup_censor),
         "5": ("检查 / 拉取更新", cmd_check_update),
         "6": ("配置图片打标 (cl_tagger)", cmd_setup_tagger),
+        "7": ("切换 Pixiv 账号", cmd_pixiv_logout),
     }
     while True:
         header()
         try:
-            choice = input("  请选择 [1-6, Q]: ").strip().lower()
+            choice = input("  请选择 [1-7, Q]: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             print()
             return 0
