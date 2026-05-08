@@ -1,0 +1,33 @@
+{
+  "_comment": "Civitai 安全过滤。命中 minor_tags 或 school_tags 且评级在 unsafe_ratings 内时跳过上传。删了重启会重生默认值。",
+  "minor_tags": [
+    "loli",
+    "lolicon",
+    "shota",
+    "shotacon",
+    "child",
+    "children",
+    "young child",
+    "little girl",
+    "underage"
+  ],
+  "school_tags": [
+    "school uniform",
+    "school_uniform",
+    "sailor uniform",
+    "sailor_uniform",
+    "serafuku",
+    "randoseru",
+    "school swimsuit",
+    "school_swimsuit",
+    "gym uniform",
+    "gym_uniform",
+    "jk",
+    "js",
+    "jc"
+  ],
+  "unsafe_ratings": [
+    "r18",
+    "r18g"
+  ]
+}
