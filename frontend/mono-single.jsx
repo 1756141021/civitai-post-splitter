@@ -631,7 +631,10 @@ function QueueZone({ filter, setFilter, tasks, onCancel, onRemove, onRetry }) {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
-          <button className="mn-btn mn-btn-ghost" style={{ padding: '4px 8px', fontSize: 12 }}><MIcon name="refresh" size={12} /></button>
+          <button className="mn-btn mn-btn-ghost" style={{ padding: '4px 8px', fontSize: 12 }}
+                  onClick={() => window.location.reload()} title="刷新页面">
+            <MIcon name="refresh" size={12} />
+          </button>
         </div>
       </div>
 
