@@ -253,6 +253,77 @@ function TaggerSetupDialog({ onClose }) {
   );
 }
 
+function SchedulerDialog({ current, onClose, onSave }) {
+  const sched = current || {};
+  const [minHours, setMinHours] = React.useState(String(sched.min_hours ?? 1));
+  const [maxHours, setMaxHours] = React.useState(String(sched.max_hours ?? 3));
+  const [count,    setCount]    = React.useState(String(sched.count ?? 1));
+  const [civitai,  setCivitai]  = React.useState((sched.targets || 'civitai,pixiv').includes('civitai'));
+  const [pixiv,    setPixiv]    = React.useState((sched.targets || 'civitai,pixiv').includes('pixiv'));
+  const [saving,   setSaving]   = React.useState(false);
+  const [err,      setErr]      = React.useState('');
+
+  const submit = () => {
+    const min = parseFloat(minHours), max = parseFloat(maxHours), cnt = parseInt(count, 10);
+    if (!min || !max || min <= 0 || max <= 0 || min > max) { setErr('时间范围无效（min 需 ≤ max）'); return; }
+    if (!cnt || cnt < 1) { setErr('张数至少 1'); return; }
+    const targets = [civitai && 'civitai', pixiv && 'pixiv'].filter(Boolean).join(',');
+    if (!targets) { setErr('至少选一个目标'); return; }
+    setSaving(true); setErr('');
+    fetch('/api/scheduler', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: true, min_hours: min, max_hours: max, count: cnt, targets }),
+    })
+      .then(r => r.json())
+      .then(d => { setSaving(false); if (d.ok) { onSave(); onClose(); } else { setErr(d.error || '保存失败'); } })
+      .catch(() => { setSaving(false); setErr('请求失败'); });
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 380, padding: '20px 24px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Auto schedule</div>
+        <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 16 }}>定时自动发布 — 每隔随机间隔触发一次上传</div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>发布间隔（小时）</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input className="mn-input" value={minHours} onChange={e => setMinHours(e.target.value)} style={{ width: 72, fontSize: 12 }} placeholder="min" />
+            <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>~</span>
+            <input className="mn-input" value={maxHours} onChange={e => setMaxHours(e.target.value)} style={{ width: 72, fontSize: 12 }} placeholder="max" />
+            <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>h (随机)</span>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>每次发布张数</div>
+          <input className="mn-input" value={count} onChange={e => setCount(e.target.value)} style={{ width: 72, fontSize: 12 }} />
+        </div>
+
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>发布目标</div>
+          <div style={{ display: 'flex', gap: 18 }}>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
+              <input type="checkbox" checked={civitai} onChange={e => setCivitai(e.target.checked)} /> Civitai
+            </label>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
+              <input type="checkbox" checked={pixiv} onChange={e => setPixiv(e.target.checked)} /> Pixiv
+            </label>
+          </div>
+        </div>
+
+        {err && <div className="mn-mono" style={{ fontSize: 11, color: M.red, marginBottom: 10 }}>{err}</div>}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="mn-btn mn-btn-ghost" onClick={onClose} style={{ fontSize: 12 }}>取消</button>
+          <button className="mn-btn mn-btn-accent" onClick={submit} disabled={saving} style={{ fontSize: 12 }}>{saving ? '…' : '启用'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MonoSingleApp() {
   const [filter, setFilter] = React.useState('all');
   const [tick,   setTick]   = React.useState(0);
@@ -263,7 +334,8 @@ function MonoSingleApp() {
   const [uploadDialog,   setUploadDialog]   = React.useState(null);
   const [taggerSetup,    setTaggerSetup]    = React.useState(false);
   const [taggerConfigured, setTaggerConfigured] = React.useState(true);
-  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false });
+  const [schedulerDialog, setSchedulerDialog] = React.useState(false);
+  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, targets: 'civitai,pixiv' } });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
 
   React.useEffect(() => {
@@ -370,6 +442,13 @@ function MonoSingleApp() {
           if (saved) fetch('/api/tagger-config').then(r => r.json()).then(d => setTaggerConfigured(d.model_ok || false)).catch(() => {});
         }} />
       )}
+      {schedulerDialog && (
+        <SchedulerDialog
+          current={status.scheduler}
+          onClose={() => setSchedulerDialog(false)}
+          onSave={() => fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {})}
+        />
+      )}
 
       {/* ── Top bar ─────────────────────────────────────────────── */}
       <header style={{ padding: '14px 24px', borderBottom: `1px solid ${M.line}`, display: 'flex', alignItems: 'center', gap: 18, background: M.panel, flexShrink: 0 }}>
@@ -410,7 +489,9 @@ function MonoSingleApp() {
           <LogZone logs={logs} />
           <SettingsZone status={status} onStatusReload={reloadStatus}
                        taggerConfigured={taggerConfigured}
-                       onTaggerSetup={() => setTaggerSetup(true)} />
+                       onTaggerSetup={() => setTaggerSetup(true)}
+                       tick={tick}
+                       onSchedulerConfigure={() => setSchedulerDialog(true)} />
         </div>
       </div>
 
@@ -636,13 +717,22 @@ function LogZone({ logs }) {
 }
 
 // ── Settings (right column bottom) ─────────────────────────────
-function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup }) {
+function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup, tick, onSchedulerConfigure }) {
   const [apiKey,        setApiKey]        = React.useState('');
   const [saved,         setSaved]         = React.useState(false);
   const [pixivSwitching,   setPixivSwitching]   = React.useState(false);
   const [pixivMsg,         setPixivMsg]         = React.useState('');
   const [civitaiSwitching, setCivitaiSwitching] = React.useState(false);
   const [civitaiMsg,       setCivitaiMsg]       = React.useState('');
+
+  const fmtNextFire = iso => {
+    if (!iso) return '—';
+    const diff = Math.floor((new Date(iso) - Date.now()) / 1000);
+    if (diff <= 0) return 'soon';
+    const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+  const sched = status.scheduler || { enabled: false, next_fire_at: null };
 
   const saveKey = () => {
     if (!apiKey.trim()) return;
@@ -721,6 +811,23 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup 
         </div>
       </div>
       <SetCompactRow label="Upload queue" value={`${status.upload_count} imgs`} />
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>Auto schedule</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className="mn-mono" style={{ fontSize: 11.5, color: sched.enabled ? M.ok : M.inkDim }}>
+            {sched.enabled ? `Next: in ${fmtNextFire(sched.next_fire_at)}` : 'off'}
+          </span>
+          {sched.enabled && (
+            <button className="mn-btn mn-btn-ghost"
+                    onClick={() => fetch('/api/scheduler', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: false }) })
+                      .then(() => onStatusReload && onStatusReload())}
+                    style={{ padding: '2px 8px', fontSize: 11 }}>
+              Disable
+            </button>
+          )}
+          <button className="mn-btn mn-btn-ghost" onClick={onSchedulerConfigure} style={{ padding: '2px 8px', fontSize: 11 }}>Configure</button>
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
         <div style={{ fontSize: 12.5 }}>API key</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>

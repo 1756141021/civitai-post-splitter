@@ -10,10 +10,11 @@ import re
 import shutil
 import subprocess
 import sys
+import random
 import threading
 import uuid
 import webbrowser
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import TextIOBase
 from pathlib import Path
 
@@ -48,6 +49,9 @@ if _startup_cfg.get("api_key"):
 # ── Shared state ───────────────────────────────────────────────
 TASKS: dict[str, dict] = {}
 TASKS_LOCK = threading.Lock()
+
+_scheduler_timer: threading.Timer | None = None
+_scheduler_lock = threading.Lock()
 
 SSE_CLIENTS: list[queue.Queue] = []
 CLIENTS_LOCK = threading.Lock()
@@ -200,7 +204,7 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
         elif cmd == 2:
             from civitai_splitter import cmd_upload
             args = argparse.Namespace(
-                targets="civitai,pixiv",
+                targets=params.get("targets", "civitai,pixiv"),
                 count=params.get("count", 0),
                 files=params.get("files", []),
                 delay=params.get("delay", 10),
@@ -421,6 +425,7 @@ def api_status():
         masked = "*" * (len(api_key) - 4) + api_key[-4:]
     else:
         masked = "*" * len(api_key)
+    cfg = _load_config()
     return jsonify({
         "mosaic_installed":  model_path.exists(),
         "upload_count":      upload_count,
@@ -428,6 +433,7 @@ def api_status():
         "api_key_masked":    masked,
         "pixiv_logged_in":   PIXIV_PROFILE_DIR.exists(),
         "civitai_logged_in": CIVITAI_PROFILE_DIR.exists(),
+        "scheduler":         cfg.get("scheduler") or _sched_default(),
     })
 
 
@@ -551,6 +557,119 @@ def api_civitai_logout():
     return jsonify({"ok": True})
 
 
+def _sched_default() -> dict:
+    return {"enabled": False, "targets": "civitai,pixiv", "count": 1,
+            "min_hours": 1.0, "max_hours": 3.0, "next_fire_at": None}
+
+
+def _arm_scheduler(cfg: dict) -> None:
+    global _scheduler_timer
+    sched = cfg.get("scheduler") or _sched_default()
+    with _scheduler_lock:
+        if _scheduler_timer is not None:
+            _scheduler_timer.cancel()
+            _scheduler_timer = None
+        if not sched.get("enabled"):
+            return
+        now = datetime.now()
+        delay: float | None = None
+        next_fire = sched.get("next_fire_at")
+        if next_fire:
+            try:
+                rem = (datetime.fromisoformat(next_fire) - now).total_seconds()
+                if rem > 0:
+                    delay = rem
+            except Exception:
+                pass
+        if delay is None:
+            min_h = max(0.001, float(sched.get("min_hours", 1.0)))
+            max_h = max(min_h, float(sched.get("max_hours", 3.0)))
+            delay = random.uniform(min_h, max_h) * 3600
+            sched["next_fire_at"] = (now + timedelta(seconds=delay)).isoformat(timespec="seconds")
+            cfg["scheduler"] = sched
+            _save_config(cfg)
+        t = threading.Timer(delay, _scheduler_fire)
+        t.daemon = True
+        _scheduler_timer = t
+        t.start()
+
+
+def _scheduler_fire() -> None:
+    global _scheduler_timer
+    with _scheduler_lock:
+        _scheduler_timer = None
+    cfg = _load_config()
+    sched = cfg.get("scheduler") or _sched_default()
+    if not sched.get("enabled"):
+        return
+    with TASKS_LOCK:
+        any_running = any(t.get("status") in ("running", "queued") for t in TASKS.values())
+    upload_dir = SCRIPT_DIR / "upload"
+    img_exts = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    has_images = upload_dir.exists() and any(
+        f.is_file() and f.suffix.lower() in img_exts for f in upload_dir.iterdir()
+    )
+    sched["next_fire_at"] = None
+    cfg["scheduler"] = sched
+    _save_config(cfg)
+    if not any_running and has_images:
+        targets_str = sched.get("targets", "civitai,pixiv")
+        count = max(1, int(sched.get("count", 1)))
+        tl = targets_str.lower()
+        cmd = 3 if ("pixiv" in tl and "civitai" not in tl) else 2
+        params = {"count": count, "files": [], "targets": targets_str}
+        task_id = uuid.uuid4().hex[:8]
+        label, target = CMD_LABELS[cmd]
+        task = {
+            "id": task_id, "title": f"{label} (auto)",
+            "status": "queued", "progress": 0.0, "target": target,
+            "count": "—", "eta": "—", "cmd": cmd,
+            "cancel_flag": False, "cancel_event": threading.Event(),
+            "created_at": datetime.now().strftime("%H:%M:%S"),
+            "log_lines": [], "pending_input": None, "thread": None,
+        }
+        with TASKS_LOCK:
+            TASKS[task_id] = task
+        snap = {k: v for k, v in task.items() if k not in ("thread", "log_lines", "pending_input", "cancel_event")}
+        _broadcast_sse("task_update", snap)
+        t = threading.Thread(target=_run_task, args=(task_id, cmd, params), daemon=True)
+        task["thread"] = t
+        t.start()
+    _arm_scheduler(cfg)
+
+
+@app.route("/api/scheduler", methods=["POST"])
+def api_scheduler():
+    body = request.get_json(silent=True) or {}
+    cfg = _load_config()
+    sched = cfg.get("scheduler") or _sched_default()
+    if "enabled" in body:
+        sched["enabled"] = bool(body["enabled"])
+    if "min_hours" in body:
+        sched["min_hours"] = max(0.001, float(body["min_hours"]))
+    if "max_hours" in body:
+        sched["max_hours"] = max(0.001, float(body["max_hours"]))
+    if "count" in body:
+        sched["count"] = max(1, int(body["count"]))
+    if "targets" in body:
+        sched["targets"] = body["targets"]
+    if sched.get("min_hours", 1.0) > sched.get("max_hours", 3.0):
+        return jsonify({"error": "min_hours > max_hours"}), 400
+    if any(k in body for k in ("enabled", "min_hours", "max_hours")):
+        sched["next_fire_at"] = None
+    cfg["scheduler"] = sched
+    _save_config(cfg)
+    if sched.get("enabled"):
+        _arm_scheduler(cfg)
+    else:
+        with _scheduler_lock:
+            global _scheduler_timer
+            if _scheduler_timer is not None:
+                _scheduler_timer.cancel()
+                _scheduler_timer = None
+    return jsonify({"ok": True, "scheduler": sched})
+
+
 @app.route("/api/stream")
 def api_stream():
     client_q: queue.Queue = queue.Queue(maxsize=500)
@@ -595,6 +714,9 @@ def api_stream():
 
 # ── Entry point ────────────────────────────────────────────────
 def main() -> None:
+    _init_cfg = _load_config()
+    if _init_cfg.get("scheduler", {}).get("enabled"):
+        _arm_scheduler(_init_cfg)
     url = f"http://localhost:{PORT}"
     print(f"Starting web server at {url}")
     print("Press Ctrl+C to stop.")
