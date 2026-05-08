@@ -106,6 +106,7 @@ def header():
     print("  [5] 检查 / 拉取更新")
     print("  [6] 配置图片打标 (cl_tagger / WD14)")
     print("  [7] 切换 Pixiv 账号（清除登录状态）")
+    print("  [8] 切换 Civitai 账号（清除 + 重新登录）")
     print("  [Q] 退出")
     print()
 
@@ -172,6 +173,31 @@ def cmd_pixiv_logout() -> None:
     print("下次上传时会重新打开登录页。")
 
 
+def cmd_civitai_login() -> None:
+    import shutil
+    from playwright.sync_api import sync_playwright
+    profile = Path.home() / ".civitai_splitter_chrome"
+    shutil.rmtree(profile, ignore_errors=True)
+    print(f"已清除旧登录状态（{profile}）。")
+    print("正在打开浏览器，请登录 Civitai 后回到此窗口按 Enter...")
+    with sync_playwright() as pw:
+        context = pw.chromium.launch_persistent_context(
+            str(profile),
+            channel="chrome",
+            headless=False,
+            args=["--disable-blink-features=AutomationControlled"],
+            ignore_default_args=["--enable-automation"],
+        )
+        page = context.pages[0] if context.pages else context.new_page()
+        try:
+            page.goto("https://civitai.red", wait_until="commit", timeout=15000)
+        except Exception:
+            pass
+        input("\n>>> 登录完成后按 Enter 关闭浏览器并保存登录状态... ")
+        context.close()
+    print("浏览器已关闭，登录状态已保存。")
+
+
 def cmd_check_update() -> None:
     global _update_banner
     print("正在检查更新...")
@@ -209,11 +235,12 @@ def main() -> int:
         "5": ("检查 / 拉取更新", cmd_check_update),
         "6": ("配置图片打标 (cl_tagger)", cmd_setup_tagger),
         "7": ("切换 Pixiv 账号", cmd_pixiv_logout),
+        "8": ("切换 Civitai 账号（清除 + 重新登录）", cmd_civitai_login),
     }
     while True:
         header()
         try:
-            choice = input("  请选择 [1-7, Q]: ").strip().lower()
+            choice = input("  请选择 [1-8, Q]: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             print()
             return 0

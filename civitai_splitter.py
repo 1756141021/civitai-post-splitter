@@ -39,6 +39,7 @@ from pixiv.support import (
     sanitize_image_for_pixiv,
     save_json,
     write_manifest,
+    PIXIV_BASE,
 )
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -49,8 +50,8 @@ PROGRESS_DIR = SCRIPT_DIR / "progress"
 TMP_DIR = SCRIPT_DIR / ".tmp"
 CHROME_PROFILE_DIR = Path.home() / ".civitai_splitter_chrome"
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp"}
-CIVITAI_BASE = "https://civitai.com"
-CIVITAI_API = "https://civitai.com/api/v1"
+CIVITAI_BASE = "https://civitai.red"
+CIVITAI_API = "https://civitai.red/api/v1"
 DONE_DAYS = 7
 _LORA_RE = re.compile(r"<lora:([^:>]+):([^>]+)>")
 TARGETS = {"civitai", "pixiv"}
@@ -399,7 +400,7 @@ def open_civitai_browser(pw):
         str(CHROME_PROFILE_DIR),
         channel="chrome",
         headless=False,
-        args=["--disable-blink-features=AutomationControlled", "--window-position=-32000,-32000"],
+        args=["--disable-blink-features=AutomationControlled"],
         ignore_default_args=["--enable-automation"],
     )
     page = context.pages[0] if context.pages else context.new_page()
@@ -1025,22 +1026,39 @@ def cmd_upload(args):
                         manifest["status_by_target"]["pixiv"] = "success"
                         log.info(f"    Pixiv 发布成功: {pixiv_url}")
                     else:
-                        failed_steps = [s for s in pixiv_steps if not s.ok]
-                        if failed_steps:
-                            summary = "; ".join(f"{s.name}:{s.reason}" for s in failed_steps)
-                            error_msg = f"Pixiv upload failed at [{summary}]"
+                        # If publish button was clicked successfully but redirect detection
+                        # timed out, the post likely went through on Pixiv's side.
+                        # Record as maybe_posted so the next batch skips this image
+                        # rather than creating a duplicate.
+                        post_was_clicked = any(
+                            getattr(s, "name", "") == "publish_click" and getattr(s, "ok", False)
+                            for s in pixiv_steps
+                        )
+                        if post_was_clicked:
+                            log.warning(
+                                "    publish 已点击但未检测到跳转（网络延迟？），"
+                                "记为 maybe_posted — 请手动确认 Pixiv 主页，下次此图将跳过"
+                            )
+                            manifest["pixiv"]["post_url"] = PIXIV_BASE
+                            manifest["status_by_target"]["pixiv"] = "maybe_posted"
+                            # Treat as done so the file moves out of upload/
                         else:
-                            error_msg = "Pixiv upload failed (无步骤记录)"
-                        if manifest["status_by_target"].get("pixiv") != "failed":
-                            manifest["status_by_target"]["pixiv"] = "failed"
-                            manifest["errors"].append(error_msg)
-                        all_succeeded = False
+                            failed_steps = [s for s in pixiv_steps if not s.ok]
+                            if failed_steps:
+                                summary = "; ".join(f"{s.name}:{s.reason}" for s in failed_steps)
+                                error_msg = f"Pixiv upload failed at [{summary}]"
+                            else:
+                                error_msg = "Pixiv upload failed (无步骤记录)"
+                            if manifest["status_by_target"].get("pixiv") != "failed":
+                                manifest["status_by_target"]["pixiv"] = "failed"
+                                manifest["errors"].append(error_msg)
+                            all_succeeded = False
 
             write_manifest(manifest_path, manifest)
 
             for target in targets:
                 status = manifest["status_by_target"].get(target)
-                if status in {"success", "skipped_already_done", "skipped_civitai_safety"}:
+                if status in {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted"}:
                     target_success_counts[target] += 1
                 elif status == "failed":
                     target_fail_counts[target] += 1

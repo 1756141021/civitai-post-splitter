@@ -263,7 +263,7 @@ function MonoSingleApp() {
   const [uploadDialog,   setUploadDialog]   = React.useState(null);
   const [taggerSetup,    setTaggerSetup]    = React.useState(false);
   const [taggerConfigured, setTaggerConfigured] = React.useState(true);
-  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false });
+  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
 
   React.useEffect(() => {
@@ -639,8 +639,10 @@ function LogZone({ logs }) {
 function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup }) {
   const [apiKey,        setApiKey]        = React.useState('');
   const [saved,         setSaved]         = React.useState(false);
-  const [pixivSwitching, setPixivSwitching] = React.useState(false);
-  const [pixivMsg,      setPixivMsg]      = React.useState('');
+  const [pixivSwitching,   setPixivSwitching]   = React.useState(false);
+  const [pixivMsg,         setPixivMsg]         = React.useState('');
+  const [civitaiSwitching, setCivitaiSwitching] = React.useState(false);
+  const [civitaiMsg,       setCivitaiMsg]       = React.useState('');
 
   const saveKey = () => {
     if (!apiKey.trim()) return;
@@ -690,6 +692,31 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup 
                   }}
                   style={{ padding: '2px 8px', fontSize: 11 }}>
             {pixivSwitching ? '…' : 'Switch account'}
+          </button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>Civitai account</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          {civitaiMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{civitaiMsg}</span>}
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.civitai_logged_in ? M.ok : M.inkFaint }} />
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.civitai_logged_in ? 'logged in' : 'not set'}</span>
+          <button className="mn-btn mn-btn-ghost"
+                  disabled={civitaiSwitching}
+                  onClick={() => {
+                    setCivitaiSwitching(true);
+                    setCivitaiMsg('');
+                    fetch('/api/civitai-logout', { method: 'POST' })
+                      .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                      .then(({ ok, d }) => {
+                        setCivitaiSwitching(false);
+                        if (ok) { onStatusReload && onStatusReload(); }
+                        else { setCivitaiMsg(d.error === 'civitai task is running' ? '停止当前任务后再切换' : d.error); }
+                      })
+                      .catch(() => { setCivitaiSwitching(false); setCivitaiMsg('请求失败'); });
+                  }}
+                  style={{ padding: '2px 8px', fontSize: 11 }}>
+            {civitaiSwitching ? '…' : 'Switch account'}
           </button>
         </div>
       </div>

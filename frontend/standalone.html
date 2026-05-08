@@ -9,21 +9,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   html, body { margin: 0; padding: 0; height: 100%; background: #0a0a0a; overflow: hidden; }
-  /* Stage: full viewport */
   #stage {
     position: fixed; inset: 0;
     background: #0a0a0a;
   }
-  /* Canvas: fixed 1280x800; absolutely centered AND scaled in one transform.
-     translate(-50%,-50%) handles centering post-transform so the (large) layout
-     box never overflows the viewport. */
   #canvas {
     position: absolute;
     top: 50%; left: 50%;
     width: 1280px; height: 800px;
     transform: translate(-50%, -50%) scale(var(--s, 1));
     transform-origin: center center;
-    background: #fafaf7;
+    background: var(--mn-bg, #fafaf7);
     box-shadow: 0 30px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.04);
     overflow: hidden;
   }
@@ -34,7 +30,6 @@
 <div id="stage"><div id="canvas"><div id="root"></div></div></div>
 
 <script>
-  // Auto-fit: scale 1280x800 to viewport, contain (letterbox), no upscale beyond 1.
   (function () {
     const W = 1280, H = 800;
     const canvas = document.getElementById('canvas');
@@ -54,18 +49,74 @@
 
 <script type="text/babel" data-presets="react">
 /* ============================================================
-   shared: tokens, icons, mock data, primitives, stylesheet
+   Tokens + theme
    ============================================================ */
+const _LIGHT = { bg:'#fafaf7', bg2:'#f3f2ed', panel:'#ffffff', ink:'#171513', ink2:'#3a3733', inkDim:'#6b6660', inkFaint:'#a39d95', line:'#e6e3dc', lineSoft:'#efece5', accent:'#e2552b', accentSoft:'#fde9df', ok:'#2f7d3a', warn:'#a36a00', red:'#b13b2c' };
+const _DARK  = { bg:'#0f0e0d', bg2:'#191816', panel:'#141312', ink:'#ede8e0', ink2:'#c4bdb3', inkDim:'#7d7570', inkFaint:'#4d4843', line:'#282521', lineSoft:'#1f1d1b', accent:'#e2552b', accentSoft:'#3d1a0a', ok:'#3ab54d', warn:'#c07a00', red:'#d04535' };
+
 const M = {
-  bg: '#fafaf7', bg2: '#f3f2ed', panel: '#ffffff',
-  ink: '#171513', ink2: '#3a3733', inkDim: '#6b6660', inkFaint: '#a39d95',
-  line: '#e6e3dc', lineSoft: '#efece5',
-  accent: '#e2552b', accentSoft: '#fde9df',
-  ok: '#2f7d3a', warn: '#a36a00', red: '#b13b2c',
+  ..._LIGHT,
   display: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
   mono: '"IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace',
 };
 
+if (typeof localStorage !== 'undefined' && localStorage.getItem('mn-theme') === 'dark') {
+  Object.assign(M, _DARK);
+}
+
+function updateCssVars(t) {
+  const r = document.documentElement;
+  ['bg','bg2','panel','ink','ink2','inkDim','inkFaint','line','lineSoft','accent','accentSoft','ok','warn','red']
+    .forEach(k => r.style.setProperty('--mn-' + k, t[k]));
+  r.style.setProperty('--mn-ink2a', t.ink2 + '33');
+  r.style.setProperty('--mn-inka',  t.ink  + '10');
+}
+
+/* CSS injection — uses CSS vars so theme flips instantly */
+if (!document.getElementById('mono-styles')) {
+  const s = document.createElement('style');
+  s.id = 'mono-styles';
+  s.textContent = `
+    *, *::before, *::after { box-sizing: border-box; }
+    .mn-mono { font-family:${M.mono}; }
+    .mn-num  { font-variant-numeric: tabular-nums; }
+    .mn-btn  { font-family:${M.display}; font-size:13px; font-weight:500; padding:8px 14px; border-radius:6px; border:1px solid var(--mn-line); background:var(--mn-panel); color:var(--mn-ink); cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition: all .12s; }
+    .mn-btn:hover { background:var(--mn-bg2); border-color:var(--mn-ink2a); }
+    .mn-btn-accent { background:var(--mn-accent); border-color:var(--mn-accent); color:#fff; }
+    .mn-btn-accent:hover { background:#cc4a23; border-color:#cc4a23; }
+    .mn-btn-ghost { background:transparent; border-color:transparent; color:var(--mn-inkDim); }
+    .mn-btn-ghost:hover { background:var(--mn-bg2); color:var(--mn-ink); }
+    .mn-input { font-family:${M.mono}; background:var(--mn-panel); border:1px solid var(--mn-line); color:var(--mn-ink); padding:8px 11px; border-radius:6px; font-size:12.5px; outline:none; }
+    .mn-input:focus { border-color:var(--mn-ink); box-shadow: 0 0 0 3px var(--mn-inka); }
+    .mn-chip { display:inline-flex; align-items:center; gap:6px; font-family:${M.mono}; font-size:10.5px; padding:3px 8px; border-radius:4px; border:1px solid var(--mn-line); color:var(--mn-inkDim); background:var(--mn-panel); letter-spacing:.04em; }
+    .mn-progress { height:4px; background:var(--mn-bg2); border-radius:0; overflow:hidden; }
+    .mn-progress > div { height:100%; background:var(--mn-ink); transition: width .4s ease; }
+    .mn-progress.idle > div { background:var(--mn-line); }
+    .mn-progress.done > div { background:var(--mn-ok); }
+    .mn-progress.fail > div { background:var(--mn-red); }
+    .mn-progress.accent > div { background:var(--mn-accent); }
+    .mn-h1 { font-family:${M.display}; font-weight:700; letter-spacing:-.025em; line-height:1; }
+    .mn-h2 { font-family:${M.display}; font-weight:600; letter-spacing:-.015em; }
+    .mn-row-hover { transition: background .1s; }
+    .mn-row-hover:hover { background:var(--mn-bg2); }
+    .ms-section-label { font-family:${M.mono}; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--mn-inkFaint); }
+    .ms-scroll { overflow:auto; }
+    .ms-scroll::-webkit-scrollbar { width:8px; height:8px; }
+    .ms-scroll::-webkit-scrollbar-thumb { background:var(--mn-line); border-radius:4px; }
+    .ms-op { padding:14px 14px; cursor:pointer; transition:background .12s; display:flex; flex-direction:column; min-height:108px; }
+    .ms-op:hover { background:var(--mn-bg2); }
+    .ms-op-key { font-family:${M.mono}; font-size:10px; color:var(--mn-inkFaint); letter-spacing:.12em; }
+    @keyframes ms-pulse { 0%,100% { opacity:.45 } 50% { opacity:1 } }
+    .ms-pulse { animation: ms-pulse 1.4s ease-in-out infinite; }
+    .ms-root { font-family:${M.display}; color:var(--mn-ink); background:var(--mn-bg); height:100%; width:100%; display:flex; flex-direction:column; overflow:hidden; }
+  `;
+  document.head.appendChild(s);
+}
+updateCssVars(M);
+
+/* ============================================================
+   Icons
+   ============================================================ */
 function MIcon({ name, size = 16, color = "currentColor" }) {
   const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
   switch (name) {
@@ -79,13 +130,16 @@ function MIcon({ name, size = 16, color = "currentColor" }) {
     case "stop":    return <svg {...p}><rect x="5" y="5" width="14" height="14" rx="2"/></svg>;
     case "x":       return <svg {...p}><path d="M6 6l12 12M18 6L6 18"/></svg>;
     case "folder":  return <svg {...p}><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>;
+    case "sun":     return <svg {...p}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>;
+    case "moon":    return <svg {...p}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>;
+    case "plus":    return <svg {...p}><path d="M12 5v14M5 12h14"/></svg>;
     default: return null;
   }
 }
 
-const MOCK_TASKS = [];
-const MOCK_LOG = [];
-
+/* ============================================================
+   Primitives
+   ============================================================ */
 function MonoChannel({ label, pct, accent }) {
   return (
     <div>
@@ -98,14 +152,18 @@ function MonoChannel({ label, pct, accent }) {
   );
 }
 
-function MonoTaskRow({ t }) {
-  const sm = {
+function MonoTaskRow({ t, onCancel, onRetry, onRemove }) {
+  const statusMap = {
     running: { c: M.accent,   label: 'RUN',  cls: 'accent', dot: true },
     queued:  { c: M.inkFaint, label: 'WAIT', cls: 'idle' },
     done:    { c: M.ok,       label: 'DONE', cls: 'done' },
     failed:  { c: M.red,      label: 'FAIL', cls: 'fail' },
   };
-  const s = sm[t.status] || sm.queued;
+  const s = statusMap[t.status] || statusMap.queued;
+  const handleX = () => {
+    if (t.status === 'running' || t.status === 'queued') onCancel && onCancel(t.id);
+    else onRemove && onRemove(t.id);
+  };
   return (
     <tr className="mn-row-hover">
       <td style={{ padding: '14px 12px', borderBottom: `1px solid ${M.lineSoft}`, width: 60 }}>
@@ -125,59 +183,30 @@ function MonoTaskRow({ t }) {
       <td style={{ padding: '14px 12px', borderBottom: `1px solid ${M.lineSoft}`, fontFamily: M.mono, fontSize: 12, color: M.inkFaint, width: 70 }}>{t.eta}</td>
       <td style={{ padding: '14px 12px', borderBottom: `1px solid ${M.lineSoft}`, textAlign: 'right', width: 90 }}>
         <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-          {t.status === 'running' && <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 7px' }}><MIcon name="pause" size={12} /></button>}
-          {t.status === 'queued'  && <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 7px' }}><MIcon name="play"  size={12} color={M.accent} /></button>}
-          {t.status === 'failed'  && <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 7px', color: M.warn }}><MIcon name="refresh" size={12} /></button>}
-          <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 7px' }}><MIcon name="x" size={12} /></button>
+          {t.status === 'running' && (
+            <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 7px' }}
+                    onClick={() => onCancel && onCancel(t.id)} title="停止">
+              <MIcon name="pause" size={12} />
+            </button>
+          )}
+          {t.status === 'failed' && (
+            <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 7px', color: M.warn }}
+                    onClick={() => onRetry && onRetry(t.id, t.cmd)} title="重试">
+              <MIcon name="refresh" size={12} />
+            </button>
+          )}
+          <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 7px' }}
+                  onClick={handleX} title={t.status === 'running' ? '取消' : '移除'}>
+            <MIcon name="x" size={12} />
+          </button>
         </div>
       </td>
     </tr>
   );
 }
 
-/* one-time CSS injection */
-if (!document.getElementById('mono-styles')) {
-  const s = document.createElement('style');
-  s.id = 'mono-styles';
-  s.textContent = `
-    *, *::before, *::after { box-sizing: border-box; }
-    .mn-mono { font-family:${M.mono}; }
-    .mn-num  { font-variant-numeric: tabular-nums; }
-    .mn-btn  { font-family:${M.display}; font-size:13px; font-weight:500; padding:8px 14px; border-radius:6px; border:1px solid ${M.line}; background:${M.panel}; color:${M.ink}; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition: all .12s; }
-    .mn-btn:hover { background:${M.bg2}; border-color:${M.ink2}33; }
-    .mn-btn-accent { background:${M.accent}; border-color:${M.accent}; color:#fff; }
-    .mn-btn-accent:hover { background:#cc4a23; border-color:#cc4a23; }
-    .mn-btn-ghost { background:transparent; border-color:transparent; color:${M.inkDim}; }
-    .mn-btn-ghost:hover { background:${M.bg2}; color:${M.ink}; }
-    .mn-input { font-family:${M.mono}; background:${M.panel}; border:1px solid ${M.line}; color:${M.ink}; padding:8px 11px; border-radius:6px; font-size:12.5px; outline:none; }
-    .mn-input:focus { border-color:${M.ink}; box-shadow: 0 0 0 3px ${M.ink}10; }
-    .mn-chip { display:inline-flex; align-items:center; gap:6px; font-family:${M.mono}; font-size:10.5px; padding:3px 8px; border-radius:4px; border:1px solid ${M.line}; color:${M.inkDim}; background:${M.panel}; letter-spacing:.04em; }
-    .mn-progress { height:4px; background:${M.bg2}; border-radius:0; overflow:hidden; }
-    .mn-progress > div { height:100%; background:${M.ink}; transition: width .4s ease; }
-    .mn-progress.idle > div { background:${M.line}; }
-    .mn-progress.done > div { background:${M.ok}; }
-    .mn-progress.fail > div { background:${M.red}; }
-    .mn-progress.accent > div { background:${M.accent}; }
-    .mn-h1 { font-family:${M.display}; font-weight:700; letter-spacing:-.025em; line-height:1; }
-    .mn-h2 { font-family:${M.display}; font-weight:600; letter-spacing:-.015em; }
-    .mn-row-hover { transition: background .1s; }
-    .mn-row-hover:hover { background:${M.bg2}; }
-    .ms-section-label { font-family:${M.mono}; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:${M.inkFaint}; }
-    .ms-scroll { overflow:auto; }
-    .ms-scroll::-webkit-scrollbar { width:8px; height:8px; }
-    .ms-scroll::-webkit-scrollbar-thumb { background:${M.line}; border-radius:4px; }
-    .ms-op { padding:14px 14px; cursor:pointer; transition:background .12s; display:flex; flex-direction:column; min-height:108px; }
-    .ms-op:hover { background:${M.bg2}; }
-    .ms-op-key { font-family:${M.mono}; font-size:10px; color:${M.inkFaint}; letter-spacing:.12em; }
-    @keyframes ms-pulse { 0%,100% { opacity:.45 } 50% { opacity:1 } }
-    .ms-pulse { animation: ms-pulse 1.4s ease-in-out infinite; }
-    .ms-root { font-family:${M.display}; color:${M.ink}; background:${M.bg}; height:100%; width:100%; display:flex; flex-direction:column; overflow:hidden; }
-  `;
-  document.head.appendChild(s);
-}
-
 /* ============================================================
-   App
+   Overlays / Dialogs
    ============================================================ */
 function InputPromptOverlay({ prompt, task_id, onSubmit }) {
   const [answer, setAnswer] = React.useState('y');
@@ -197,19 +226,269 @@ function InputPromptOverlay({ prompt, task_id, onSubmit }) {
   );
 }
 
+function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
+  const [images,    setImages]    = React.useState([]);
+  const [selected,  setSelected]  = React.useState(new Set());
+  const [loading,   setLoading]   = React.useState(true);
+  const [uploading, setUploading] = React.useState(false);
+  const fileInputRef = React.useRef(null);
+  const label = cmd === 2 ? 'Dual upload (Civitai + Pixiv)' : 'Pixiv only';
+
+  const loadImages = () =>
+    fetch('/api/images').then(r => r.json()).then(list => {
+      setImages(list);
+      setSelected(prev => {
+        const existing = new Set([...prev].filter(n => list.some(f => f.name === n)));
+        list.forEach(f => { if (!prev.size) existing.add(f.name); });
+        return prev.size === 0 ? new Set(list.map(f => f.name)) : existing;
+      });
+      setLoading(false);
+    }).catch(() => setLoading(false));
+
+  React.useEffect(() => { loadImages(); }, []);
+
+  const toggle = name => setSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    return next;
+  });
+
+  const addFiles = async e => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    const fd = new FormData();
+    files.forEach(f => fd.append('files', f));
+    await fetch('/api/add-upload-files', { method: 'POST', body: fd });
+    const newNames = files.map(f => f.name);
+    await fetch('/api/images').then(r => r.json()).then(list => {
+      setImages(list);
+      setSelected(prev => {
+        const next = new Set(prev);
+        newNames.forEach(n => next.add(n));
+        return next;
+      });
+    });
+    setUploading(false);
+    e.target.value = '';
+  };
+
+  const go = () => {
+    const files = images.filter(f => selected.has(f.name)).map(f => f.name);
+    onConfirm(cmd, files);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 640, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '14px 18px 10px', borderBottom: `1px solid ${M.line}` }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+          <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>
+            {loading ? '加载中…' : `upload/ 共 ${images.length} 张 · 已选 ${selected.size} 张`}
+          </div>
+        </div>
+        <div style={{ padding: '8px 18px', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                  onClick={() => setSelected(new Set(images.map(f => f.name)))}>全选</button>
+          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                  onClick={() => setSelected(new Set())}>清空</button>
+          <div style={{ marginLeft: 'auto' }}>
+            <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={addFiles} />
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                    onClick={() => fileInputRef.current.click()} disabled={uploading}>
+              <MIcon name="plus" size={12} /> {uploading ? '导入中…' : '添加文件'}
+            </button>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>
+          {loading && (
+            <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>
+          )}
+          {!loading && images.length === 0 && (
+            <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>
+              upload/ 为空。点"添加文件"从电脑上选图。
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
+            {images.map(f => {
+              const sel = selected.has(f.name);
+              return (
+                <div key={f.name} onClick={() => toggle(f.name)}
+                     style={{ cursor: 'pointer', borderRadius: 6, border: `2px solid ${sel ? M.accent : M.line}`, overflow: 'hidden', position: 'relative', background: M.bg }}>
+                  <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name}
+                       style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%',
+                                background: sel ? M.accent : 'rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center' }}>
+                    {sel && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
+                  </div>
+                  <div style={{ padding: '3px 5px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
+                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: M.panel }}>
+                    {f.name}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{ padding: '10px 18px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
+                  onClick={() => onConfirm(cmd, [])} title="随机从 upload/ 选 1-5 张，和命令行行为一致">
+            随机 1-5
+          </button>
+          <button className="mn-btn" onClick={onCancel}>取消</button>
+          <button className="mn-btn mn-btn-accent" onClick={go}
+                  disabled={selected.size === 0} style={{ opacity: selected.size === 0 ? 0.5 : 1 }}>
+            上传 {selected.size} 张
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TaggerSetupDialog({ onClose }) {
+  const [haintag,   setHaintag]   = React.useState('');
+  const [modelDir,  setModelDir]  = React.useState('');
+  const [haintagOk, setHaintagOk] = React.useState(null);
+  const [modelOk,   setModelOk]   = React.useState(null);
+  const [saving,    setSaving]    = React.useState(false);
+  const [saved,     setSaved]     = React.useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/tagger-config').then(r => r.json()).then(d => {
+      setHaintag(d.haintag_root || '');
+      setModelDir(d.model_dir || '');
+      setHaintagOk(d.haintag_ok);
+      setModelOk(d.model_ok);
+    }).catch(() => {});
+  }, []);
+
+  const postAndVerify = (closeAfter) => {
+    setSaving(true);
+    fetch('/api/tagger-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ haintag_root: haintag, model_dir: modelDir }),
+    })
+      .then(r => r.json())
+      .then(() => fetch('/api/tagger-config'))
+      .then(r => r.json())
+      .then(d => {
+        setSaving(false);
+        setHaintagOk(d.haintag_ok);
+        setModelOk(d.model_ok);
+        if (closeAfter) {
+          setSaved(true);
+          setTimeout(() => { setSaved(false); onClose(true); }, 900);
+        }
+      })
+      .catch(() => setSaving(false));
+  };
+
+  const dismiss = () => {
+    localStorage.setItem('tagger-setup-dismissed', '1');
+    onClose(false);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 540, padding: '20px 24px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Tagger setup (WD14)</div>
+        <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 18 }}>
+          Both fields are optional — uploads still work without them.
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
+            <span style={{ fontSize: 12.5 }}>haintag root</span>
+            <span className="mn-mono" style={{ marginLeft: 6, fontSize: 10.5, color: M.inkFaint }}>optional</span>
+            {haintagOk !== null && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: haintagOk ? M.ok : M.red }}>
+                {haintagOk ? '✓ native_app/tagger.py found' : '✗ native_app/tagger.py not found'}
+              </span>
+            )}
+          </div>
+          <input className="mn-input" value={haintag} onChange={e => setHaintag(e.target.value)}
+                 placeholder="e.g. E:\projects\haintag" style={{ width: '100%', fontSize: 12 }} />
+          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
+            The folder that contains <span style={{ color: M.ink2 }}>native_app/tagger.py</span> (haintag repo root).<br />
+            Uses TaggerEngine subprocess mode — haintag's own venv handles onnxruntime.<br />
+            Leave empty → standalone mode (needs onnxruntime in current env).
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
+            <span style={{ fontSize: 12.5 }}>model directory</span>
+            {modelOk !== null && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: modelOk ? M.ok : M.red }}>
+                {modelOk ? '✓ .onnx + mapping found' : modelDir ? '✗ .onnx or mapping not found' : '—'}
+              </span>
+            )}
+          </div>
+          <input className="mn-input" value={modelDir} onChange={e => setModelDir(e.target.value)}
+                 placeholder="e.g. E:\ComfyUI\models\onnx\cl_tagger" style={{ width: '100%', fontSize: 12 }} />
+          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
+            Must contain: <span style={{ color: M.ink2 }}>*.onnx</span> (model file, e.g. <span style={{ color: M.ink2 }}>cl_tagger_1_02.onnx</span>)<br />
+            + <span style={{ color: M.ink2 }}>*tag*mapping*.json</span> or <span style={{ color: M.ink2 }}>*label*.json</span> or <span style={{ color: M.ink2 }}>*tag*.csv</span> (tag list).<br />
+            ComfyUI default: <span style={{ color: M.ink2 }}>ComfyUI\models\onnx\cl_tagger\</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="mn-btn mn-btn-ghost" onClick={dismiss} style={{ fontSize: 12 }}>Skip</button>
+          <button className="mn-btn" onClick={() => postAndVerify(false)} disabled={saving} style={{ fontSize: 12 }}>
+            {saving ? '…' : 'Verify'}
+          </button>
+          <button className="mn-btn mn-btn-accent" onClick={() => postAndVerify(true)} disabled={saving} style={{ fontSize: 12 }}>
+            {saved ? '✓ Saved' : saving ? '…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   App
+   ============================================================ */
 function MonoSingleApp() {
-  const [filter, setFilter] = React.useState('all');
-  const [tick,   setTick]   = React.useState(0);
-  const [tasks,  setTasks]  = React.useState([]);
-  const [logs,   setLogs]   = React.useState([]);
-  const [connected,    setConnected]    = React.useState(false);
-  const [pendingInput, setPendingInput] = React.useState(null);
-  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false });
+  const [filter,           setFilter]           = React.useState('all');
+  const [tick,             setTick]             = React.useState(0);
+  const [tasks,            setTasks]            = React.useState([]);
+  const [logs,             setLogs]             = React.useState([]);
+  const [connected,        setConnected]        = React.useState(false);
+  const [pendingInput,     setPendingInput]     = React.useState(null);
+  const [uploadDialog,     setUploadDialog]     = React.useState(null);
+  const [taggerSetup,      setTaggerSetup]      = React.useState(false);
+  const [taggerConfigured, setTaggerConfigured] = React.useState(true);
+  const [status,           setStatus]           = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false });
+  const [isDark,           setIsDark]           = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
 
   React.useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 800);
     return () => clearInterval(id);
   }, []);
+
+  React.useEffect(() => {
+    fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    fetch('/api/tagger-config').then(r => r.json()).then(d => {
+      setTaggerConfigured(d.model_ok || false);
+      if (d.needs_setup && !localStorage.getItem('tagger-setup-dismissed')) {
+        setTaggerSetup(true);
+      }
+    }).catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    const t = isDark ? _DARK : _LIGHT;
+    Object.assign(M, t);
+    updateCssVars(M);
+    localStorage.setItem('mn-theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
 
   React.useEffect(() => {
     const es = new EventSource('/api/stream');
@@ -222,14 +501,15 @@ function MonoSingleApp() {
       });
     });
     es.addEventListener('log', e => { setLogs(prev => [...prev.slice(-499), JSON.parse(e.data)]); });
+    es.addEventListener('task_remove', e => {
+      const { id } = JSON.parse(e.data);
+      setTasks(prev => prev.filter(t => t.id !== id));
+    });
     es.addEventListener('input_required', e => setPendingInput(JSON.parse(e.data)));
-    es.onopen  = () => setConnected(true);
-    es.onerror = () => setConnected(false);
+    let errTimer = null;
+    es.onopen  = () => { clearTimeout(errTimer); setConnected(true); };
+    es.onerror = () => { errTimer = setTimeout(() => { if (es.readyState !== 1) setConnected(false); }, 2000); };
     return () => es.close();
-  }, []);
-
-  React.useEffect(() => {
-    fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
   }, []);
 
   const runCmd = (cmd, params = {}) =>
@@ -240,11 +520,39 @@ function MonoSingleApp() {
     setPendingInput(null);
   };
 
+  const cancelTask = id => fetch(`/api/tasks/${id}/cancel`, { method: 'POST' });
+  const removeTask = id => {
+    fetch(`/api/tasks/${id}/remove`, { method: 'POST' });
+    setTasks(prev => prev.filter(t => t.id !== id));
+  };
+  const retryTask  = (id, cmd) => { removeTask(id); runCmd(cmd); };
+
+  const reloadStatus = () =>
+    fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
+
+  const startUpload   = cmd => setUploadDialog({ cmd });
+  const confirmUpload = (cmd, files) => {
+    setUploadDialog(null);
+    runCmd(cmd, files && files.length > 0 ? { files } : {});
+  };
+
   const runningCount = tasks.filter(t => t.status === 'running').length;
 
   return (
     <div className="ms-root">
-      {pendingInput && <InputPromptOverlay {...pendingInput} onSubmit={ans => replyInput(pendingInput.task_id, ans)} />}
+      {pendingInput && (
+        <InputPromptOverlay {...pendingInput} onSubmit={ans => replyInput(pendingInput.task_id, ans)} />
+      )}
+      {uploadDialog && (
+        <ImagePickerDialog cmd={uploadDialog.cmd} onConfirm={confirmUpload} onCancel={() => setUploadDialog(null)} />
+      )}
+      {taggerSetup && (
+        <TaggerSetupDialog onClose={saved => {
+          setTaggerSetup(false);
+          if (saved) fetch('/api/tagger-config').then(r => r.json()).then(d => setTaggerConfigured(d.model_ok || false)).catch(() => {});
+        }} />
+      )}
+
       <header style={{ padding: '14px 24px', borderBottom: `1px solid ${M.line}`, display: 'flex', alignItems: 'center', gap: 18, background: M.panel, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 28, height: 28, borderRadius: 5, background: M.ink, display: 'grid', placeItems: 'center' }}>
@@ -261,18 +569,25 @@ function MonoSingleApp() {
             R-18 mosaic {status.mosaic_installed ? 'ON' : 'OFF'}
           </span>
           <span className="mn-chip">upload/ {status.upload_count} imgs</span>
+          <button className="mn-btn mn-btn-ghost" style={{ padding: '5px 8px' }}
+                  onClick={() => setIsDark(d => !d)} title={isDark ? '切换日间模式' : '切换夜间模式'}>
+            <MIcon name={isDark ? 'sun' : 'moon'} size={14} />
+          </button>
         </div>
       </header>
 
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', gap: 0, minHeight: 0 }}>
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, borderRight: `1px solid ${M.line}` }}>
           <ActiveHero tick={tick} tasks={tasks} />
-          <OperationsStrip runCmd={runCmd} />
-          <QueueZone filter={filter} setFilter={setFilter} tasks={tasks} />
+          <OperationsStrip runCmd={runCmd} onStartUpload={startUpload} />
+          <QueueZone filter={filter} setFilter={setFilter} tasks={tasks}
+                     onCancel={cancelTask} onRemove={removeTask} onRetry={retryTask} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <LogZone logs={logs} />
-          <SettingsZone status={status} />
+          <SettingsZone status={status} onStatusReload={reloadStatus}
+                       taggerConfigured={taggerConfigured}
+                       onTaggerSetup={() => setTaggerSetup(true)} />
         </div>
       </div>
 
@@ -286,6 +601,9 @@ function MonoSingleApp() {
   );
 }
 
+/* ============================================================
+   Zones
+   ============================================================ */
 function ActiveHero({ tick, tasks }) {
   const active = tasks.find(t => t.status === 'running');
   const civPct = active ? active.progress * 100 : 0;
@@ -293,7 +611,9 @@ function ActiveHero({ tick, tasks }) {
   if (!active) {
     return (
       <div style={{ padding: '20px 24px 18px', borderBottom: `1px solid ${M.line}`, background: M.panel }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}><span className="ms-section-label">active job</span></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span className="ms-section-label">active job</span>
+        </div>
         <div style={{ fontSize: 14, color: M.inkDim }}>No job running. Use the operations below to start one.</div>
       </div>
     );
@@ -319,18 +639,20 @@ function ActiveHero({ tick, tasks }) {
           <button className="mn-btn" onClick={() => fetch(`/api/tasks/${active.id}/cancel`, { method: 'POST' })}>
             <MIcon name="stop" size={12} /> Cancel
           </button>
-          <button className="mn-btn mn-btn-ghost"><MIcon name="folder" size={13} /> Folder</button>
+          <button className="mn-btn mn-btn-ghost" onClick={() => fetch('/api/open-folder')}>
+            <MIcon name="folder" size={13} /> Folder
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function OperationsStrip({ runCmd }) {
+function OperationsStrip({ runCmd, onStartUpload }) {
   const ops = [
     { key: '1', icon: 'split',   title: 'Split post',  sub: '一帖多图 → 多帖单图', cmd: 1 },
-    { key: '2', icon: 'upload',  title: 'Dual upload', sub: 'Civitai + Pixiv',    cmd: 2 },
-    { key: '3', icon: 'image',   title: 'Pixiv only',  sub: '跳过 Civitai',       cmd: 3 },
+    { key: '2', icon: 'upload',  title: 'Dual upload', sub: 'Civitai + Pixiv',    cmd: 2, upload: true },
+    { key: '3', icon: 'image',   title: 'Pixiv only',  sub: '跳过 Civitai',       cmd: 3, upload: true },
     { key: '4', icon: 'shield',  title: 'R-18 mosaic', sub: '安装 / 检查',        cmd: 4 },
     { key: '5', icon: 'refresh', title: 'Update',      sub: '检查更新',           cmd: 5 },
   ];
@@ -342,7 +664,8 @@ function OperationsStrip({ runCmd }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', borderTop: `1px solid ${M.line}` }}>
         {ops.map((o, i) => (
-          <div key={o.key} className="ms-op" onClick={() => runCmd(o.cmd)}
+          <div key={o.key} className="ms-op"
+               onClick={() => o.upload ? onStartUpload(o.cmd) : runCmd(o.cmd)}
                style={{ borderRight: i < ops.length - 1 ? `1px solid ${M.line}` : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className="ms-op-key">[{o.key}]</span>
@@ -359,7 +682,7 @@ function OperationsStrip({ runCmd }) {
   );
 }
 
-function QueueZone({ filter, setFilter, tasks }) {
+function QueueZone({ filter, setFilter, tasks, onCancel, onRemove, onRetry }) {
   const running = tasks.filter(t => t.status === 'running').length;
   const queued  = tasks.filter(t => t.status === 'queued').length;
   const done    = tasks.filter(t => t.status === 'done').length;
@@ -400,7 +723,7 @@ function QueueZone({ filter, setFilter, tasks }) {
               ))}
             </tr>
           </thead>
-          <tbody>{list.map(t => <MonoTaskRow key={t.id} t={t} />)}</tbody>
+          <tbody>{list.map(t => <MonoTaskRow key={t.id} t={t} onCancel={onCancel} onRemove={onRemove} onRetry={onRetry} />)}</tbody>
         </table>
         {list.length === 0 && <div style={{ padding: '24px', textAlign: 'center', color: M.inkFaint, fontFamily: M.mono, fontSize: 12 }}>No tasks yet. Click an operation above to start.</div>}
       </div>
@@ -409,7 +732,7 @@ function QueueZone({ filter, setFilter, tasks }) {
 }
 
 function LogZone({ logs }) {
-  const [grep, setGrep]   = React.useState('');
+  const [grep, setGrep]     = React.useState('');
   const [paused, setPaused] = React.useState(false);
   const endRef = React.useRef(null);
   const lvlColor = { INFO: M.ink, OK: M.ok, WARN: M.warn, ERR: M.red };
@@ -440,16 +763,115 @@ function LogZone({ logs }) {
   );
 }
 
-function SettingsZone({ status }) {
+function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup }) {
+  const [apiKey,         setApiKey]         = React.useState('');
+  const [saved,          setSaved]          = React.useState(false);
+  const [pixivSwitching,   setPixivSwitching]   = React.useState(false);
+  const [pixivMsg,         setPixivMsg]         = React.useState('');
+  const [civitaiSwitching, setCivitaiSwitching] = React.useState(false);
+  const [civitaiMsg,       setCivitaiMsg]       = React.useState('');
+
+  const saveKey = () => {
+    if (!apiKey.trim()) return;
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ api_key: apiKey.trim() }),
+    }).then(r => {
+      if (!r.ok) { alert('保存失败（' + r.status + '），请重启服务器后重试'); return; }
+      setSaved(true);
+      setApiKey('');
+      setTimeout(() => { setSaved(false); onStatusReload && onStatusReload(); }, 1200);
+    });
+  };
+
   return (
     <div style={{ background: M.panel, padding: '12px 18px 14px', flexShrink: 0 }}>
       <div className="ms-section-label" style={{ marginBottom: 8 }}>settings</div>
       <SetCompactRow label="Mosaic model" value={status.mosaic_installed ? 'installed' : 'not installed'} ok={status.mosaic_installed} />
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>WD14 tagger</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: taggerConfigured ? M.ok : M.red }} />
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{taggerConfigured ? 'configured' : 'not set'}</span>
+          <button className="mn-btn mn-btn-ghost" onClick={onTaggerSetup} style={{ padding: '2px 8px', fontSize: 11 }}>Configure</button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>Pixiv account</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          {pixivMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{pixivMsg}</span>}
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.pixiv_logged_in ? M.ok : M.inkFaint }} />
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.pixiv_logged_in ? 'logged in' : 'not set'}</span>
+          <button className="mn-btn mn-btn-ghost"
+                  disabled={pixivSwitching}
+                  onClick={() => {
+                    setPixivSwitching(true);
+                    setPixivMsg('');
+                    fetch('/api/pixiv-logout', { method: 'POST' })
+                      .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                      .then(({ ok, d }) => {
+                        setPixivSwitching(false);
+                        if (ok) { onStatusReload && onStatusReload(); }
+                        else { setPixivMsg(d.error === 'pixiv task is running' ? '停止当前任务后再切换' : d.error); }
+                      })
+                      .catch(() => { setPixivSwitching(false); setPixivMsg('请求失败'); });
+                  }}
+                  style={{ padding: '2px 8px', fontSize: 11 }}>
+            {pixivSwitching ? '…' : 'Switch account'}
+          </button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>Civitai account</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          {civitaiMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{civitaiMsg}</span>}
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.civitai_logged_in ? M.ok : M.inkFaint }} />
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.civitai_logged_in ? 'logged in' : 'not set'}</span>
+          <button className="mn-btn mn-btn-ghost"
+                  disabled={civitaiSwitching}
+                  onClick={() => {
+                    setCivitaiSwitching(true);
+                    setCivitaiMsg('');
+                    fetch('/api/civitai-logout', { method: 'POST' })
+                      .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                      .then(({ ok, d }) => {
+                        setCivitaiSwitching(false);
+                        if (ok) { onStatusReload && onStatusReload(); }
+                        else { setCivitaiMsg(d.error === 'civitai task is running' ? '停止当前任务后再切换' : d.error); }
+                      })
+                      .catch(() => { setCivitaiSwitching(false); setCivitaiMsg('请求失败'); });
+                  }}
+                  style={{ padding: '2px 8px', fontSize: 11 }}>
+            {civitaiSwitching ? '…' : 'Switch account'}
+          </button>
+        </div>
+      </div>
       <SetCompactRow label="Upload queue" value={`${status.upload_count} imgs`} />
-      <SetCompactRow label="API key"      value={status.has_api_key ? 'set via env' : 'not set'} ok={status.has_api_key} last />
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>API key</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.has_api_key ? M.ok : M.red }} />
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>
+            {status.has_api_key ? (status.api_key_masked || 'set') : 'not set'}
+          </span>
+        </div>
+      </div>
+      <div style={{ paddingTop: 8, display: 'flex', gap: 6 }}>
+        <input className="mn-input" placeholder="paste Civitai API key…" type="password"
+               value={apiKey} onChange={e => setApiKey(e.target.value)}
+               onKeyDown={e => e.key === 'Enter' && saveKey()}
+               style={{ flex: 1, fontSize: 12 }} />
+        <button className="mn-btn mn-btn-accent"
+                onClick={saveKey} disabled={!apiKey.trim()}
+                style={{ padding: '6px 12px', fontSize: 12, opacity: apiKey.trim() ? 1 : 0.5 }}>
+          {saved ? '✓' : 'Save'}
+        </button>
+      </div>
     </div>
   );
 }
+
 function SetCompactRow({ label, value, ok, last }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: last ? 'none' : `1px solid ${M.lineSoft}` }}>

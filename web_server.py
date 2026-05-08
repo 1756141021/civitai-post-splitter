@@ -21,6 +21,7 @@ from flask import Flask, Response, jsonify, request, send_from_directory, stream
 from pixiv.support import PIXIV_PROFILE_DIR
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
+CIVITAI_PROFILE_DIR = Path.home() / ".civitai_splitter_chrome"
 FRONTEND_DIR = SCRIPT_DIR / "frontend"
 PORT = int(os.environ.get("WEB_PORT", "7788"))
 CONFIG_FILE = SCRIPT_DIR / "config.json"
@@ -426,6 +427,7 @@ def api_status():
         "has_api_key":       bool(api_key),
         "api_key_masked":    masked,
         "pixiv_logged_in":   PIXIV_PROFILE_DIR.exists(),
+        "civitai_logged_in": CIVITAI_PROFILE_DIR.exists(),
     })
 
 
@@ -533,6 +535,19 @@ def api_pixiv_logout():
     if running_pixiv:
         return jsonify({"error": "pixiv task is running"}), 400
     shutil.rmtree(PIXIV_PROFILE_DIR, ignore_errors=True)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/civitai-logout", methods=["POST"])
+def api_civitai_logout():
+    with TASKS_LOCK:
+        running_civitai = any(
+            t.get("status") == "running" and t.get("cmd") in (1, 2)
+            for t in TASKS.values()
+        )
+    if running_civitai:
+        return jsonify({"error": "civitai task is running"}), 400
+    shutil.rmtree(CIVITAI_PROFILE_DIR, ignore_errors=True)
     return jsonify({"ok": True})
 
 

@@ -1667,7 +1667,7 @@ def find_target_successes(manifest_dir: Path, source_path: Path) -> dict[str, st
             continue
         status_by = manifest.get("status_by_target") or {}
         for target, status in status_by.items():
-            if status != "success":
+            if status not in {"success", "maybe_posted"}:
                 continue
             target_block = manifest.get(target) or {}
             url = target_block.get("post_url") or ""

@@ -163,6 +163,13 @@
         "メイド": 0
       },
       "updated_at": ""
+    },
+    "genshin_impact": {
+      "winner": "原神",
+      "counts": {
+        "原神": 0
+      },
+      "updated_at": ""
     }
   }
 }
