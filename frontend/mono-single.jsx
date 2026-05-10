@@ -364,6 +364,14 @@ function MonoSingleApp() {
   }, [isDark]);
 
   React.useEffect(() => {
+    let unloading = false;
+    const notifyShutdown = () => {
+      if (unloading) return;
+      unloading = true;
+      navigator.sendBeacon('/api/shutdown', new Blob(['{}'], { type: 'application/json' }));
+    };
+    window.addEventListener('pagehide', notifyShutdown);
+    window.addEventListener('beforeunload', notifyShutdown);
     const es = new EventSource('/api/stream');
     es.addEventListener('task_update', e => {
       const t = JSON.parse(e.data);
@@ -376,6 +384,10 @@ function MonoSingleApp() {
     es.addEventListener('log', e => {
       setLogs(prev => [...prev.slice(-499), JSON.parse(e.data)]);
     });
+    es.addEventListener('scheduler_update', e => {
+      const scheduler = JSON.parse(e.data);
+      setStatus(prev => ({ ...prev, scheduler }));
+    });
     es.addEventListener('task_remove', e => {
       const { id } = JSON.parse(e.data);
       setTasks(prev => prev.filter(t => t.id !== id));
@@ -384,7 +396,11 @@ function MonoSingleApp() {
     let errTimer = null;
     es.onopen  = () => { clearTimeout(errTimer); setConnected(true); };
     es.onerror = () => { errTimer = setTimeout(() => { if (es.readyState !== 1) setConnected(false); }, 2000); };
-    return () => es.close();
+    return () => {
+      window.removeEventListener('pagehide', notifyShutdown);
+      window.removeEventListener('beforeunload', notifyShutdown);
+      es.close();
+    };
   }, []);
 
   const runCmd = (cmd, params = {}) =>
@@ -736,6 +752,14 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
   const sched = status.scheduler || { enabled: false, next_fire_at: null };
+
+  React.useEffect(() => {
+    if (!sched.enabled) return;
+    const fireAt = sched.next_fire_at ? new Date(sched.next_fire_at).getTime() : 0;
+    const delay = fireAt > Date.now() ? fireAt - Date.now() + 1500 : 1500;
+    const id = setTimeout(() => onStatusReload && onStatusReload(), delay);
+    return () => clearTimeout(id);
+  }, [sched.enabled, sched.next_fire_at]);
 
   const saveKey = () => {
     if (!apiKey.trim()) return;

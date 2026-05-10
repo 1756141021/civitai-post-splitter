@@ -1,0 +1,21 @@
+# Changelog
+
+## 2026-05-10
+
+### Added
+- Added scheduler support in both the launcher and Web UI, including persisted interval/count/target settings and live scheduler status updates.
+- Added browser shutdown handling from the Web UI so the local server can stop itself after the page closes and active tasks finish.
+- Added Pixiv rule-fit tooling for collecting high-traffic Pixiv samples, downloading reference images, comparing local generated tags against Pixiv tags, and writing summary reports.
+- Added `synonym_tags` to Pixiv general tag configuration so canonical tags can also emit high-value aliases such as BlueArchive / Arknights / WutheringWaves forms.
+- Added expanded Pixiv tag mappings, selling-point rules, alias overrides, popularity data, and validation cases.
+
+### Changed
+- Pixiv tag generation now gives WD14 tagger output stricter category-aware handling, uses the 151k Danbooru→JP table behind user overrides, expands synonyms before the 10-tag cap, and preserves forced R-18 / original tags.
+- Civitai safety checks now match multi-word school/minor phrases from filenames and metadata instead of only exact split tokens.
+- Pixiv and Civitai login flows now launch persistent Chrome without automation and sandbox default args, and the Pixiv account switch action immediately opens the login page.
+- Web scheduler state is broadcast through SSE, restored on stream connection, and refreshed by the frontend when the next scheduled fire time passes.
+- WD14 tagger setup copy now explains the haintag bridge, standalone tagger fallback, and model directory expectations more clearly.
+
+### Notes
+- `config.json` is still private runtime state and must not be committed.
+- `pixiv/rule_fit/` contains generated rule-fit samples, manifests, and reports; keep only deliberate fixtures under version control.

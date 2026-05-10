@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import json
 import os
+import random
 import subprocess
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -105,8 +107,9 @@ def header():
     print("  [4] 安装 / 检查 R-18 自动打码")
     print("  [5] 检查 / 拉取更新")
     print("  [6] 配置图片打标 (cl_tagger / WD14)")
-    print("  [7] 切换 Pixiv 账号（清除登录状态）")
+    print("  [7] 切换 Pixiv 账号（清除 + 重新登录）")
     print("  [8] 切换 Civitai 账号（清除 + 重新登录）")
+    print("  [9] 定时自动发布（配置 / 启动）")
     print("  [Q] 退出")
     print()
 
@@ -167,10 +170,27 @@ def cmd_setup_tagger() -> None:
 
 def cmd_pixiv_logout() -> None:
     import shutil
+    from playwright.sync_api import sync_playwright
     from pixiv.support import PIXIV_PROFILE_DIR
     shutil.rmtree(PIXIV_PROFILE_DIR, ignore_errors=True)
-    print(f"已清除 Pixiv 登录状态（{PIXIV_PROFILE_DIR}）。")
-    print("下次上传时会重新打开登录页。")
+    print(f"已清除旧登录状态（{PIXIV_PROFILE_DIR}）。")
+    print("正在打开浏览器，请登录 Pixiv 后回到此窗口按 Enter...")
+    with sync_playwright() as pw:
+        context = pw.chromium.launch_persistent_context(
+            str(PIXIV_PROFILE_DIR),
+            channel="chrome",
+            headless=False,
+            args=["--disable-sync", "--no-first-run"],
+            ignore_default_args=["--enable-automation", "--no-sandbox"],
+        )
+        page = context.pages[0] if context.pages else context.new_page()
+        try:
+            page.goto("https://accounts.pixiv.net/login", wait_until="commit", timeout=15000)
+        except Exception:
+            pass
+        input("\n>>> 登录完成后按 Enter 关闭浏览器并保存登录状态... ")
+        context.close()
+    print("浏览器已关闭，登录状态已保存。")
 
 
 def cmd_civitai_login() -> None:
@@ -185,8 +205,8 @@ def cmd_civitai_login() -> None:
             str(profile),
             channel="chrome",
             headless=False,
-            args=["--disable-blink-features=AutomationControlled"],
-            ignore_default_args=["--enable-automation"],
+            args=[],
+            ignore_default_args=["--enable-automation", "--no-sandbox"],
         )
         page = context.pages[0] if context.pages else context.new_page()
         try:
@@ -220,6 +240,112 @@ def cmd_check_update() -> None:
         print("\n取消。下次启动还会提示。")
 
 
+def _sched_config() -> dict:
+    cfg_file = SCRIPT_DIR / "config.json"
+    cfg = {}
+    if cfg_file.exists():
+        try:
+            cfg = json.loads(cfg_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return cfg.get("scheduler") or {
+        "enabled": False, "targets": "civitai,pixiv",
+        "count": 1, "min_hours": 1.0, "max_hours": 3.0, "next_fire_at": None,
+    }
+
+
+def _save_sched_config(sched: dict) -> None:
+    cfg_file = SCRIPT_DIR / "config.json"
+    cfg = {}
+    if cfg_file.exists():
+        try:
+            cfg = json.loads(cfg_file.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    cfg["scheduler"] = sched
+    cfg_file.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def cmd_scheduler() -> None:
+    sched = _sched_config()
+    print()
+    print("  当前定时发布配置：")
+    print(f"    目标平台：{sched.get('targets', 'civitai,pixiv')}")
+    print(f"    每次张数：{sched.get('count', 1)}")
+    print(f"    间隔范围：{sched.get('min_hours', 1.0)} ~ {sched.get('max_hours', 3.0)} 小时")
+    next_fire = sched.get("next_fire_at")
+    if next_fire:
+        try:
+            dt = datetime.fromisoformat(next_fire).astimezone()
+            print(f"    下次触发：{dt.strftime('%H:%M:%S')}")
+        except Exception:
+            pass
+    print()
+
+    # Configure
+    raw = input("  目标平台（civitai / pixiv / civitai,pixiv，留空保持）: ").strip()
+    if raw:
+        sched["targets"] = raw
+
+    raw = input(f"  每次上传几张（留空保持 {sched.get('count', 1)}）: ").strip()
+    if raw.isdigit() and int(raw) > 0:
+        sched["count"] = int(raw)
+
+    raw = input(f"  最短间隔小时（留空保持 {sched.get('min_hours', 1.0)}）: ").strip()
+    if raw:
+        try:
+            sched["min_hours"] = float(raw)
+        except ValueError:
+            pass
+
+    raw = input(f"  最长间隔小时（留空保持 {sched.get('max_hours', 3.0)}）: ").strip()
+    if raw:
+        try:
+            sched["max_hours"] = float(raw)
+        except ValueError:
+            pass
+
+    _save_sched_config(sched)
+    print()
+    print("  配置已保存。")
+    print()
+    ans = input("  现在启动调度循环？启动后保持此窗口运行，Ctrl-C 停止。[Y/n] ").strip().lower()
+    if ans not in ("", "y", "yes"):
+        return
+
+    targets = sched.get("targets", "civitai,pixiv")
+    count = sched.get("count", 1)
+    min_h = float(sched.get("min_hours", 1.0))
+    max_h = float(sched.get("max_hours", 3.0))
+    if min_h > max_h:
+        min_h, max_h = max_h, min_h
+
+    upload_dir = SCRIPT_DIR / "upload"
+    print()
+    print("  调度循环已启动，Ctrl-C 停止。")
+    print()
+    try:
+        while True:
+            delay = random.uniform(min_h, max_h) * 3600
+            fire_at = datetime.now(timezone.utc).astimezone()
+            fire_at_ts = fire_at.timestamp() + delay
+            fire_dt = datetime.fromtimestamp(fire_at_ts).strftime("%H:%M:%S")
+            h = int(delay // 3600)
+            m = int((delay % 3600) // 60)
+            print(f"  下次触发：{fire_dt}（约 {h}h {m}m 后）")
+            time.sleep(delay)
+
+            imgs = [f for f in upload_dir.iterdir() if f.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"}] if upload_dir.exists() else []
+            if not imgs:
+                print("  upload/ 无图片，跳过本次触发。")
+                continue
+
+            print(f"  触发！上传 {count} 张 → {targets}")
+            run(["civitai_splitter.py", "upload", "--targets", targets, "--count", str(count)])
+    except KeyboardInterrupt:
+        print("\n  调度循环已停止。")
+
+
 def main() -> int:
     global _update_banner
     has, n, info = _check_updates(force=False)
@@ -234,13 +360,14 @@ def main() -> int:
         "4": ("安装 / 检查打码", cmd_setup_censor),
         "5": ("检查 / 拉取更新", cmd_check_update),
         "6": ("配置图片打标 (cl_tagger)", cmd_setup_tagger),
-        "7": ("切换 Pixiv 账号", cmd_pixiv_logout),
+        "7": ("切换 Pixiv 账号（清除 + 重新登录）", cmd_pixiv_logout),
         "8": ("切换 Civitai 账号（清除 + 重新登录）", cmd_civitai_login),
+        "9": ("定时自动发布", cmd_scheduler),
     }
     while True:
         header()
         try:
-            choice = input("  请选择 [1-8, Q]: ").strip().lower()
+            choice = input("  请选择 [1-9, Q]: ").strip().lower()
         except (EOFError, KeyboardInterrupt):
             print()
             return 0

@@ -1,18 +1,17 @@
-"""cl_tagger (WD14) setup wizard.
-
-Guides new users through:
-  1. Setting the haintag project root (saved to config.json["haintag_root"])
-  2. Setting the tagger model directory (saved to %APPDATA%\\HainTag\\settings.json)
-  3. Verifying the configuration works
-
-Windows console may be GBK, so all output uses ASCII-safe characters only.
-"""
+"""cl_tagger (WD14) 配置向导。"""
 from __future__ import annotations
 
+import io
 import json
 import os
 import sys
 from pathlib import Path
+
+# 强制 UTF-8 输出，避免 Windows GBK 控制台乱码
+if hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "buffer"):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_DIR = SCRIPT_DIR.parent

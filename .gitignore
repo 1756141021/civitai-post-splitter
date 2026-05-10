@@ -8,6 +8,7 @@ done/
 upload/
 manifests/
 progress/
+pixiv/rule_fit/
 .tmp/
 
 # Logs (auto-archived, capped to 100/10 days each group)
@@ -17,10 +18,14 @@ logs/
 pixiv_validation_cases.json
 
 # User-tunable config (auto-generated with defaults; private once tuned)
+config.json
 pixiv_censor.json
 
 # Model files (50+ MB, fetched via setup_censor.py)
 models/
+
+# Local media dropped beside the tool
+*.mp3
 
 # IDE / editor
 .vscode/

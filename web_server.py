@@ -12,6 +12,7 @@ import subprocess
 import sys
 import random
 import threading
+import time
 import uuid
 import webbrowser
 from datetime import datetime, timedelta
@@ -52,6 +53,8 @@ TASKS_LOCK = threading.Lock()
 
 _scheduler_timer: threading.Timer | None = None
 _scheduler_lock = threading.Lock()
+_shutdown_timer: threading.Timer | None = None
+_shutdown_lock = threading.Lock()
 
 SSE_CLIENTS: list[queue.Queue] = []
 CLIENTS_LOCK = threading.Lock()
@@ -66,6 +69,57 @@ CMD_LABELS = {
 
 # ── Flask app ──────────────────────────────────────────────────
 app = Flask(__name__, static_folder=None)
+
+def _has_active_tasks() -> bool:
+    with TASKS_LOCK:
+        return any(t.get("status") in ("queued", "running") for t in TASKS.values())
+
+
+def _cancel_scheduler() -> dict:
+    global _scheduler_timer
+    cfg = _load_config()
+    sched = cfg.get("scheduler") or _sched_default()
+    sched["enabled"] = False
+    sched["next_fire_at"] = None
+    cfg["scheduler"] = sched
+    _save_config(cfg)
+    with _scheduler_lock:
+        if _scheduler_timer is not None:
+            _scheduler_timer.cancel()
+            _scheduler_timer = None
+    return sched
+
+
+def _exit_when_idle(force: bool = False) -> None:
+    with CLIENTS_LOCK:
+        has_clients = bool(SSE_CLIENTS)
+    if has_clients and not force:
+        return
+    _cancel_scheduler()
+    if _has_active_tasks():
+        _schedule_idle_shutdown(force=force)
+        return
+    time.sleep(0.2)
+    os._exit(0)
+
+
+def _schedule_idle_shutdown(force: bool = False) -> None:
+    global _shutdown_timer
+    with _shutdown_lock:
+        if _shutdown_timer is not None:
+            _shutdown_timer.cancel()
+        _shutdown_timer = threading.Timer(5.0, _exit_when_idle, kwargs={"force": force})
+        _shutdown_timer.daemon = True
+        _shutdown_timer.start()
+
+
+def _cancel_idle_shutdown() -> None:
+    global _shutdown_timer
+    with _shutdown_lock:
+        if _shutdown_timer is not None:
+            _shutdown_timer.cancel()
+            _shutdown_timer = None
+
 
 # ── SSE helpers ────────────────────────────────────────────────
 def _broadcast_sse(event_type: str, data: dict) -> None:
@@ -562,6 +616,10 @@ def _sched_default() -> dict:
             "min_hours": 1.0, "max_hours": 3.0, "next_fire_at": None}
 
 
+def _broadcast_scheduler(sched: dict) -> None:
+    _broadcast_sse("scheduler_update", dict(sched))
+
+
 def _arm_scheduler(cfg: dict) -> None:
     global _scheduler_timer
     sched = cfg.get("scheduler") or _sched_default()
@@ -569,29 +627,29 @@ def _arm_scheduler(cfg: dict) -> None:
         if _scheduler_timer is not None:
             _scheduler_timer.cancel()
             _scheduler_timer = None
-        if not sched.get("enabled"):
-            return
-        now = datetime.now()
-        delay: float | None = None
-        next_fire = sched.get("next_fire_at")
-        if next_fire:
-            try:
-                rem = (datetime.fromisoformat(next_fire) - now).total_seconds()
-                if rem > 0:
-                    delay = rem
-            except Exception:
-                pass
-        if delay is None:
-            min_h = max(0.001, float(sched.get("min_hours", 1.0)))
-            max_h = max(min_h, float(sched.get("max_hours", 3.0)))
-            delay = random.uniform(min_h, max_h) * 3600
-            sched["next_fire_at"] = (now + timedelta(seconds=delay)).isoformat(timespec="seconds")
+        if sched.get("enabled"):
+            now = datetime.now()
+            delay: float | None = None
+            next_fire = sched.get("next_fire_at")
+            if next_fire:
+                try:
+                    rem = (datetime.fromisoformat(next_fire) - now).total_seconds()
+                    if rem > 0:
+                        delay = rem
+                except Exception:
+                    pass
+            if delay is None:
+                min_h = max(0.001, float(sched.get("min_hours", 1.0)))
+                max_h = max(min_h, float(sched.get("max_hours", 3.0)))
+                delay = random.uniform(min_h, max_h) * 3600
+                sched["next_fire_at"] = (now + timedelta(seconds=delay)).isoformat(timespec="seconds")
             cfg["scheduler"] = sched
             _save_config(cfg)
-        t = threading.Timer(delay, _scheduler_fire)
-        t.daemon = True
-        _scheduler_timer = t
-        t.start()
+            t = threading.Timer(delay, _scheduler_fire)
+            t.daemon = True
+            _scheduler_timer = t
+            t.start()
+    _broadcast_scheduler(sched)
 
 
 def _scheduler_fire() -> None:
@@ -638,6 +696,12 @@ def _scheduler_fire() -> None:
     _arm_scheduler(cfg)
 
 
+@app.route("/api/shutdown", methods=["POST"])
+def api_shutdown():
+    _schedule_idle_shutdown(force=True)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/scheduler", methods=["POST"])
 def api_scheduler():
     body = request.get_json(silent=True) or {}
@@ -667,12 +731,14 @@ def api_scheduler():
             if _scheduler_timer is not None:
                 _scheduler_timer.cancel()
                 _scheduler_timer = None
+        _broadcast_scheduler(sched)
     return jsonify({"ok": True, "scheduler": sched})
 
 
 @app.route("/api/stream")
 def api_stream():
     client_q: queue.Queue = queue.Queue(maxsize=500)
+    _cancel_idle_shutdown()
     with CLIENTS_LOCK:
         SSE_CLIENTS.append(client_q)
 
@@ -690,6 +756,7 @@ def api_stream():
 
         for snap in all_tasks:
             yield f"event: task_update\ndata: {json.dumps(snap, ensure_ascii=False)}\n\n"
+        yield f"event: scheduler_update\ndata: {json.dumps((_load_config().get('scheduler') or _sched_default()), ensure_ascii=False)}\n\n"
         for entry in recent_logs[-50:]:
             yield f"event: log\ndata: {json.dumps(entry, ensure_ascii=False)}\n\n"
 
@@ -704,6 +771,9 @@ def api_stream():
             with CLIENTS_LOCK:
                 if client_q in SSE_CLIENTS:
                     SSE_CLIENTS.remove(client_q)
+                has_clients = bool(SSE_CLIENTS)
+            if not has_clients:
+                _schedule_idle_shutdown()
 
     return Response(
         stream_with_context(generate()),

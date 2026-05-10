@@ -32,8 +32,12 @@ ARTWORK_ID_RE = re.compile(r"/artworks/(\d+)")
 PIXIV_COUNT_PATTERNS = [
     re.compile(r'"illustManga"\s*:\s*\{\s*"total"\s*:\s*(\d+)', re.IGNORECASE),
     re.compile(r'"total"\s*:\s*(\d+)', re.IGNORECASE),
+    re.compile(r"イラストやマンガは\s*(\d[\d,]*)\s*件", re.IGNORECASE),
     re.compile(r"(\d[\d,]*)\s*(?:作品|artworks)", re.IGNORECASE),
 ]
+PIXIV_COUNT_TIMEOUT_SECONDS = 4.0
+PIXIV_COUNT_LIVE_BUDGET = 6
+PIXIV_COUNT_SELLING_BUDGET = 8
 PROMPT_TOKEN_SPLIT_RE = re.compile(r"[,|\n]")
 FILENAME_SPLIT_RE = re.compile(r"[_\-\s\[\]\(\){}]+")
 SAFE_STEM_RE = re.compile(r"[^0-9A-Za-z\u3040-\u30ff\u3400-\u9fff._-]+")
@@ -527,12 +531,21 @@ DEFAULT_GENERAL_JP = {
     "_comment": "Danbooru / WD14 tag → Pixiv 高频日文形式。Pixiv ajax 翻不出来的通用词用这个表。删了重启会重生默认值。",
     "_help": {
         "mappings": "Danbooru 形式 → 想在 Pixiv 上显示的日文 hashtag。新词加在这里",
+        "synonym_tags": "命中 canonical tag 时额外追加的 Pixiv 同义 tag，适合作品名/角色名/高频卖点并列",
         "selling_points": "tagger 命中任一 trigger（>=min_score）就额外加 tag。Pixiv 高人气图常用卖点",
         "force_r18": "true 时 age_restriction=r18 自动 prepend R-18 tag",
         "force_original": "true 时 domain=original 自动 prepend オリジナル tag",
     },
     "force_r18": True,
     "force_original": True,
+    "synonym_tags": {
+        "ブルーアーカイブ": ["ブルアカ", "BlueArchive"],
+        "アークナイツ": ["明日方舟", "Arknights"],
+        "鳴潮": ["WutheringWaves"],
+        "今汐": ["Jinhsi"],
+        "パンツ": ["ぱんつ"],
+        "お尻": ["ケツ"],
+    },
     "mappings": {
         "1girl": "女の子", "1boy": "男の子",
         "multiple_girls": "複数人", "multiple_boys": "複数人",
@@ -589,7 +602,8 @@ DEFAULT_GENERAL_JP = {
         "holding": "持つ", "holding_weapon": "武器を持つ", "holding_sword": "刀を持つ",
         "holding_gun": "銃を持つ", "holding_cigarette": "タバコを持つ",
         "cigarette": "タバコ", "bandaid": "絆創膏", "bottle": "ボトル",
-        "food": "食べ物", "drink": "飲み物", "book": "本", "phone": "携帯",
+        "food": "食べ物", "drink": "飲み物", "comic": "漫画", "book": "本", "phone": "携帯",
+        "strawberry": "いちご", "coffee": "コーヒー",
         "petite": "ロリ", "loli": "ロリ",
         "flat_chest": "貧乳", "small_breasts": "小ぶり", "medium_breasts": "美乳",
         "fang": "牙", "small_fangs": "牙",
@@ -598,112 +612,145 @@ DEFAULT_GENERAL_JP = {
         "fingerless_gloves": "フィンガーレスグローブ",
     },
     "selling_points": [
+        # ── 超高流量：体型 ──
         {"trigger": ["large_breasts", "huge_breasts", "gigantic_breasts", "oversized_breasts"], "tag": "巨乳", "min_score": 0.5},
-        {"trigger": ["thick_thighs", "thicc_thighs", "thick_legs"], "tag": "魅惑のふともも", "min_score": 0.5},
-        {"trigger": ["huge_ass", "big_ass", "large_ass", "plump_ass", "bubble_butt"], "tag": "お尻", "min_score": 0.5},
-        {"trigger": ["futanari", "futa"], "tag": "ふたなり", "min_score": 0.5},
-        {"trigger": ["lactation", "breast_milk", "milk"], "tag": "母乳", "min_score": 0.5},
-        {"trigger": ["pregnant", "pregnancy"], "tag": "妊娠", "min_score": 0.5},
-        {"trigger": ["bondage", "tied_up", "rope_bondage"], "tag": "緊縛", "min_score": 0.5},
-        {"trigger": ["maid", "maid_outfit", "maid_uniform"], "tag": "メイド", "min_score": 0.5},
-        {"trigger": ["nun", "nun_outfit"], "tag": "シスター", "min_score": 0.5},
-        {"trigger": ["yandere"], "tag": "ヤンデレ", "min_score": 0.5},
-        {"trigger": ["nipple_piercing"], "tag": "乳首ピアス", "min_score": 0.5},
-        {"trigger": ["nude", "naked", "topless", "completely_nude", "nude_filter"], "tag": "極上の女体", "min_score": 0.6},
+        {"trigger": ["nipples", "large_breasts", "huge_breasts", "gigantic_breasts", "oversized_breasts"], "tag": "おっぱい", "min_score": 0.5},
         {"trigger": ["large_breasts", "huge_breasts", "gigantic_breasts", "nipples"], "tag": "極上の乳", "min_score": 0.6},
-        {"trigger": ["thighs", "bare_thighs", "long_legs", "bare_legs", "legs_apart"], "tag": "美脚", "min_score": 0.5},
-        {"trigger": ["nipples", "breasts"], "tag": "おっぱい", "min_score": 0.5},
-        {"trigger": ["medium_breasts"], "tag": "美乳", "min_score": 0.55},
-        {"trigger": ["pale_skin", "fair_skin", "white_skin", "light_skin"], "tag": "白肌", "min_score": 0.5},
-        {"trigger": ["ass", "buttocks", "bare_ass", "ass_focus"], "tag": "美尻", "min_score": 0.5},
-        {"trigger": ["lingerie", "underwear", "see-through", "negligee"], "tag": "ランジェリー", "min_score": 0.5},
-        {"trigger": ["sailor_uniform", "serafuku"], "tag": "セーラー服", "min_score": 0.7},
-        {"trigger": ["cat_ears", "cat_girl", "nekomimi"], "tag": "猫娘", "min_score": 0.6},
-        {"trigger": ["black_thighhighs", "black_stockings", "black_legwear"], "tag": "黒ニーソ", "min_score": 0.6},
-        {"trigger": ["white_thighhighs", "white_stockings", "white_legwear"], "tag": "白ニーソ", "min_score": 0.6},
-        {"trigger": ["glasses", "eyewear"], "tag": "眼鏡っ娘", "min_score": 0.7},
-        {"trigger": ["kimono", "japanese_clothes", "yukata", "hakama"], "tag": "和服", "min_score": 0.6},
-        {"trigger": ["twin_tails", "twintails"], "tag": "ツインテール", "min_score": 0.8},
-        {"trigger": ["swimsuit", "one-piece_swimsuit", "competition_swimsuit"], "tag": "水着", "min_score": 0.7},
-        {"trigger": ["bikini", "micro_bikini", "string_bikini"], "tag": "ビキニ", "min_score": 0.7},
-        {"trigger": ["drill_hair", "ringlets", "spiral_curls"], "tag": "縦ロール", "min_score": 0.6},
-        {"trigger": ["animal_ears", "kemonomimi"], "tag": "ケモ耳", "min_score": 0.6},
-        {"trigger": ["vampire", "vampire_girl", "bat_wings"], "tag": "吸血鬼", "min_score": 0.5},
-        {"trigger": ["dragon_girl", "dragon_horns", "dragon_tail", "dragon_wings"], "tag": "ドラゴンガール", "min_score": 0.5},
-        {"trigger": ["1girl"], "tag": "美少女", "min_score": 0.95},
-        {"trigger": ["pantyhose", "tights"], "tag": "パンスト", "min_score": 0.75},
         {"trigger": ["nipples"], "tag": "乳首", "min_score": 0.8},
-        {"trigger": ["nude", "completely_nude", "naked"], "tag": "全裸", "min_score": 0.85},
-        {"trigger": ["horns", "demon_horns", "oni_horns"], "tag": "ツノ娘", "min_score": 0.75},
-        {"trigger": ["dark_skin", "dark-skinned_female", "tanned", "tan_skin"], "tag": "褐色肌", "min_score": 0.75},
-        {"trigger": ["elf", "elf_ears", "long_pointy_ears"], "tag": "エルフ", "min_score": 0.8},
-        {"trigger": ["ponytail", "high_ponytail", "side_ponytail"], "tag": "ポニーテール", "min_score": 0.8},
-        {"trigger": ["fox_ears", "fox_girl", "kitsune"], "tag": "狐娘", "min_score": 0.75},
-        {"trigger": ["rabbit_ears", "bunny_ears", "bunny_girl"], "tag": "うさ耳", "min_score": 0.75},
-        {"trigger": ["nurse", "nurse_cap", "nurse_uniform"], "tag": "ナース", "min_score": 0.75},
-        {"trigger": ["school_uniform", "uniform", "gakuran"], "tag": "制服", "min_score": 0.85},
-        {"trigger": ["miniskirt", "micro_skirt"], "tag": "ミニスカ", "min_score": 0.8},
-        {"trigger": ["loli", "petite", "child"], "tag": "ロリ", "min_score": 0.5},
-        {"trigger": ["petite", "small_breasts", "flat_chest"], "tag": "合法ロリ", "min_score": 0.6},
-        {"trigger": ["oppai_loli"], "tag": "おっぱいロリ", "min_score": 0.5},
-        {"trigger": ["lolibaba"], "tag": "ロリババア", "min_score": 0.5},
         {"trigger": ["flat_chest", "small_breasts"], "tag": "貧乳", "min_score": 0.6},
+        {"trigger": ["medium_breasts"], "tag": "美乳", "min_score": 0.55},
+        {"trigger": ["thick_thighs", "thicc_thighs", "thick_legs"], "tag": "魅惑のふともも", "min_score": 0.5},
+        {"trigger": ["thighs", "bare_thighs", "long_legs", "bare_legs", "legs_apart"], "tag": "美脚", "min_score": 0.5},
+        {"trigger": ["thighs", "bare_thighs", "thick_thighs", "thicc_thighs"], "tag": "ふともも", "min_score": 0.5},
+        {"trigger": ["ass", "buttocks", "bare_ass", "ass_focus"], "tag": "美尻", "min_score": 0.5},
+        {"trigger": ["huge_ass", "big_ass", "large_ass", "plump_ass", "bubble_butt"], "tag": "お尻", "min_score": 0.5},
         {"trigger": ["plump", "chubby", "curvy", "thick_thighs", "wide_hips"], "tag": "むちむち", "min_score": 0.5},
+        {"trigger": ["plump", "chubby", "curvy", "wide_hips"], "tag": "ぽっちゃり", "min_score": 0.5},
         {"trigger": ["slim", "slender", "skinny", "thin"], "tag": "スレンダー", "min_score": 0.6},
-        {"trigger": ["school_swimsuit", "sukumizu"], "tag": "スク水", "min_score": 0.75},
-        {"trigger": ["playboy_bunny", "bunny_suit", "rabbit_girl"], "tag": "バニーガール", "min_score": 0.75},
-        {"trigger": ["cheerleader"], "tag": "チアガール", "min_score": 0.75},
-        {"trigger": ["female_knight", "knight", "armored_female"], "tag": "女騎士", "min_score": 0.7},
-        {"trigger": ["magical_girl", "mahou_shoujo"], "tag": "魔法少女", "min_score": 0.75},
-        {"trigger": ["mating_press"], "tag": "種付けプレス", "min_score": 0.7},
-        {"trigger": ["from_behind", "sex_from_behind", "doggystyle"], "tag": "後背位", "min_score": 0.7},
-        {"trigger": ["missionary", "missionary_position"], "tag": "正常位", "min_score": 0.7},
-        {"trigger": ["cowgirl_position", "girl_on_top", "straddling"], "tag": "騎乗位", "min_score": 0.7},
-        {"trigger": ["reverse_cowgirl_position"], "tag": "逆騎乗位", "min_score": 0.7},
+        {"trigger": ["drink", "cup", "teacup", "tea", "bottle", "glass"], "tag": "飲み物", "min_score": 0.45},
+        {"trigger": ["pale_skin", "fair_skin", "white_skin", "light_skin"], "tag": "白肌", "min_score": 0.5},
+        {"trigger": ["dark_skin", "dark-skinned_female", "tanned", "tan_skin"], "tag": "褐色肌", "min_score": 0.75},
+        # ── 超高流量：性行为 ──
         {"trigger": ["cum_in_pussy", "creampie", "internal_cumshot"], "tag": "中出し", "min_score": 0.6},
         {"trigger": ["fellatio", "blowjob", "deepthroat", "irrumatio"], "tag": "フェラ", "min_score": 0.6},
         {"trigger": ["cunnilingus"], "tag": "クンニ", "min_score": 0.6},
         {"trigger": ["masturbation", "female_masturbation", "fingering"], "tag": "オナニー", "min_score": 0.6},
+        {"trigger": ["handjob"], "tag": "手コキ", "min_score": 0.25},
+        {"trigger": ["mating_press"], "tag": "種付けプレス", "min_score": 0.7},
+        {"trigger": ["cowgirl_position", "girl_on_top", "straddling"], "tag": "騎乗位", "min_score": 0.7},
+        {"trigger": ["from_behind", "sex_from_behind", "doggystyle"], "tag": "後背位", "min_score": 0.7},
+        {"trigger": ["missionary", "missionary_position"], "tag": "正常位", "min_score": 0.7},
+        {"trigger": ["reverse_cowgirl_position"], "tag": "逆騎乗位", "min_score": 0.7},
+        {"trigger": ["threesome", "3some", "ffm_threesome", "mfm_threesome"], "tag": "3P", "min_score": 0.25},
+        {"trigger": ["outdoor_sex", "sex_outdoors", "public_sex"], "tag": "青姦", "min_score": 0.25},
+        {"trigger": ["interspecies_sex", "monster_sex"], "tag": "異種姦", "min_score": 0.25},
+        # ── 超高流量：情绪/状态 ──
         {"trigger": ["ahegao"], "tag": "アヘ顔", "min_score": 0.25},
-        {"trigger": ["crying", "tears", "teary_eyes"], "tag": "泣き顔", "min_score": 0.2},
-        {"trigger": ["heart-shaped_pupils", "heart_pupils"], "tag": "目がハート", "min_score": 0.2},
-        {"trigger": ["dazed", "blank_eyes", "empty_eyes"], "tag": "トロ顔", "min_score": 0.2},
         {"trigger": ["orgasm", "ahegao"], "tag": "絶頂", "min_score": 0.25},
-        {"trigger": ["corruption", "dark_persona"], "tag": "悪堕ち", "min_score": 0.2},
+        {"trigger": ["dazed", "blank_eyes", "empty_eyes"], "tag": "トロ顔", "min_score": 0.2},
+        {"trigger": ["heart-shaped_pupils", "heart_pupils"], "tag": "目がハート", "min_score": 0.2},
+        {"trigger": ["crying", "tears", "teary_eyes"], "tag": "泣き顔", "min_score": 0.2},
+        # ── 超高流量：概念/ジャンル ──
+        {"trigger": ["netorare", "cuckold", "ntr"], "tag": "NTR", "min_score": 0.25},
+        {"trigger": ["tentacles", "tentacle_sex"], "tag": "触手", "min_score": 0.25},
+        {"trigger": ["training", "sexual_training", "pet_play"], "tag": "調教", "min_score": 0.25},
         {"trigger": ["mind_control", "hypnosis"], "tag": "快楽堕ち", "min_score": 0.25},
-        {"trigger": ["angel", "angel_wings", "halo"], "tag": "天使", "min_score": 0.15},
+        {"trigger": ["hypnosis", "mind_control"], "tag": "催眠", "min_score": 0.25},
+        {"trigger": ["corruption", "dark_persona"], "tag": "悪堕ち", "min_score": 0.2},
+        {"trigger": ["bondage", "restrained", "handcuffs"], "tag": "拘束", "min_score": 0.25},
+        {"trigger": ["bondage", "tied_up", "rope_bondage"], "tag": "緊縛", "min_score": 0.5},
+        {"trigger": ["sexual_humiliation", "humiliation"], "tag": "陵辱", "min_score": 0.25},
+        {"trigger": ["vibrator", "sex_toy", "dildo"], "tag": "電マ", "min_score": 0.25},
+        {"trigger": ["nipple_stimulation", "nipple_tweak", "nipple_pinch"], "tag": "乳首責め", "min_score": 0.25},
+        {"trigger": ["imprisonment", "captive", "captured"], "tag": "監禁", "min_score": 0.2},
+        {"trigger": ["body_writing", "tattoo", "brand"], "tag": "淫紋", "min_score": 0.2},
+        {"trigger": ["onee-shota", "age_difference", "shota"], "tag": "おねショタ", "min_score": 0.25},
+        # ── 高流量：裸体/露出 ──
+        {"trigger": ["nude", "naked", "topless", "completely_nude", "nude_filter", "swimsuit", "bikini", "navel", "breasts", "thighs", "midriff", "armpits"], "tag": "極上の女体", "min_score": 0.5},
+        {"trigger": ["nude", "completely_nude", "naked"], "tag": "全裸", "min_score": 0.85},
+        {"trigger": ["exhibitionism", "public_nudity", "flashing"], "tag": "露出", "min_score": 0.2},
+        {"trigger": ["pantyshot", "upskirt"], "tag": "ぱんちら", "min_score": 0.2},
+        {"trigger": ["panties", "underwear", "white_panties"], "tag": "ぱんつ", "min_score": 0.5},
+        {"trigger": ["cleavage", "breast_peeking"], "tag": "胸チラ", "min_score": 0.2},
+        {"trigger": ["thighhighs_gap", "absolute_territory"], "tag": "絶対領域", "min_score": 0.2},
+        # ── 高流量：ロリ系 ──
+        {"trigger": ["loli", "petite", "child"], "tag": "ロリ", "min_score": 0.5},
+        {"trigger": ["petite", "small_breasts", "flat_chest"], "tag": "合法ロリ", "min_score": 0.6},
+        {"trigger": ["oppai_loli"], "tag": "おっぱいロリ", "min_score": 0.5},
+        {"trigger": ["lolibaba"], "tag": "ロリババア", "min_score": 0.5},
+        # ── 高流量：キャラ属性 ──
+        {"trigger": ["1girl"], "tag": "美少女", "min_score": 0.95},
+        {"trigger": ["futanari", "futa"], "tag": "ふたなり", "min_score": 0.5},
+        {"trigger": ["lactation", "breast_milk", "milk"], "tag": "母乳", "min_score": 0.5},
+        {"trigger": ["pregnant", "pregnancy"], "tag": "妊娠", "min_score": 0.5},
+        {"trigger": ["nipple_piercing"], "tag": "乳首ピアス", "min_score": 0.5},
+        {"trigger": ["yandere"], "tag": "ヤンデレ", "min_score": 0.5},
+        {"trigger": ["defeated", "ryona", "beaten"], "tag": "敗北", "min_score": 0.2},
+        # ── 高流量：獣耳/人外 ──
+        {"trigger": ["cat_ears", "cat_girl", "nekomimi"], "tag": "猫娘", "min_score": 0.6},
+        {"trigger": ["fox_ears", "fox_girl", "kitsune"], "tag": "狐娘", "min_score": 0.75},
+        {"trigger": ["rabbit_ears", "bunny_ears", "bunny_girl"], "tag": "うさ耳", "min_score": 0.75},
+        {"trigger": ["animal_ears", "kemonomimi"], "tag": "ケモ耳", "min_score": 0.6},
         {"trigger": ["demon_girl", "demon_wings", "demon_horns", "succubus"], "tag": "悪魔", "min_score": 0.15},
+        {"trigger": ["succubus"], "tag": "サキュバス", "min_score": 0.2},
+        {"trigger": ["angel", "angel_wings", "halo"], "tag": "天使", "min_score": 0.15},
         {"trigger": ["monster_girl", "creature_girl"], "tag": "人外", "min_score": 0.15},
         {"trigger": ["monster_girl", "slime_girl", "lamia", "harpy"], "tag": "モンスター娘", "min_score": 0.2},
-        {"trigger": ["succubus"], "tag": "サキュバス", "min_score": 0.2},
         {"trigger": ["lamia", "snake_girl", "snake_tail"], "tag": "ラミア", "min_score": 0.2},
         {"trigger": ["little_devil", "imp"], "tag": "小悪魔", "min_score": 0.15},
         {"trigger": ["furry", "anthro"], "tag": "獣人", "min_score": 0.15},
-        {"trigger": ["onee-shota", "age_difference", "shota"], "tag": "おねショタ", "min_score": 0.25},
+        {"trigger": ["vampire", "vampire_girl", "bat_wings"], "tag": "吸血鬼", "min_score": 0.5},
+        {"trigger": ["dragon_girl", "dragon_horns", "dragon_tail", "dragon_wings"], "tag": "ドラゴンガール", "min_score": 0.5},
+        {"trigger": ["elf", "elf_ears", "long_pointy_ears"], "tag": "エルフ", "min_score": 0.8},
+        {"trigger": ["horns", "demon_horns", "oni_horns"], "tag": "ツノ娘", "min_score": 0.75},
+        # ── 高流量：衣装 ──
+        {"trigger": ["sailor_uniform", "serafuku"], "tag": "セーラー服", "min_score": 0.7},
+        {"trigger": ["school_uniform", "uniform", "gakuran"], "tag": "制服", "min_score": 0.85},
+        {"trigger": ["maid", "maid_outfit", "maid_uniform"], "tag": "メイド", "min_score": 0.5},
+        {"trigger": ["swimsuit", "one-piece_swimsuit", "competition_swimsuit"], "tag": "水着", "min_score": 0.7},
+        {"trigger": ["bikini", "micro_bikini", "string_bikini"], "tag": "ビキニ", "min_score": 0.7},
+        {"trigger": ["school_swimsuit", "sukumizu"], "tag": "スク水", "min_score": 0.75},
+        {"trigger": ["lingerie", "underwear", "see-through", "negligee"], "tag": "ランジェリー", "min_score": 0.5},
+        {"trigger": ["pantyhose", "tights"], "tag": "パンスト", "min_score": 0.75},
+        {"trigger": ["black_thighhighs", "black_stockings", "black_legwear"], "tag": "黒ニーソ", "min_score": 0.6},
+        {"trigger": ["white_thighhighs", "white_stockings", "white_legwear"], "tag": "白ニーソ", "min_score": 0.6},
+        {"trigger": ["miniskirt", "micro_skirt"], "tag": "ミニスカ", "min_score": 0.8},
+        {"trigger": ["glasses", "eyewear"], "tag": "眼鏡っ娘", "min_score": 0.7},
+        {"trigger": ["kimono", "japanese_clothes", "yukata", "hakama"], "tag": "和服", "min_score": 0.6},
+        {"trigger": ["playboy_bunny", "bunny_suit", "rabbit_girl"], "tag": "バニーガール", "min_score": 0.75},
+        {"trigger": ["nurse", "nurse_cap", "nurse_uniform"], "tag": "ナース", "min_score": 0.75},
+        {"trigger": ["nun", "nun_outfit"], "tag": "シスター", "min_score": 0.5},
+        {"trigger": ["female_knight", "knight", "armored_female"], "tag": "女騎士", "min_score": 0.7},
+        {"trigger": ["magical_girl", "mahou_shoujo"], "tag": "魔法少女", "min_score": 0.75},
+        {"trigger": ["cheerleader"], "tag": "チアガール", "min_score": 0.75},
+        # ── 高流量：ヘアスタイル ──
+        {"trigger": ["twin_tails", "twintails"], "tag": "ツインテール", "min_score": 0.8},
+        {"trigger": ["ponytail", "high_ponytail", "side_ponytail"], "tag": "ポニーテール", "min_score": 0.8},
+        {"trigger": ["drill_hair", "ringlets", "spiral_curls"], "tag": "縦ロール", "min_score": 0.6},
+        # ── 中流量：部位フォーカス ──
         {"trigger": ["armpits", "armpit"], "tag": "腋", "min_score": 0.15},
         {"trigger": ["navel", "belly_button"], "tag": "へそ", "min_score": 0.15},
-        {"trigger": ["pantyshot", "upskirt"], "tag": "ぱんちら", "min_score": 0.2},
-        {"trigger": ["cleavage", "breast_peeking"], "tag": "胸チラ", "min_score": 0.2},
-        {"trigger": ["thighhighs_gap", "absolute_territory"], "tag": "絶対領域", "min_score": 0.2},
         {"trigger": ["soles", "feet", "foot_focus"], "tag": "足裏", "min_score": 0.15},
+        # ── 高流量：射精系 ──
+        {"trigger": ["facial", "cum_on_face", "cum_on_body"], "tag": "顔射", "min_score": 0.5},
+        {"trigger": ["squirting", "female_ejaculation", "gushing"], "tag": "潮吹き", "min_score": 0.5},
+        {"trigger": ["paizuri", "breast_sex", "titjob"], "tag": "パイズリ", "min_score": 0.5},
+        {"trigger": ["anal", "anal_sex", "anal_penetration"], "tag": "アナル", "min_score": 0.5},
+        {"trigger": ["cum", "semen", "ejaculation"], "tag": "射精", "min_score": 0.6},
+        {"trigger": ["multiple_boys", "gangbang", "group_sex"], "tag": "ぶっかけ", "min_score": 0.4},
+        # ── 高流量：キャラ種別 ──
+        {"trigger": ["shrine_maiden", "miko", "hakama_skirt"], "tag": "巫女", "min_score": 0.7},
+        {"trigger": ["crossdressing", "femboy", "trap"], "tag": "女装", "min_score": 0.5},
+        {"trigger": ["gyaru", "gal", "kogal"], "tag": "ギャル", "min_score": 0.6},
+        {"trigger": ["kunoichi", "female_ninja", "ninja"], "tag": "くノ一", "min_score": 0.65},
+        # ── 高流量：視点/演出 ──
+        {"trigger": ["pov", "point_of_view", "from_viewer"], "tag": "主観", "min_score": 0.6},
+        {"trigger": ["censored", "mosaic_censoring"], "tag": "モザイク有り", "min_score": 0.7},
+        {"trigger": ["uncensored"], "tag": "無修正", "min_score": 0.7},
+        # ── 中流量：シチュエーション ──
         {"trigger": ["bathing", "in_bathtub", "bath"], "tag": "風呂", "min_score": 0.15},
         {"trigger": ["onsen", "hot_spring"], "tag": "温泉", "min_score": 0.15},
-        {"trigger": ["exhibitionism", "public_nudity", "flashing"], "tag": "露出", "min_score": 0.2},
-        {"trigger": ["outdoor_sex", "sex_outdoors", "public_sex"], "tag": "青姦", "min_score": 0.25},
-        {"trigger": ["tentacles", "tentacle_sex"], "tag": "触手", "min_score": 0.25},
-        {"trigger": ["netorare", "cuckold", "ntr"], "tag": "NTR", "min_score": 0.25},
-        {"trigger": ["hypnosis", "mind_control"], "tag": "催眠", "min_score": 0.25},
-        {"trigger": ["training", "sexual_training", "pet_play"], "tag": "調教", "min_score": 0.25},
-        {"trigger": ["bondage", "restrained", "handcuffs"], "tag": "拘束", "min_score": 0.25},
-        {"trigger": ["vibrator", "sex_toy", "dildo"], "tag": "電マ", "min_score": 0.25},
-        {"trigger": ["nipple_stimulation", "nipple_tweak", "nipple_pinch"], "tag": "乳首責め", "min_score": 0.25},
-        {"trigger": ["sexual_humiliation", "humiliation"], "tag": "陵辱", "min_score": 0.25},
-        {"trigger": ["interspecies_sex", "monster_sex"], "tag": "異種姦", "min_score": 0.25},
-        {"trigger": ["body_writing", "tattoo", "brand"], "tag": "淫紋", "min_score": 0.2},
-        {"trigger": ["defeated", "ryona", "beaten"], "tag": "敗北", "min_score": 0.2},
-        {"trigger": ["threesome", "3some", "ffm_threesome", "mfm_threesome"], "tag": "3P", "min_score": 0.25},
-        {"trigger": ["imprisonment", "captive", "captured"], "tag": "監禁", "min_score": 0.2},
-        {"trigger": ["handjob"], "tag": "手コキ", "min_score": 0.25},
+        {"trigger": ["sleeping", "asleep"], "tag": "睡眠姦", "min_score": 0.3},
     ],
 }
 
@@ -730,6 +777,7 @@ DEFAULT_CIVITAI_SAFETY = {
         "child", "children", "young child", "little girl", "underage"
     ],
     "school_tags": [
+        "school", "classroom", "class room", "school environment",
         "school uniform", "school_uniform",
         "sailor uniform", "sailor_uniform",
         "serafuku", "randoseru",
@@ -1047,7 +1095,7 @@ def fetch_pixiv_tag_count(tag: str) -> int | None:
         "Accept-Language": "ja,en-US;q=0.8,en;q=0.7",
     }
     try:
-        with httpx.Client(timeout=10, follow_redirects=True, headers=headers) as client:
+        with httpx.Client(timeout=PIXIV_COUNT_TIMEOUT_SECONDS, follow_redirects=True, headers=headers) as client:
             resp = client.get(url)
             resp.raise_for_status()
             text = resp.text
@@ -1069,6 +1117,7 @@ def choose_semantic_winner(
     alias_data: dict[str, Any],
     popularity_data: dict[str, Any],
     live_lookup: bool,
+    live_budget: dict[str, int] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     info = alias_data["semantics"][semantic]
     candidates = list(info["candidates"])
@@ -1086,7 +1135,9 @@ def choose_semantic_winner(
     }
     if len(candidates) == 1:
         candidate = candidates[0]
-        if live_lookup and not counts.get(candidate):
+        if live_lookup and not counts.get(candidate) and (live_budget is None or live_budget.get("remaining", 0) > 0):
+            if live_budget is not None:
+                live_budget["remaining"] = max(0, live_budget.get("remaining", 0) - 1)
             count = fetch_pixiv_tag_count(candidate)
             if count is not None:
                 counts[candidate] = count
@@ -1109,6 +1160,10 @@ def choose_semantic_winner(
             if isinstance(existing, int) and existing > 0:
                 fresh[candidate] = existing
                 continue
+            if live_budget is not None and live_budget.get("remaining", 0) <= 0:
+                continue
+            if live_budget is not None:
+                live_budget["remaining"] = max(0, live_budget.get("remaining", 0) - 1)
             count = fetch_pixiv_tag_count(candidate)
             if count is not None:
                 fresh[candidate] = count
@@ -1210,6 +1265,42 @@ def _tag_count_for_display(display: str, decision: dict[str, Any]) -> int:
         return int(counts.get(display, decision.get("winner_count", 0)) or 0)
     except Exception:
         return 0
+
+
+def direct_tag_count(
+    semantic: str,
+    display: str,
+    popularity_data: dict[str, Any],
+    live_lookup: bool,
+    live_budget: dict[str, int] | None = None,
+) -> tuple[int, dict[str, Any]]:
+    groups = popularity_data.setdefault("groups", {})
+    group = groups.setdefault(
+        semantic,
+        {"winner": display, "counts": {display: 0}, "updated_at": ""},
+    )
+    counts = dict(group.get("counts", {}))
+    source = "cache" if int(counts.get(display, 0) or 0) > 0 else "default"
+    if live_lookup and not int(counts.get(display, 0) or 0) and (live_budget is None or live_budget.get("remaining", 0) > 0):
+        if live_budget is not None:
+            live_budget["remaining"] = max(0, live_budget.get("remaining", 0) - 1)
+        count = fetch_pixiv_tag_count(display)
+        if count is not None:
+            counts[display] = count
+            group["counts"] = counts
+            group["updated_at"] = datetime.now().isoformat(timespec="seconds")
+            source = "live"
+    count = int(counts.get(display, 0) or 0)
+    group["winner"] = display
+    decision = {
+        "semantic": semantic,
+        "candidates": [display],
+        "winner": display,
+        "source": source,
+        "counts": counts,
+        "winner_count": count,
+    }
+    return count, decision
 
 
 TAGGER_SCORE_THRESHOLDS = {
@@ -1514,6 +1605,7 @@ def build_pixiv_payload(
     popularity_decisions = []
     rejected_tags = []
     seen_semantics = set()
+    live_count_budget = {"remaining": PIXIV_COUNT_LIVE_BUDGET if live_lookup else 0}
     mappings = alias_data.get("mappings", {})
     semantics = alias_data.get("semantics", {})
 
@@ -1527,24 +1619,29 @@ def build_pixiv_payload(
         if key in drop_tags:
             rejected_tags.append({"tag": raw, "reason": "drop_tag"})
             continue
-        # Tagger tag bypass: character/copyright always direct (no curated jp alias);
-        # general tags also bypass when alias has no entry, letting Pixiv's autocomplete
-        # do the JP normalization at fill time.
         if key in direct_pass and key not in mappings and key not in semantics:
             display, cls, dom, score = direct_pass[key]
             semantic_id = f"{cls}:{key}"
             if semantic_id in seen_semantics:
                 continue
             seen_semantics.add(semantic_id)
-            # Use score-based count so character/copyright high-score wins sort
-            count_proxy = int(round(score * 10000))
+            count, decision = direct_tag_count(
+                semantic_id,
+                display,
+                popularity_data,
+                live_lookup=live_lookup,
+                live_budget=live_count_budget,
+            )
+            decision["tagger_score"] = score
+            popularity_decisions.append(decision)
             semantic_entries.append({
                 "semantic": semantic_id,
                 "display": display,
                 "zh": display,
                 "class": cls,
                 "domain": dom,
-                "count": count_proxy,
+                "count": count,
+                "tagger_score": score,
             })
             continue
         mapped = mappings.get(key)
@@ -1571,6 +1668,7 @@ def build_pixiv_payload(
                 alias_data,
                 popularity_data,
                 live_lookup=live_lookup,
+                live_budget=live_count_budget,
             )
             popularity_decisions.append(decision)
             info = semantics[item_semantic]
@@ -1589,7 +1687,13 @@ def build_pixiv_payload(
     age_restriction = infer_age_restriction(image_path, age_rules)
 
     if not any(item["semantic"] == "ai_art" for item in semantic_entries):
-        winner, decision = choose_semantic_winner("ai_art", alias_data, popularity_data, live_lookup=live_lookup)
+        winner, decision = choose_semantic_winner(
+            "ai_art",
+            alias_data,
+            popularity_data,
+            live_lookup=live_lookup,
+            live_budget=live_count_budget,
+        )
         popularity_decisions.append(decision)
         info = semantics["ai_art"]
         semantic_entries.append(
@@ -1620,14 +1724,94 @@ def build_pixiv_payload(
                 }
             )
 
+    selling_points = general_jp_data.get("selling_points") or []
+    selling_count_budget = {"remaining": PIXIV_COUNT_SELLING_BUDGET if live_lookup else 0}
+    tagger_keys: dict[str, float] = {}
+    for entries in extra_groups.values():
+        for entry in entries:
+            if isinstance(entry, (tuple, list)) and len(entry) == 2:
+                t, s = entry[0], float(entry[1])
+            else:
+                t, s = str(entry), 1.0
+            k = normalize_key(t)
+            if k:
+                tagger_keys[k] = max(tagger_keys.get(k, 0.0), s)
+    seen_semantic_entries = {item.get("semantic") for item in semantic_entries}
+    for rule in selling_points:
+        triggers = rule.get("trigger") or []
+        threshold = float(rule.get("min_score", 0.5))
+        sp_tag = rule.get("tag")
+        if not sp_tag:
+            continue
+        if not any(tagger_keys.get(normalize_key(t), 0) >= threshold for t in triggers):
+            continue
+        semantic_id = f"selling:{normalize_key(sp_tag)}"
+        if semantic_id in seen_semantic_entries:
+            continue
+        count, decision = direct_tag_count(
+            semantic_id,
+            sp_tag,
+            popularity_data,
+            live_lookup=live_lookup,
+            live_budget=selling_count_budget,
+        )
+        decision["source_rule"] = "selling_point"
+        popularity_decisions.append(decision)
+        semantic_entries.append(
+            {
+                "semantic": semantic_id,
+                "display": sp_tag,
+                "zh": sp_tag,
+                "class": "theme",
+                "domain": "both",
+                "count": count,
+                "source_rule": "selling_point",
+            }
+        )
+        seen_semantic_entries.add(semantic_id)
+
     priority = _priority_map(domain)
+
+    def rank_group(item: dict[str, Any]) -> int:
+        cls = item.get("class", "theme")
+        if domain == "fanart" and cls in {"franchise", "character"}:
+            return 0
+        if cls in {"identity", "rating"}:
+            return 1
+        if item.get("semantic") == "ai_art":
+            return 4
+        return 3
+
+    def score_group(item: dict[str, Any]) -> int:
+        if item.get("source_rule") == "selling_point":
+            return 0
+        score = item.get("tagger_score")
+        if score is None:
+            return 0
+        return 0 if float(score) >= 0.6 else 1
+
     semantic_entries.sort(
         key=lambda item: (
+            rank_group(item),
+            score_group(item),
             -int(item.get("count", 0) or 0),
-            -1 if item.get("semantic") == "ai_art" else priority.get(item["class"], 99),
+            priority.get(item["class"], 99),
             item["display"],
         )
     )
+    synonym_tags = general_jp_data.get("synonym_tags") or {}
+    if isinstance(synonym_tags, dict):
+        expanded_entries = []
+        for item in semantic_entries:
+            expanded_entries.append(item)
+            extra_displays = synonym_tags.get(item.get("display")) or []
+            if not isinstance(extra_displays, list):
+                continue
+            for extra_display in extra_displays:
+                if not isinstance(extra_display, str) or not extra_display.strip():
+                    continue
+                expanded_entries.append({**item, "display": extra_display.strip(), "zh": extra_display.strip()})
+        semantic_entries = expanded_entries
     final_tags = []
     final_tag_translations = []
     seen_display = set()
@@ -1641,31 +1825,6 @@ def build_pixiv_payload(
         if len(final_tags) >= 10:
             break
 
-    # === Pixiv tag-habit alignment (per pixiv_general_jp.json) ===
-    # 1) Selling-point injection: if tagger detected high-score body/style triggers,
-    #    add the popular pixiv tag (巨乳 / お尻 / 魅惑のふともも / ふたなり / ...).
-    selling_points = general_jp_data.get("selling_points") or []
-    tagger_keys: dict[str, float] = {}
-    for entries in extra_groups.values():
-        for entry in entries:
-            if isinstance(entry, (tuple, list)) and len(entry) == 2:
-                t, s = entry[0], float(entry[1])
-            else:
-                t, s = str(entry), 1.0
-            k = normalize_key(t)
-            if k:
-                tagger_keys[k] = max(tagger_keys.get(k, 0.0), s)
-    for rule in selling_points:
-        triggers = rule.get("trigger") or []
-        threshold = float(rule.get("min_score", 0.5))
-        sp_tag = rule.get("tag")
-        if not sp_tag or sp_tag in seen_display:
-            continue
-        if any(tagger_keys.get(normalize_key(t), 0) >= threshold for t in triggers):
-            final_tags.append(sp_tag)
-            final_tag_translations.append(sp_tag)
-            seen_display.add(sp_tag)
-
     # 2) Prepend R-18 / オリジナル so they don't get cut by the 10-tag cap.
     forced: list[str] = []
     if general_jp_data.get("force_r18", True):
@@ -1677,14 +1836,47 @@ def build_pixiv_payload(
         if domain == "original" and "オリジナル" not in seen_display:
             forced.append("オリジナル")
     if forced:
-        final_tags = forced + final_tags
-        final_tag_translations = forced + final_tag_translations
-        seen_display.update(forced)
+        expanded_forced = []
+        for tag in forced:
+            expanded_forced.append(tag)
+            for extra_tag in synonym_tags.get(tag, []) if isinstance(synonym_tags, dict) else []:
+                if isinstance(extra_tag, str) and extra_tag.strip():
+                    expanded_forced.append(extra_tag.strip())
+        final_tags = expanded_forced + final_tags
+        final_tag_translations = expanded_forced + final_tag_translations
+        seen_display.update(expanded_forced)
+
+    priority_fill_tags = {"飲み物"}
+    for item in semantic_entries:
+        display = item["display"]
+        if display not in priority_fill_tags or display in seen_display:
+            continue
+        replace_index = next(
+            (
+                index for index in range(len(final_tags) - 1, -1, -1)
+                if final_tags[index] not in {"オリジナル", "R-18", "R-18G"}
+                and not any(final_tags[index] in values for values in synonym_tags.values())
+            ),
+            None,
+        )
+        if replace_index is not None:
+            final_tags[replace_index] = display
+            final_tag_translations[replace_index] = item["zh"]
+            seen_display.add(display)
 
     # 3) Re-cap to 10 (selling points + forced may have pushed us over).
-    if len(final_tags) > 10:
-        final_tags = final_tags[:10]
-        final_tag_translations = final_tag_translations[:10]
+    while len(final_tags) > 10:
+        remove_index = next(
+            (
+                index for index in range(len(final_tags) - 1, -1, -1)
+                if final_tags[index] not in {"オリジナル", "R-18", "R-18G"}
+                and final_tags[index] not in priority_fill_tags
+                and not any(final_tags[index] in values for values in synonym_tags.values())
+            ),
+            len(final_tags) - 1,
+        )
+        final_tags.pop(remove_index)
+        final_tag_translations.pop(remove_index)
 
     subject = next((item for item in semantic_entries if item["class"] in {"character", "identity", "franchise"}), None)
     theme = next((item for item in semantic_entries if item["class"] in {"theme", "feature"}), None)
@@ -1797,12 +1989,11 @@ def open_pixiv_browser(pw, profile_dir: Path | None = None):
         channel="chrome",
         headless=False,
         args=[
-            "--disable-blink-features=AutomationControlled",
             "--start-maximized",
-            "--disable-sync",           # prevent Google account sync (themes/wallpaper)
-            "--no-first-run",           # skip first-run setup that triggers sync prompts
+            "--disable-sync",
+            "--no-first-run",
         ],
-        ignore_default_args=["--enable-automation"],
+        ignore_default_args=["--enable-automation", "--no-sandbox"],
     )
     page = context.pages[0] if context.pages else context.new_page()
     page.set_viewport_size({"width": 1920, "height": 1080})
@@ -2420,8 +2611,14 @@ def compare_rule_fit_samples(
     age_rules: dict[str, Any],
     metadata_bridge: HainTagBridge,
     tagger_bridge: HainTagTaggerBridge | None = None,
+    jp_alias_cache: dict[str, Any] | None = None,
+    general_jp_data: dict[str, Any] | None = None,
     live_lookup: bool = True,
 ) -> dict[str, Any]:
+    if jp_alias_cache is None:
+        jp_alias_cache = {}
+    if general_jp_data is None:
+        general_jp_data = {}
     sample_manifests = sorted(
         path for path in manifest_dir.glob("*.json")
         if not path.name.endswith(".compare.json")
@@ -2444,7 +2641,11 @@ def compare_rule_fit_samples(
                 popularity_data=popularity_data,
                 age_rules=age_rules,
                 extra_candidates=tagger_result.get("flat_tags", []),
+                extra_groups=tagger_result.get("groups", {}),
+                jp_alias_cache=jp_alias_cache,
+                general_jp_data=general_jp_data,
                 live_lookup=live_lookup,
+                live_jp_lookup=live_lookup,
             )
             diffs = classify_compare_differences(sample_manifest.get("pixiv_tags", []), payload.get("final_tags", []), alias_data)
             compare_stage = "full_compare"
@@ -2566,23 +2767,38 @@ def safe_goto(page, url: str, wait: float = 5.0) -> None:
     time.sleep(wait)
 
 
+def _wait_for_file_input(page, timeout: float = 30.0) -> bool:
+    """Poll for file input up to timeout seconds. Returns True if found."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _first_visible_locator(page, PIXIV_SELECTORS["file_input"]) is not None:
+            return True
+        time.sleep(1)
+    return False
+
+
 def ensure_on_pixiv_upload_page(page) -> None:
-    safe_goto(page, PIXIV_UPLOAD_URL, wait=6)
-    if _first_visible_locator(page, PIXIV_SELECTORS["file_input"]) is not None:
+    safe_goto(page, PIXIV_UPLOAD_URL, wait=4)
+
+    # If redirected to login page, ask user to log in first.
+    if "login" in page.url or "accounts.pixiv.net" in page.url:
+        print("\n[!] Pixiv 未登录，请在浏览器里完成登录，然后按 Enter 继续...")
+        input()
+        safe_goto(page, PIXIV_UPLOAD_URL, wait=6)
+
+    # Wait up to 30 s for the React SPA to render the file input.
+    if _wait_for_file_input(page, timeout=30.0):
         return
+
+    # If still not found, fall back to manual intervention.
     print(
         f"\n[!] 没找到上传表单（当前 URL: {page.url}）。"
-        "\n  请在浏览器窗口里登录 Pixiv，然后导航到 https://www.pixiv.net/upload.php"
-        "\n  停在上传页（能看到拖拽上传区域）后，回到这里按 Enter 继续..."
+        "\n  请在浏览器里导航到 https://www.pixiv.net/upload.php"
+        "\n  能看到拖拽上传区域后，回到这里按 Enter 继续..."
     )
     input()
-    safe_goto(page, PIXIV_UPLOAD_URL, wait=6)
-    if _first_visible_locator(page, PIXIV_SELECTORS["file_input"]) is None:
-        print(
-            f"[!] 仍未检测到上传表单（当前 URL: {page.url}）。"
-            "\n  按 Enter 强行继续（可能会失败），或 Ctrl-C 中止..."
-        )
-        input()
+    if not _wait_for_file_input(page, timeout=15.0):
+        print("[!] 仍未检测到上传表单，强行继续（可能会失败）...")
 
 
 _ALERT_WAV = Path(__file__).parent.parent / "猫猫怕痛惹 - 许巍-蓝莲哈.wav"
@@ -2826,18 +3042,24 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
                     log.warning(f"    autocomplete DOM dump 失败: {exc}")
                 autocomplete_debug_dumps += 1
             if listbox is not None:
-                # pixiv suggestion items are not ARIA radios/options, so
-                # ArrowDown/Enter doesn't work. Click the first item directly.
-                first_option = _first_visible_locator(
-                    page, PIXIV_SELECTORS.get("tag_autocomplete_first_option", [])
-                )
                 clicked = False
-                if first_option is not None:
+                exact_option = None
+                try:
+                    options = page.locator('[data-tag][data-type="front_matching"]')
+                    for option_index in range(options.count()):
+                        option = options.nth(option_index)
+                        data_tag = (option.get_attribute("data-tag") or "").strip()
+                        if data_tag == tag:
+                            exact_option = option
+                            break
+                except Exception as exc:
+                    log.warning(f"    autocomplete exact-match lookup 失败 tag={tag!r}: {type(exc).__name__}: {exc}")
+                if exact_option is not None:
                     try:
-                        first_option.click()
+                        exact_option.click()
                         clicked = True
                     except Exception as exc:
-                        log.warning(f"    autocomplete first-option click 失败: {type(exc).__name__}: {exc}")
+                        log.warning(f"    autocomplete exact-option click 失败 tag={tag!r}: {type(exc).__name__}: {exc}")
                 if clicked:
                     autocomplete_used += 1
                 else:

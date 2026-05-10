@@ -63,13 +63,15 @@ def check_civitai_safety(
     age_rules: dict,
     safety_cfg: dict,
 ) -> tuple[bool, str]:
-    """Return (should_skip, reason). Skips civitai when rating is unsafe AND loli/school tags hit."""
     rating = infer_age_restriction(image_path, age_rules)
     unsafe = {r.lower() for r in safety_cfg.get("unsafe_ratings", ["r18", "r18g"])}
     if rating.lower() not in unsafe:
         return False, ""
 
     tokens: set[str] = set()
+    phrases: set[str] = set()
+    stem = image_path.stem.lower().replace("_", " ")
+    phrases.add(stem)
     for part in re.split(r"[\s_\-\[\](){}|]+", image_path.stem.lower()):
         tok = part.strip()
         if tok:
@@ -81,11 +83,13 @@ def check_civitai_safety(
             tok = re.sub(r":\s*[\d.]+$", "", part.strip().replace("_", " ")).strip()
             if tok:
                 tokens.add(tok)
+                phrases.add(tok)
 
+    haystack = "\n".join(phrases)
     minor_tags = {t.lower().replace("_", " ") for t in safety_cfg.get("minor_tags", [])}
     school_tags = {t.lower().replace("_", " ") for t in safety_cfg.get("school_tags", [])}
-    hit_minor = tokens & minor_tags
-    hit_school = tokens & school_tags
+    hit_minor = {tag for tag in minor_tags if tag in tokens or tag in haystack}
+    hit_school = {tag for tag in school_tags if tag in tokens or tag in haystack}
     if hit_minor:
         return True, f"rating={rating}, loli/minor tags: {sorted(hit_minor)}"
     if hit_school:
@@ -400,8 +404,8 @@ def open_civitai_browser(pw):
         str(CHROME_PROFILE_DIR),
         channel="chrome",
         headless=False,
-        args=["--disable-blink-features=AutomationControlled"],
-        ignore_default_args=["--enable-automation"],
+        args=[],
+        ignore_default_args=["--enable-automation", "--no-sandbox"],
     )
     page = context.pages[0] if context.pages else context.new_page()
     return context, page
@@ -1152,6 +1156,11 @@ def cmd_pixiv_fit_compare(args):
     alias_data = load_json(files["aliases"], {})
     popularity_data = load_json(files["popularity"], {})
     age_rules = load_json(files["age_rules"], {})
+    jp_alias_cache = load_json(files["jp_aliases"], {})
+    general_jp_data = load_json(files["general_jp"], {})
+    danbooru_jp_map = load_json(files["danbooru_jp"], {})
+    if danbooru_jp_map:
+        general_jp_data["_danbooru_map"] = danbooru_jp_map
     metadata_bridge, tagger_bridge = _make_bridges()
 
     result = compare_rule_fit_samples(
@@ -1161,8 +1170,11 @@ def cmd_pixiv_fit_compare(args):
         age_rules=age_rules,
         metadata_bridge=metadata_bridge,
         tagger_bridge=tagger_bridge,
+        jp_alias_cache=jp_alias_cache,
+        general_jp_data=general_jp_data,
         live_lookup=not args.no_live_lookup,
     )
+    save_json(files["jp_aliases"], jp_alias_cache)
     save_json(files["popularity"], popularity_data)
     report_path = create_rule_fit_report_path(files["rule_fit_reports"], "compare")
     save_json(report_path, result)
