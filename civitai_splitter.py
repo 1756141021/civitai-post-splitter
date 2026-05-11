@@ -639,12 +639,17 @@ def create_upload_manifest(
     if pixiv_payload is not None:
         pixiv_payload["privacy"] = pixiv_privacy
         pixiv_payload["allow_tag_edits"] = pixiv_allow_tag_edits
-        # If censor applied mosaic, this image contains exposed genitals/fluids —
-        # force R-18 (overrides any filename-based inference that returned all_ages).
         if censor_result is not None and censor_result.applied:
             if pixiv_payload.get("age_restriction") not in {"r18", "r18g"}:
                 log.info("    censor: 检测到露出，强制 age_restriction=r18")
                 pixiv_payload["age_restriction"] = "r18"
+                final_tags = pixiv_payload.setdefault("final_tags", [])
+                final_translations = pixiv_payload.setdefault("final_tag_translations", [])
+                if "R-18" not in final_tags:
+                    final_tags.insert(0, "R-18")
+                    final_translations.insert(0, "R18")
+                    del final_tags[10:]
+                    del final_translations[10:]
 
     manifest = {
         "created_at": datetime.now().isoformat(timespec="seconds"),
