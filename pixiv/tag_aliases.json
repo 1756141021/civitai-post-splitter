@@ -179,9 +179,9 @@
     },
     "dress": {
       "candidates": [
-        "ワンピース"
+        "ドレス"
       ],
-      "default": "ワンピース",
+      "default": "ドレス",
       "zh": "连衣裙",
       "class": "theme",
       "domain": "both"
@@ -513,9 +513,6 @@
     "dress": {
       "semantic": "dress"
     },
-    "ワンピース": {
-      "semantic": "dress"
-    },
     "kimono": {
       "semantic": "kimono"
     },
@@ -648,6 +645,7 @@
   },
   "ambiguous_tags": [
     "one-piece",
-    "one piece"
+    "one piece",
+    "ワンピース"
   ]
 }

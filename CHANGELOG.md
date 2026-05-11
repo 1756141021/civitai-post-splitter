@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-05-11
+
+### Fixed
+- Pixiv tag generation now maps generic `dress` to `ドレス` instead of ambiguous `ワンピース`, preventing Pixiv from resolving the tag to `ONE PIECE`.
+
 ## 2026-05-10
 
 ### Added

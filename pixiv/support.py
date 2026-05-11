@@ -217,7 +217,7 @@ PIXIV_SELECTORS: dict[str, Any] = {
 
 
 DEFAULT_ALIAS_DATA = {
-    "ambiguous_tags": ["one-piece", "one piece"],
+    "ambiguous_tags": ["one-piece", "one piece", "ワンピース"],
     "drop_tags": [
         "1girl", "1boy", "2girls", "multiple girls", "multiple boys", "solo",
         "solo focus", "looking at viewer", "looking back", "facing viewer",
@@ -329,8 +329,8 @@ DEFAULT_ALIAS_DATA = {
             "domain": "both",
         },
         "dress": {
-            "candidates": ["ワンピース"],
-            "default": "ワンピース",
+            "candidates": ["ドレス"],
+            "default": "ドレス",
             "zh": "连衣裙",
             "class": "theme",
             "domain": "both",
@@ -531,7 +531,6 @@ DEFAULT_ALIAS_DATA = {
         "bikini": {"semantic": "bikini"},
         "ビキニ": {"semantic": "bikini"},
         "dress": {"semantic": "dress"},
-        "ワンピース": {"semantic": "dress"},
         "kimono": {"semantic": "kimono"},
         "着物": {"semantic": "kimono"},
         "和服": {"semantic": "kimono"},
