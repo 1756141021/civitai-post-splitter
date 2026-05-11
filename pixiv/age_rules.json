@@ -25,5 +25,51 @@
       "match": "mild",
       "age_restriction": "mild_sensitive"
     }
+  ],
+  "candidate_rules": [
+    {
+      "match": "guro",
+      "age_restriction": "r18g"
+    },
+    {
+      "match": "nipple",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "nipples",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "pussy",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "vagina",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "penis",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "cum",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "sex",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "oral sex",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "pubic hair",
+      "age_restriction": "r18"
+    },
+    {
+      "match": "uncensored",
+      "age_restriction": "r18"
+    }
   ]
 }

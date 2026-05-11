@@ -30,6 +30,7 @@ from pixiv.support import (
     create_rule_fit_report_path,
     create_pixiv_post,
     find_target_successes,
+    force_pixiv_age_restriction,
     infer_age_restriction,
     open_pixiv_browser,
     PIXIV_RULE_FIT_PROFILE_DIR,
@@ -639,12 +640,10 @@ def create_upload_manifest(
     if pixiv_payload is not None:
         pixiv_payload["privacy"] = pixiv_privacy
         pixiv_payload["allow_tag_edits"] = pixiv_allow_tag_edits
-        # If censor applied mosaic, this image contains exposed genitals/fluids —
-        # force R-18 (overrides any filename-based inference that returned all_ages).
         if censor_result is not None and censor_result.applied:
             if pixiv_payload.get("age_restriction") not in {"r18", "r18g"}:
                 log.info("    censor: 检测到露出，强制 age_restriction=r18")
-                pixiv_payload["age_restriction"] = "r18"
+                force_pixiv_age_restriction(pixiv_payload, "r18")
 
     manifest = {
         "created_at": datetime.now().isoformat(timespec="seconds"),

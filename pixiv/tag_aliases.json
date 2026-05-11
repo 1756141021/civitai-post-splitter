@@ -151,7 +151,8 @@
     },
     "maid": {
       "candidates": [
-        "メイド"
+        "メイド",
+        "メイド服"
       ],
       "default": "メイド",
       "zh": "女仆",
@@ -197,7 +198,9 @@
     },
     "cat_ears": {
       "candidates": [
-        "猫耳"
+        "猫耳",
+        "ねこみみ",
+        "ネコミミ"
       ],
       "default": "猫耳",
       "zh": "猫耳",
@@ -294,6 +297,120 @@
       "zh": "崩坏：星穹铁道",
       "class": "franchise",
       "domain": "fanart"
+    },
+    "fox_girl": {
+      "candidates": [
+        "狐っ娘"
+      ],
+      "default": "狐っ娘",
+      "zh": "狐娘",
+      "class": "theme",
+      "domain": "both"
+    },
+    "fox_ears": {
+      "candidates": [
+        "狐耳",
+        "きつね耳",
+        "キツネ耳"
+      ],
+      "default": "狐耳",
+      "zh": "狐耳",
+      "class": "feature",
+      "domain": "both"
+    },
+    "fox_tail": {
+      "candidates": [
+        "狐しっぽ",
+        "狐尻尾",
+        "きつねしっぽ"
+      ],
+      "default": "狐しっぽ",
+      "zh": "狐尾",
+      "class": "feature",
+      "domain": "both"
+    },
+    "rabbit_ears": {
+      "candidates": [
+        "うさみみ",
+        "兎耳",
+        "ウサ耳"
+      ],
+      "default": "うさみみ",
+      "zh": "兔耳",
+      "class": "feature",
+      "domain": "both"
+    },
+    "wolf_ears": {
+      "candidates": [
+        "狼耳",
+        "オオカミ耳"
+      ],
+      "default": "狼耳",
+      "zh": "狼耳",
+      "class": "feature",
+      "domain": "both"
+    },
+    "dragon_horns": {
+      "candidates": [
+        "ドラゴンの角",
+        "竜角"
+      ],
+      "default": "ドラゴンの角",
+      "zh": "龙角",
+      "class": "feature",
+      "domain": "both"
+    },
+    "demon_horns": {
+      "candidates": [
+        "悪魔の角",
+        "鬼の角"
+      ],
+      "default": "悪魔の角",
+      "zh": "恶魔角",
+      "class": "feature",
+      "domain": "both"
+    },
+    "halo": {
+      "candidates": [
+        "天使の輪",
+        "ヘイロー",
+        "光輪"
+      ],
+      "default": "天使の輪",
+      "zh": "光环",
+      "class": "feature",
+      "domain": "both"
+    },
+    "vampire": {
+      "candidates": [
+        "吸血鬼",
+        "ヴァンパイア"
+      ],
+      "default": "吸血鬼",
+      "zh": "吸血鬼",
+      "class": "theme",
+      "domain": "both"
+    },
+    "one_piece_swimsuit": {
+      "candidates": [
+        "ワンピース水着",
+        "ワンピ水着"
+      ],
+      "default": "ワンピース水着",
+      "zh": "连体泳装",
+      "class": "theme",
+      "domain": "both"
+    },
+    "kitsune": {
+      "candidates": [
+        "狐っ娘",
+        "狐娘",
+        "狐"
+      ],
+      "default": "狐っ娘",
+      "zh": "狐狸角色",
+      "class": "theme",
+      "domain": "both"
     }
   },
   "mappings": {
@@ -396,9 +513,6 @@
     "dress": {
       "semantic": "dress"
     },
-    "one-piece": {
-      "semantic": "dress"
-    },
     "ワンピース": {
       "semantic": "dress"
     },
@@ -494,6 +608,46 @@
     },
     "崩坏：星穹铁道": {
       "semantic": "honkai_star_rail"
+    },
+    "fox ears": {
+      "semantic": "fox_ears"
+    },
+    "fox tail": {
+      "semantic": "fox_tail"
+    },
+    "fox girl": {
+      "semantic": "fox_girl"
+    },
+    "rabbit ears": {
+      "semantic": "rabbit_ears"
+    },
+    "wolf ears": {
+      "semantic": "wolf_ears"
+    },
+    "dragon horns": {
+      "semantic": "dragon_horns"
+    },
+    "demon horns": {
+      "semantic": "demon_horns"
+    },
+    "halo": {
+      "semantic": "halo"
+    },
+    "vampire": {
+      "semantic": "vampire"
+    },
+    "one-piece swimsuit": {
+      "semantic": "one_piece_swimsuit"
+    },
+    "one piece swimsuit": {
+      "semantic": "one_piece_swimsuit"
+    },
+    "kitsune": {
+      "semantic": "kitsune"
     }
-  }
+  },
+  "ambiguous_tags": [
+    "one-piece",
+    "one piece"
+  ]
 }

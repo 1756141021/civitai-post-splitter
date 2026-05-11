@@ -10,6 +10,9 @@
 - Added expanded Pixiv tag mappings, selling-point rules, alias overrides, popularity data, and validation cases.
 
 ### Changed
+- Pixiv tag generation now keeps generic VTuber tags only when WD14 also identifies a specific character.
+- Pixiv tag generation now groups standard WD14/Danbooru tags into Pixiv-native candidate sets, rejects ambiguous one-piece terms without source proof, and ranks content tags by Pixiv popularity counts instead of tagger score proxies.
+- Pixiv age detection now promotes explicit adult candidates such as nipples / pussy / pubic hair to R-18 and keeps the R-18 tag synchronized when censoring forces the rating.
 - Pixiv tag generation now gives WD14 tagger output stricter category-aware handling, uses the 151k Danbooru→JP table behind user overrides, expands synonyms before the 10-tag cap, and preserves forced R-18 / original tags.
 - Civitai safety checks now match multi-word school/minor phrases from filenames and metadata instead of only exact split tokens.
 - Pixiv and Civitai login flows now launch persistent Chrome without automation and sandbox default args, and the Pixiv account switch action immediately opens the login page.
