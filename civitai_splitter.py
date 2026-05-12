@@ -58,6 +58,21 @@ _LORA_RE = re.compile(r"<lora:([^:>]+):([^>]+)>")
 TARGETS = {"civitai", "pixiv"}
 
 
+def _raise_if_canceled(cancel_event) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise InterruptedError("task canceled")
+
+
+def _sleep_with_cancel(seconds: float, cancel_event, poll: float = 0.2) -> None:
+    deadline = time.monotonic() + max(0.0, seconds)
+    while True:
+        _raise_if_canceled(cancel_event)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(poll, remaining))
+
+
 def check_civitai_safety(
     image_path: Path,
     source_meta: dict,
@@ -440,18 +455,20 @@ def ensure_on_create_page(page):
             pass
 
 
-def create_civitai_post(page, image_path: Path, delay: float) -> str | None:
+def create_civitai_post(page, image_path: Path, delay: float, cancel_event=None) -> str | None:
+    _raise_if_canceled(cancel_event)
     ensure_on_create_page(page)
 
     # Wait for file input to appear — safe_goto uses wait_until="commit" which
     # only waits for response headers, so the DOM may still be loading.
     file_input = None
     for _ in range(12):
+        _raise_if_canceled(cancel_event)
         loc = page.locator('input[type="file"]')
         if loc.count() > 0:
             file_input = loc.first
             break
-        time.sleep(1)
+        _sleep_with_cancel(1, cancel_event)
     if file_input is None:
         log.error("    未找到文件上传输入框（页面可能未加载完成），跳过")
         return None
@@ -466,7 +483,7 @@ def create_civitai_post(page, image_path: Path, delay: float) -> str | None:
     publish_btn = page.locator('button:has-text("Publish")')
     enabled = False
     for _ in range(60):
-        time.sleep(2)
+        _sleep_with_cancel(2, cancel_event)
         if publish_btn.count() > 0 and publish_btn.first.is_enabled():
             enabled = True
             break
@@ -484,7 +501,8 @@ def create_civitai_post(page, image_path: Path, delay: float) -> str | None:
         if "/posts/create" not in current_url and "/posts/" in current_url:
             post_url = re.sub(r"/edit$", "", current_url)
             wait = delay + random.uniform(1, 3)
-            time.sleep(wait)
+            if cancel_event is None or not cancel_event.is_set():
+                time.sleep(wait)
             return post_url
     log.error("    发布超时（60 秒内未跳转），跳过")
     return None
@@ -577,12 +595,15 @@ def create_upload_manifest(
     censor_engine: CensorEngine | None = None,
     censor_classes=None,
     civitai_safety_cfg: dict | None = None,
+    cancel_event=None,
 ) -> tuple[dict, bool]:
+    _raise_if_canceled(cancel_event)
     source_meta = hain_bridge.read_metadata(image_path)
 
     civitai_blocked = False
     civitai_block_reason = ""
     if "civitai" in targets and civitai_safety_cfg:
+        _raise_if_canceled(cancel_event)
         civitai_blocked, civitai_block_reason = check_civitai_safety(
             image_path, source_meta, age_rules, civitai_safety_cfg
         )
@@ -590,16 +611,20 @@ def create_upload_manifest(
             log.info(f"    Civitai 安全过滤：{civitai_block_reason}")
 
     civitai_copy = strip_prompts_keep_lora(image_path, civitai_dir) if "civitai" in targets else None
+    _raise_if_canceled(cancel_event)
     pixiv_clean = sanitize_image_for_pixiv(image_path, pixiv_dir) if "pixiv" in targets else None
+    _raise_if_canceled(cancel_event)
 
     # Run auto-censor on the sanitized pixiv copy if engine present.
     censor_result = None
     if pixiv_clean is not None and censor_engine is not None:
+        _raise_if_canceled(cancel_event)
         censor_result = censor_engine.detect_and_censor(
             Path(pixiv_clean.output_path),
             output_path=Path(pixiv_clean.output_path),
             enabled_classes=censor_classes,
         )
+        _raise_if_canceled(cancel_event)
         if censor_result.applied:
             log.info(f"    censor: 打码完成 — {censor_result.detail}")
         elif censor_result.status == "ok":
@@ -610,6 +635,7 @@ def create_upload_manifest(
         hain_bridge.read_metadata(pixiv_clean.output_path) if pixiv_clean is not None
         else {"status": "skipped", "detected_types": [], "details": []}
     )
+    _raise_if_canceled(cancel_event)
     if "pixiv" in targets and tagger_bridge is not None:
         tagger_result = tagger_bridge.predict_tags(image_path)
     else:
@@ -637,6 +663,7 @@ def create_upload_manifest(
         )
         if "pixiv" in targets else None
     )
+    _raise_if_canceled(cancel_event)
     if pixiv_payload is not None:
         pixiv_payload["privacy"] = pixiv_privacy
         pixiv_payload["allow_tag_edits"] = pixiv_allow_tag_edits
@@ -931,7 +958,9 @@ def cmd_upload(args):
                 censor_engine=censor_engine,
                 censor_classes=censor_classes,
                 civitai_safety_cfg=civitai_safety_cfg,
+                cancel_event=_cancel_ev,
             )
+            _raise_if_canceled(_cancel_ev)
             # Persist any new JP aliases learned during this image's payload build
             save_json(files["jp_aliases"], jp_alias_cache)
             tagger_status = manifest.get("pixiv", {}).get("tagger", {}).get("status", "disabled")
@@ -952,6 +981,7 @@ def cmd_upload(args):
                 continue
 
             all_succeeded = True
+            cancel_requested = False
 
             if "civitai" in targets:
                 if "civitai" in skip_targets:
@@ -965,7 +995,10 @@ def cmd_upload(args):
                 else:
                     civitai_copy = Path(manifest["civitai"]["clean_copy_path"])
                     try:
-                        civitai_url = create_civitai_post(civitai_page, civitai_copy, args.delay)
+                        civitai_url = create_civitai_post(civitai_page, civitai_copy, args.delay, cancel_event=_cancel_ev)
+                    except InterruptedError:
+                        cancel_requested = True
+                        civitai_url = None
                     except Exception as exc:
                         log.error(f"    Civitai 发布异常: {exc}")
                         log.debug(traceback.format_exc())
@@ -974,6 +1007,10 @@ def cmd_upload(args):
                         manifest["civitai"]["post_url"] = civitai_url
                         manifest["status_by_target"]["civitai"] = "success"
                         log.info(f"    Civitai 发布成功: {civitai_url}")
+                    elif cancel_requested and manifest["status_by_target"].get("civitai") == "pending":
+                        manifest["status_by_target"]["civitai"] = "canceled"
+                        manifest["errors"].append("Civitai upload canceled")
+                        all_succeeded = False
                     else:
                         manifest["status_by_target"]["civitai"] = "failed"
                         manifest["errors"].append("Civitai upload failed")
@@ -986,6 +1023,10 @@ def cmd_upload(args):
                     manifest["status_by_target"]["pixiv"] = "skipped_already_done"
                     log.info(f"    Pixiv 已发过，跳过: {inherited_url}")
                 elif not pixiv_ready:
+                    all_succeeded = False
+                elif cancel_requested:
+                    manifest["status_by_target"]["pixiv"] = "canceled"
+                    manifest["errors"].append("Pixiv upload canceled")
                     all_succeeded = False
                 else:
                     pixiv_copy = Path(manifest["pixiv"]["clean_copy_path"])
@@ -1006,8 +1047,13 @@ def cmd_upload(args):
                     for attempt in range(max_retries + 1):
                         try:
                             pixiv_url, pixiv_steps = create_pixiv_post(
-                                pixiv_page, payload, pixiv_copy, args.delay, log_dir=LOG_DIR,
+                                pixiv_page, payload, pixiv_copy, args.delay, log_dir=LOG_DIR, cancel_event=_cancel_ev,
                             )
+                        except InterruptedError:
+                            cancel_requested = True
+                            pixiv_url = None
+                            pixiv_steps = []
+                            break
                         except Exception as exc:
                             log.error(f"    Pixiv 发布异常 (attempt {attempt + 1}): {exc}")
                             log.debug(traceback.format_exc())
@@ -1022,9 +1068,13 @@ def cmd_upload(args):
                             break
                         if attempt < max_retries:
                             log.info(f"    Pixiv 失败，{(attempt + 1) * 3} 秒后重试 ({attempt + 2}/{max_retries + 1})...")
-                            time.sleep((attempt + 1) * 3)
+                            _sleep_with_cancel((attempt + 1) * 3, _cancel_ev)
                     manifest["pixiv"]["upload_steps"] = [s.to_dict() for s in pixiv_steps]
-                    if pixiv_url:
+                    if cancel_requested and not pixiv_url:
+                        manifest["status_by_target"]["pixiv"] = "canceled"
+                        manifest["errors"].append("Pixiv upload canceled")
+                        all_succeeded = False
+                    elif pixiv_url:
                         manifest["pixiv"]["post_url"] = pixiv_url
                         manifest["status_by_target"]["pixiv"] = "success"
                         log.info(f"    Pixiv 发布成功: {pixiv_url}")

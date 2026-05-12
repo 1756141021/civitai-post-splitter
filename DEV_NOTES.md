@@ -139,6 +139,13 @@ Web 后端 `_arm_scheduler` 会根据 `next_fire_at` 恢复倒计时。触发后
 
 Web UI 打开 `/api/stream` 建立 SSE 连接。页面关闭时前端会用 `navigator.sendBeacon('/api/shutdown')` 通知后端。
 
+### 取消语义
+
+- `web_server.py` 里的 worker 现在把 `InterruptedError` 统一收成任务 `canceled`，不再落成 `failed`。
+- `launcher.py` 的更新检查通过 `cancel_event` 包装 git 子进程；取消发生在更新确认输入期间时，也不会误触发 pull。
+- `cmd_upload` / `create_upload_manifest` / `create_civitai_post` / `create_pixiv_post` 现在只在“可逆阶段”响应取消。进入实际 publish 点击后，流程会优先完成收尾并保留成功结果，避免“远端已发成功、本地却显示 canceled”的假状态。
+
+
 后端逻辑：
 
 1. 有 SSE 客户端时取消 idle shutdown。

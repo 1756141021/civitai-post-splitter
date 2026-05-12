@@ -7,7 +7,7 @@
 // Styles for this component live in shared.jsx — keeps everything in
 // one stylesheet so there's no duplicate-injection ordering trap.
 
-function InputPromptOverlay({ prompt, task_id, onSubmit }) {
+function InputPromptOverlay({ prompt, task_id, onSubmit, onCancelTask }) {
   const [answer, setAnswer] = React.useState('y');
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
@@ -18,9 +18,12 @@ function InputPromptOverlay({ prompt, task_id, onSubmit }) {
         <input className="mn-input" value={answer} onChange={e => setAnswer(e.target.value)}
                onKeyDown={e => e.key === 'Enter' && onSubmit(answer)}
                style={{ width: '100%', marginBottom: 12 }} autoFocus />
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button className="mn-btn" onClick={() => onSubmit('')}>跳过</button>
-          <button className="mn-btn mn-btn-accent" onClick={() => onSubmit(answer)}>确认</button>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+          <button className="mn-btn mn-btn-ghost" onClick={() => onCancelTask && onCancelTask(task_id)}>取消任务</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="mn-btn" onClick={() => onSubmit('')}>跳过</button>
+            <button className="mn-btn mn-btn-accent" onClick={() => onSubmit(answer)}>确认</button>
+          </div>
         </div>
       </div>
     </div>
@@ -443,6 +446,7 @@ function MonoSingleApp() {
         <InputPromptOverlay
           {...pendingInput}
           onSubmit={ans => replyInput(pendingInput.task_id, ans)}
+          onCancelTask={cancelTask}
         />
       )}
       {uploadDialog && (
@@ -609,16 +613,18 @@ function OperationsStrip({ runCmd, onStartUpload }) {
 
 // ── ZONE 3: Queue ──────────────────────────────────────────────
 function QueueZone({ filter, setFilter, tasks, onCancel, onRemove, onRetry }) {
-  const running = tasks.filter(t => t.status === 'running').length;
-  const queued  = tasks.filter(t => t.status === 'queued').length;
-  const done    = tasks.filter(t => t.status === 'done').length;
-  const failed  = tasks.filter(t => t.status === 'failed').length;
+  const running  = tasks.filter(t => t.status === 'running').length;
+  const queued   = tasks.filter(t => t.status === 'queued').length;
+  const done     = tasks.filter(t => t.status === 'done').length;
+  const failed   = tasks.filter(t => t.status === 'failed').length;
+  const canceled = tasks.filter(t => t.status === 'canceled').length;
   const filters = [
-    { id: 'all',     label: 'All',     n: tasks.length },
-    { id: 'running', label: 'Running', n: running },
-    { id: 'queued',  label: 'Queued',  n: queued  },
-    { id: 'done',    label: 'Done',    n: done    },
-    { id: 'failed',  label: 'Failed',  n: failed  },
+    { id: 'all',      label: 'All',      n: tasks.length },
+    { id: 'running',  label: 'Running',  n: running },
+    { id: 'queued',   label: 'Queued',   n: queued  },
+    { id: 'done',     label: 'Done',     n: done    },
+    { id: 'failed',   label: 'Failed',   n: failed  },
+    { id: 'canceled', label: 'Canceled', n: canceled },
   ];
   const list = filter === 'all' ? tasks : tasks.filter(t => t.status === filter);
 
@@ -720,7 +726,7 @@ function LogZone({ logs }) {
       </div>
       <div className="ms-scroll" style={{ flex: 1, padding: '6px 0', background: M.panel, fontFamily: M.mono, fontSize: 11, lineHeight: 1.55 }}>
         {filtered.map((l, i) => (
-          <div key={i} className="mn-row-hover" style={{ padding: '1px 14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div key={i} className="mn-row-hover" style={{ padding: '1px 14px', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
             <span style={{ color: M.inkFaint }}>{l.t.slice(3, 12)}</span>
             {' '}<span style={{ color: lvlColor[l.lvl] || M.ink, fontWeight: 600 }}>{(l.lvl || 'INFO').padEnd(4)}</span>
             {' '}<span style={{ color: M.accent }}>{l.src}</span>

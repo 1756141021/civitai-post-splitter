@@ -29,38 +29,91 @@ LAST_UPDATE_CHECK_FILE = SCRIPT_DIR / ".last_update_check"
 UPDATE_CHECK_INTERVAL_HOURS = 24  # 最多 24 小时检一次，避免每次启动联网
 
 
-def _check_updates(force: bool = False) -> tuple[bool, int, str]:
+def _raise_if_canceled(cancel_event) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise InterruptedError("task canceled")
+
+
+def _terminate_process(proc: subprocess.Popen) -> None:
+    try:
+        proc.terminate()
+        proc.wait(timeout=2)
+    except Exception:
+        try:
+            proc.kill()
+            proc.wait(timeout=2)
+        except Exception:
+            pass
+
+
+def _run_command_with_cancel(command: list[str], timeout: float, cancel_event=None, capture_output: bool = False):
+    stdout = subprocess.PIPE if capture_output else subprocess.DEVNULL
+    proc = subprocess.Popen(
+        command,
+        stdout=stdout,
+        stderr=subprocess.DEVNULL,
+        text=capture_output,
+    )
+    deadline = time.monotonic() + timeout
+    try:
+        while proc.poll() is None:
+            _raise_if_canceled(cancel_event)
+            if time.monotonic() >= deadline:
+                _terminate_process(proc)
+                raise subprocess.TimeoutExpired(command, timeout)
+            time.sleep(0.2)
+    except InterruptedError:
+        _terminate_process(proc)
+        raise
+    out, _ = proc.communicate()
+    if capture_output:
+        if proc.returncode != 0:
+            raise subprocess.CalledProcessError(proc.returncode, command, output=out)
+        return (out or "").strip()
+    return proc.returncode
+
+
+def _check_updates(force: bool = False, cancel_event=None) -> tuple[bool, int, str]:
     """检查 git 远端是否有新提交。返回 (有更新, 落后数, 简介)."""
     if not (SCRIPT_DIR / ".git").exists():
         return False, 0, ""
+    _raise_if_canceled(cancel_event)
     if not force and LAST_UPDATE_CHECK_FILE.exists():
         age_h = (time.time() - LAST_UPDATE_CHECK_FILE.stat().st_mtime) / 3600
         if age_h < UPDATE_CHECK_INTERVAL_HOURS:
-            # 用上次缓存结果（如果有 stash 的 behind 信息）
             try:
-                out = subprocess.check_output(
+                out = _run_command_with_cancel(
                     ["git", "-C", str(SCRIPT_DIR), "rev-list", "--count", "HEAD..@{u}"],
-                    timeout=5, text=True, stderr=subprocess.DEVNULL,
-                ).strip()
+                    timeout=5,
+                    cancel_event=cancel_event,
+                    capture_output=True,
+                )
                 behind = int(out)
                 if behind > 0:
-                    log = subprocess.check_output(
+                    log = _run_command_with_cancel(
                         ["git", "-C", str(SCRIPT_DIR), "log", "--oneline", "HEAD..@{u}", "-3"],
-                        timeout=5, text=True, stderr=subprocess.DEVNULL,
-                    ).strip()
+                        timeout=5,
+                        cancel_event=cancel_event,
+                        capture_output=True,
+                    )
                     return True, behind, log
+            except InterruptedError:
+                raise
             except Exception:
                 pass
             return False, 0, ""
     try:
-        subprocess.call(
+        _run_command_with_cancel(
             ["git", "-C", str(SCRIPT_DIR), "fetch", "--quiet", "origin"],
-            timeout=15, stderr=subprocess.DEVNULL,
+            timeout=15,
+            cancel_event=cancel_event,
         )
-        out = subprocess.check_output(
+        out = _run_command_with_cancel(
             ["git", "-C", str(SCRIPT_DIR), "rev-list", "--count", "HEAD..@{u}"],
-            timeout=5, text=True, stderr=subprocess.DEVNULL,
-        ).strip()
+            timeout=5,
+            cancel_event=cancel_event,
+            capture_output=True,
+        )
         behind = int(out)
         try:
             LAST_UPDATE_CHECK_FILE.touch()
@@ -68,11 +121,15 @@ def _check_updates(force: bool = False) -> tuple[bool, int, str]:
             pass
         if behind <= 0:
             return False, 0, ""
-        log = subprocess.check_output(
+        log = _run_command_with_cancel(
             ["git", "-C", str(SCRIPT_DIR), "log", "--oneline", "HEAD..@{u}", "-3"],
-            timeout=5, text=True, stderr=subprocess.DEVNULL,
-        ).strip()
+            timeout=5,
+            cancel_event=cancel_event,
+            capture_output=True,
+        )
         return True, behind, log
+    except InterruptedError:
+        raise
     except Exception:
         return False, 0, ""
 
@@ -218,10 +275,10 @@ def cmd_civitai_login() -> None:
     print("浏览器已关闭，登录状态已保存。")
 
 
-def cmd_check_update() -> None:
+def cmd_check_update(cancel_event=None) -> None:
     global _update_banner
     print("正在检查更新...")
-    has, n, info = _check_updates(force=True)
+    has, n, info = _check_updates(force=True, cancel_event=cancel_event)
     if not has:
         print("已是最新版本。")
         _update_banner = ""
@@ -229,7 +286,9 @@ def cmd_check_update() -> None:
     print(f"\n[!] 有 {n} 个新提交：")
     print(info)
     print()
+    _raise_if_canceled(cancel_event)
     ans = input("现在拉取更新？[Y/n] ").strip().lower()
+    _raise_if_canceled(cancel_event)
     if ans in ("", "y", "yes"):
         if _do_pull():
             print("\n更新完成。建议重启此菜单生效。")

@@ -2821,13 +2821,28 @@ def _alert_captcha(page):
     return lambda: None
 
 
-def _jsleep(base: float, jitter: float = 0.4) -> None:
+def _raise_if_canceled(cancel_event) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise InterruptedError("task canceled")
+
+
+def _sleep_with_cancel(seconds: float, cancel_event, poll: float = 0.2) -> None:
+    deadline = time.monotonic() + max(0.0, seconds)
+    while True:
+        _raise_if_canceled(cancel_event)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return
+        time.sleep(min(poll, remaining))
+
+
+def _jsleep(base: float, jitter: float = 0.4, cancel_event=None) -> None:
     """Sleep base seconds plus uniform random jitter (±jitter*base) to humanize timing.
 
     Default jitter=0.4 means actual sleep ranges over [0.6*base, 1.4*base].
     """
     delta = random.uniform(-jitter, jitter) * base
-    time.sleep(max(0.05, base + delta))
+    _sleep_with_cancel(max(0.05, base + delta), cancel_event)
 
 
 def _typing_delay() -> int:
@@ -2944,7 +2959,7 @@ def _read_checked_state(locator) -> bool | None:
         return None
 
 
-def _set_checkbox_by_text(page, name: str, texts: list[str], desired: bool) -> PixivStep:
+def _set_checkbox_by_text(page, name: str, texts: list[str], desired: bool, cancel_event=None) -> PixivStep:
     last_detail = ""
     for text in texts:
         locator = _first_visible_locator(
@@ -2968,7 +2983,7 @@ def _set_checkbox_by_text(page, name: str, texts: list[str], desired: bool) -> P
         except Exception as exc:
             last_detail = f"click failed for '{text}': {type(exc).__name__}: {exc}"
             continue
-        _jsleep(0.4)
+        _jsleep(0.4, cancel_event=cancel_event)
         final = _read_checked_state(locator)
         if final == desired:
             return PixivStep(name, True, detail=f"toggled to {desired}, text='{text}'")
@@ -2976,7 +2991,7 @@ def _set_checkbox_by_text(page, name: str, texts: list[str], desired: bool) -> P
     return PixivStep(name, False, "verify_failed", last_detail or f"no candidate matched: {texts}")
 
 
-def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> PixivStep:
+def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], cancel_event=None) -> PixivStep:
     failed: list[str] = []
     not_committed: list[str] = []
     autocomplete_used = 0
@@ -2993,7 +3008,7 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
             continue
         try:
             locator.click()
-            _jsleep(0.3)
+            _jsleep(0.3, cancel_event=cancel_event)
             # Clear any leftover input via select-all + delete instead of fill(""),
             # which on Pixiv's React tag input can rewrite the previously committed chip.
             try:
@@ -3003,12 +3018,12 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
             if value_now:
                 page.keyboard.press("Control+A")
                 page.keyboard.press("Delete")
-                _jsleep(0.2)
+                _jsleep(0.2, cancel_event=cancel_event)
             page.keyboard.type(tag, delay=_typing_delay())
             # Wait for autocomplete dropdown to render. Pixiv uses this to suggest
             # canonical Japanese forms (e.g. cirno → チルノ, touhou → 東方Project).
             # Selecting first suggestion is preferred; fall back to raw Enter.
-            _jsleep(1.2)
+            _jsleep(1.2, cancel_event=cancel_event)
             listbox = _first_visible_locator(page, listbox_selectors) if listbox_selectors else None
             if listbox is None and autocomplete_debug_dumps < 3:
                 # No listbox detected — dump page HTML so we can see what real
@@ -3052,7 +3067,7 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
             else:
                 page.keyboard.press("Enter")
                 raw_used += 1
-            _jsleep(0.6)
+            _jsleep(0.6, cancel_event=cancel_event)
             # Verify input actually cleared (commit succeeded)
             try:
                 value_after = locator.input_value()
@@ -3062,19 +3077,21 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
                 # Try one more Enter, then if still not cleared, try Tab as commit fallback
                 try:
                     locator.press("Enter")
-                    _jsleep(0.4)
+                    _jsleep(0.4, cancel_event=cancel_event)
                     value_after = locator.input_value()
                 except Exception:
                     pass
                 if value_after:
                     try:
                         locator.press("Tab")
-                        _jsleep(0.4)
+                        _jsleep(0.4, cancel_event=cancel_event)
                         value_after = locator.input_value()
                     except Exception:
                         pass
             if value_after:
                 not_committed.append(f"{tag}(remained:{value_after!r})")
+        except InterruptedError:
+            raise
         except Exception as exc:
             failed.append(f"{tag}({type(exc).__name__})")
             last_exc = f"{type(exc).__name__}: {exc}"
@@ -3087,7 +3104,7 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str]) -> P
     return PixivStep(name, True, detail=detail)
 
 
-def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str) -> PixivStep:
+def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str, cancel_event=None) -> PixivStep:
     selector = f'input[name="{attr_name}"][value="{attr_value}"]'
     locator = _first_visible_locator(page, [selector])
     if locator is None:
@@ -3097,7 +3114,7 @@ def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str) -> Pixi
             locator.check()
         except Exception:
             locator.click()
-        _jsleep(0.2)
+        _jsleep(0.2, cancel_event=cancel_event)
         try:
             checked = bool(locator.is_checked())
         except Exception:
@@ -3105,6 +3122,8 @@ def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str) -> Pixi
         if checked is False:
             return PixivStep(name, False, "verify_failed", f"{selector} not checked after click")
         return PixivStep(name, True, detail=f"name={attr_name}, value={attr_value}")
+    except InterruptedError:
+        raise
     except Exception as exc:
         return PixivStep(name, False, "exception", f"{type(exc).__name__}: {exc}")
 
@@ -3142,11 +3161,13 @@ def _accept_safety_check(page) -> tuple:
             actions.append("recaptcha_alert")
 
         return PixivStep("safety_check", True, detail=", ".join(actions)), stop_fn
+    except InterruptedError:
+        raise
     except Exception as exc:
         return PixivStep("safety_check", True, detail=f"skipped: {exc}"), stop_fn
 
 
-def _set_checkbox_by_attr(page, name: str, attr_name: str, desired: bool) -> PixivStep:
+def _set_checkbox_by_attr(page, name: str, attr_name: str, desired: bool, cancel_event=None) -> PixivStep:
     selector = f'input[name="{attr_name}"][type="checkbox"]'
     locator = _first_visible_locator(page, [selector])
     if locator is None:
@@ -3163,14 +3184,14 @@ def _set_checkbox_by_attr(page, name: str, attr_name: str, desired: bool) -> Pix
         locator.click()
     except Exception as exc:
         return PixivStep(name, False, "exception", f"{type(exc).__name__}: {exc}")
-    _jsleep(0.4)
+    _jsleep(0.4, cancel_event=cancel_event)
     final = _read_checked_state(locator)
     if final == desired:
         return PixivStep(name, True, detail=f"toggled to {desired}")
     return PixivStep(name, False, "verify_failed", f"after click state={final}")
 
 
-def _record_step(steps: list[PixivStep], page, log_dir: Path | None, step: PixivStep) -> PixivStep:
+def _record_step(steps: list[PixivStep], page, log_dir: Path | None, step: PixivStep, cancel_event=None) -> PixivStep:
     steps.append(step)
     if step.ok:
         log.info(f"    pixiv: {step.name} ✓ {step.detail}".rstrip())
@@ -3191,15 +3212,19 @@ def create_pixiv_post(
     image_path: Path,
     delay: float,
     log_dir: Path | None = None,
+    cancel_event=None,
 ) -> tuple[str | None, list[PixivStep]]:
     steps: list[PixivStep] = []
 
     def record(step: PixivStep) -> PixivStep:
-        return _record_step(steps, page, log_dir, step)
+        return _record_step(steps, page, log_dir, step, cancel_event=cancel_event)
 
     try:
+        _raise_if_canceled(cancel_event)
         ensure_on_pixiv_upload_page(page)
         record(PixivStep("ensure_upload_page", True))
+    except InterruptedError:
+        raise
     except Exception as exc:
         record(PixivStep("ensure_upload_page", False, "exception", f"{type(exc).__name__}: {exc}"))
         return None, steps
@@ -3215,28 +3240,28 @@ def create_pixiv_post(
         record(PixivStep("select_file", False, "exception", f"{type(exc).__name__}: {exc}"))
         return None, steps
 
-    _jsleep(4.0)
+    _jsleep(4.0, cancel_event=cancel_event)
 
     record(_fill_if_found(
         page, "fill_title", PIXIV_SELECTORS["title"],
         payload["title_ja"],
     ))
-    _jsleep(0.5)
+    _jsleep(0.5, cancel_event=cancel_event)
     caption_text = "\n".join(s for s in (payload.get("caption_ja", ""), payload.get("caption_zh", "")) if s).strip()
     if caption_text:
         record(_fill_if_found(page, "fill_caption", PIXIV_SELECTORS["caption"], caption_text))
     else:
         record(PixivStep("fill_caption", True, detail="empty (skipped)"))
-    _jsleep(0.4)
-    record(_fill_tag_input(page, "fill_tags", PIXIV_SELECTORS["tag_input"], payload["final_tags"]))
-    _jsleep(0.6)
+    _jsleep(0.4, cancel_event=cancel_event)
+    record(_fill_tag_input(page, "fill_tags", PIXIV_SELECTORS["tag_input"], payload["final_tags"], cancel_event=cancel_event))
+    _jsleep(0.6, cancel_event=cancel_event)
 
     # Age restriction: prefer name=value attr, fallback to text
     age = payload["age_restriction"]
     age_attr = PIXIV_SELECTORS["age_radio_attr"]
     age_value = age_attr["values"].get(age)
     if age_value is not None:
-        step_age = _set_radio_by_attr(page, "age_restriction", age_attr["name"], age_value)
+        step_age = _set_radio_by_attr(page, "age_restriction", age_attr["name"], age_value, cancel_event=cancel_event)
     else:
         step_age = PixivStep("age_restriction", False, "selector_miss", f"unknown age={age}")
     if not step_age.ok:
@@ -3245,7 +3270,7 @@ def create_pixiv_post(
 
     # AI flag: radio name=ai_type (NOT a checkbox)
     ai_attr = PIXIV_SELECTORS["ai_radio_attr"]
-    record(_set_radio_by_attr(page, "ai_flag", ai_attr["name"], ai_attr["values"][True]))
+    record(_set_radio_by_attr(page, "ai_flag", ai_attr["name"], ai_attr["values"][True], cancel_event=cancel_event))
 
     # Sexual content radio. Pixiv only shows this in all_ages mode (R-18
     # implies sexual=true and the field is removed). Probe for presence first.
@@ -3253,7 +3278,7 @@ def create_pixiv_post(
     sexual_present = _first_visible_locator(page, [f'input[name="{sex_attr["name"]}"]']) is not None
     if sexual_present:
         has_sexual = age in {"r18", "r18g"}
-        record(_set_radio_by_attr(page, "sexual_flag", sex_attr["name"], sex_attr["values"][has_sexual]))
+        record(_set_radio_by_attr(page, "sexual_flag", sex_attr["name"], sex_attr["values"][has_sexual], cancel_event=cancel_event))
     else:
         record(PixivStep("sexual_flag", True, detail="field absent (R-18 implicit)"))
 
@@ -3262,14 +3287,16 @@ def create_pixiv_post(
     record(_set_checkbox_by_attr(
         page, "original_flag", PIXIV_SELECTORS["original_checkbox_attr"],
         domain == "original",
+        cancel_event=cancel_event,
     ))
+    _raise_if_canceled(cancel_event)
 
     # Privacy: prefer name=value attr, fallback to text
     privacy = payload.get("privacy", "public")
     priv_attr = PIXIV_SELECTORS["privacy_radio_attr"]
     priv_value = priv_attr["values"].get(privacy)
     if priv_value is not None:
-        step_priv = _set_radio_by_attr(page, "privacy", priv_attr["name"], priv_value)
+        step_priv = _set_radio_by_attr(page, "privacy", priv_attr["name"], priv_value, cancel_event=cancel_event)
     else:
         step_priv = PixivStep("privacy", False, "selector_miss", f"unknown privacy={privacy}")
     if not step_priv.ok:
@@ -3280,6 +3307,7 @@ def create_pixiv_post(
     record(_set_checkbox_by_attr(
         page, "allow_tag_edits", PIXIV_SELECTORS["allow_tag_edit_checkbox_attr"],
         bool(payload.get("allow_tag_edits", False)),
+        cancel_event=cancel_event,
     ))
 
     # Safety check (安全検査) — new Pixiv required section; always ok, won't abort on miss
@@ -3298,13 +3326,14 @@ def create_pixiv_post(
 
     enabled = False
     for _ in range(60):
+        _raise_if_canceled(cancel_event)
         try:
             if publish_locator.is_enabled():
                 enabled = True
                 break
         except Exception:
             pass
-        time.sleep(2)
+        _sleep_with_cancel(2, cancel_event)
     if not enabled:
         record(PixivStep("publish_enable", False, "verify_failed", "publish 按钮 120 秒内未启用"))
         stop_alert()
@@ -3338,9 +3367,9 @@ def create_pixiv_post(
         '[data-sitekey]',
     ]
     captcha_detected = False
-    captcha_grace = time.time() + 6  # give 6 s for normal redirect before captcha detection
-    deadline = time.time() + 60
-    while time.time() < deadline:
+    captcha_grace = time.monotonic() + 6  # give 6 s for normal redirect before captcha detection
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
         time.sleep(1.5)
         try:
             url = page.url
@@ -3348,14 +3377,16 @@ def create_pixiv_post(
             record(PixivStep("redirect", False, "exception", f"page closed: {exc}"))
             return None, steps
         if artwork_re.search(url):
-            time.sleep(delay)
+            if cancel_event is None or not cancel_event.is_set():
+                time.sleep(delay)
             record(PixivStep("redirect", True, detail=f"artwork url={url}"))
             stop_alert()
             return url, steps
         upload_in_url = "upload.php" in url or "illustration/create" in url
         if not upload_in_url:
             # Left the upload page → success (probably to user mypage / artwork list)
-            time.sleep(delay)
+            if cancel_event is None or not cancel_event.is_set():
+                time.sleep(delay)
             record(PixivStep("redirect", True, detail=f"left upload page url={url}"))
             stop_alert()
             return url, steps
@@ -3363,7 +3394,8 @@ def create_pixiv_post(
         # Check BEFORE captcha to avoid false positives during the success modal.
         try:
             if _first_visible_locator(page, PIXIV_SELECTORS["file_input"]) is None:
-                time.sleep(delay)
+                if cancel_event is None or not cancel_event.is_set():
+                    time.sleep(delay)
                 record(PixivStep("redirect", True, detail=f"form unmounted url={url}"))
                 stop_alert()
                 return url, steps
@@ -3372,18 +3404,19 @@ def create_pixiv_post(
         # Success modal text ("作品投稿成功") — appears while URL is still the upload page.
         try:
             if page.locator('text=作品投稿成功').count() > 0:
-                time.sleep(delay)
+                if cancel_event is None or not cancel_event.is_set():
+                    time.sleep(delay)
                 record(PixivStep("redirect", True, detail=f"success modal text detected url={url}"))
                 stop_alert()
                 return url, steps
         except Exception:
             pass
         # Captcha detection: only after grace period so normal redirects finish first.
-        if not captcha_detected and upload_in_url and time.time() > captcha_grace:
+        if not captcha_detected and upload_in_url and time.monotonic() > captcha_grace:
             if _first_visible_locator(page, captcha_selectors) is not None:
                 captcha_detected = True
                 log.warning("    pixiv: 触发人机验证！在浏览器里完成验证 → 点'投稿'，脚本等你 5 分钟")
-                deadline = time.time() + 300
+                deadline = time.monotonic() + 300
                 stop_alert = _alert_captcha(page)
     timeout_msg = (
         "5 分钟内未检测到跳转/表单卸载（人机验证未完成？）"

@@ -181,6 +181,15 @@ def _set_task_status(task_id: str, status: str, progress: float | None = None) -
     _broadcast_sse("task_update", snap)
 
 
+def _is_task_canceled(task_id: str) -> bool:
+    with TASKS_LOCK:
+        task = TASKS.get(task_id)
+        if not task:
+            return False
+        ev = task.get("cancel_event")
+        return bool(ev and ev.is_set())
+
+
 # ── Log capture ────────────────────────────────────────────────
 class _ThreadWriter(TextIOBase):
     def __init__(self, original, task_id: str, lvl: str) -> None:
@@ -221,8 +230,11 @@ class _WebInput:
         _broadcast_sse("input_required", {"task_id": self._task_id, "prompt": prompt})
         ev.wait(timeout=300)
         with TASKS_LOCK:
-            if self._task_id in TASKS:
-                TASKS[self._task_id].pop("pending_input", None)
+            task = TASKS.get(self._task_id)
+            if task:
+                task.pop("pending_input", None)
+                if task.get("cancel_event") and task["cancel_event"].is_set():
+                    return ""
         return result[0]
 
 
@@ -244,6 +256,11 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
     with TASKS_LOCK:
         cancel_event = TASKS[task_id].get("cancel_event")
 
+    if cancel_event and cancel_event.is_set():
+        _push_log_line(task_id, "INFO", "worker", "任务已取消")
+        _set_task_status(task_id, "canceled")
+        return
+
     _set_task_status(task_id, "running")
     try:
         if cmd == 1:
@@ -254,6 +271,10 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 delay=params.get("delay", 10),
             )
             cmd_split(args)
+            if _is_task_canceled(task_id):
+                _push_log_line(task_id, "INFO", "worker", "任务已取消")
+                _set_task_status(task_id, "canceled")
+                return
 
         elif cmd == 2:
             from civitai_splitter import cmd_upload
@@ -270,6 +291,10 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 cancel_event=cancel_event,
             )
             cmd_upload(args)
+            if _is_task_canceled(task_id):
+                _push_log_line(task_id, "INFO", "worker", "任务已取消")
+                _set_task_status(task_id, "canceled")
+                return
 
         elif cmd == 3:
             from civitai_splitter import cmd_upload
@@ -286,6 +311,10 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 cancel_event=cancel_event,
             )
             cmd_upload(args)
+            if _is_task_canceled(task_id):
+                _push_log_line(task_id, "INFO", "worker", "任务已取消")
+                _set_task_status(task_id, "canceled")
+                return
 
         elif cmd == 4:
             # setup_censor has interactive pip install — run as subprocess
@@ -302,18 +331,32 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
             )
             for line in proc.stdout:
                 _push_log_line(task_id, "INFO", "setup", line.rstrip())
+                if _is_task_canceled(task_id):
+                    proc.terminate()
+                    break
             proc.wait()
+            if _is_task_canceled(task_id):
+                _push_log_line(task_id, "INFO", "worker", "任务已取消")
+                _set_task_status(task_id, "canceled")
+                return
 
         elif cmd == 5:
             import launcher as _launcher
-            _launcher.cmd_check_update()
+            _launcher.cmd_check_update(cancel_event=cancel_event)
+            if _is_task_canceled(task_id):
+                _push_log_line(task_id, "INFO", "worker", "任务已取消")
+                _set_task_status(task_id, "canceled")
+                return
 
         if cancel_event and cancel_event.is_set():
             _push_log_line(task_id, "INFO", "worker", "任务已取消")
-            _set_task_status(task_id, "failed")
+            _set_task_status(task_id, "canceled")
         else:
             _set_task_status(task_id, "done", 1.0)
 
+    except InterruptedError:
+        _push_log_line(task_id, "INFO", "worker", "任务已取消")
+        _set_task_status(task_id, "canceled")
     except Exception as exc:
         _push_log_line(task_id, "ERR", "worker", f"Task error: {exc}")
         _set_task_status(task_id, "failed")
@@ -387,8 +430,12 @@ def api_cancel(task_id):
             return jsonify({"error": "not found"}), 404
         TASKS[task_id]["cancel_flag"] = True
         ev = TASKS[task_id].get("cancel_event")
+        pending = TASKS[task_id].get("pending_input")
     if ev:
         ev.set()
+    if pending:
+        pending["result"][0] = ""
+        pending["event"].set()
     return jsonify({"ok": True})
 
 

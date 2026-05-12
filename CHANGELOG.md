@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-05-12
+
+### Fixed
+- Web UI task cancel now propagates into launcher update checks and upload internals instead of waiting until the whole command returns, so queued/setup/update/upload tasks stop sooner and finish in a real `canceled` state.
+- Civitai and Pixiv publish flows now keep cancellation cooperative before the irreversible publish click, but stop rewriting successful post-click completion into a misleading canceled result.
+
 ## 2026-05-11
 
 ### Fixed

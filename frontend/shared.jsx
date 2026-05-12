@@ -95,10 +95,11 @@ function MonoChannel({ label, pct, accent }) {
 
 function MonoTaskRow({ t, onCancel, onRetry, onRemove }) {
   const statusMap = {
-    running: { c: M.accent,   label: 'RUN',  cls: 'accent', dot: true },
-    queued:  { c: M.inkFaint, label: 'WAIT', cls: 'idle' },
-    done:    { c: M.ok,       label: 'DONE', cls: 'done' },
-    failed:  { c: M.red,      label: 'FAIL', cls: 'fail' },
+    running:  { c: M.accent,   label: 'RUN',  cls: 'accent', dot: true },
+    queued:   { c: M.inkFaint, label: 'WAIT', cls: 'idle' },
+    done:     { c: M.ok,       label: 'DONE', cls: 'done' },
+    failed:   { c: M.red,      label: 'FAIL', cls: 'fail' },
+    canceled: { c: M.warn,     label: 'CXL',  cls: 'idle' },
   };
   const s = statusMap[t.status] || statusMap.queued;
   const handleX = () => {
