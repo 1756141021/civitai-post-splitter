@@ -416,8 +416,10 @@ function MonoSingleApp() {
     setPendingInput(null);
   };
 
-  const cancelTask = id =>
+  const cancelTask = id => {
+    setPendingInput(prev => (prev && prev.task_id === id ? null : prev));
     fetch(`/api/tasks/${id}/cancel`, { method: 'POST' });
+  };
 
   const removeTask = id => {
     fetch(`/api/tasks/${id}/remove`, { method: 'POST' });
