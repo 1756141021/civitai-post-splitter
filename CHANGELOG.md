@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-13
+
+### Added
+- Pixiv tag generation now records `metadata_entity_hits` in manifests and rule-fit compare output so metadata-derived fanart detections are visible during tuning.
+
+### Changed
+- Pixiv tag generation now recognizes Danbooru-style metadata entities such as `hatsune miku`, `devil janai mon \(vocaloid\)`, and known franchise tags, then routes them through the existing Danbooru→Pixiv JP mapping chain.
+- Metadata-driven fanart detection now stays strict to character/franchise-shaped tokens and no longer promotes generic feature tags like hair color or clothing details into character entities.
+
 ## 2026-05-12
 
 ### Fixed

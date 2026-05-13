@@ -41,6 +41,7 @@ PIXIV_COUNT_SELLING_BUDGET = 4
 PROMPT_TOKEN_SPLIT_RE = re.compile(r"[,|\n]")
 FILENAME_SPLIT_RE = re.compile(r"[_\-\s\[\]\(\){}]+")
 SAFE_STEM_RE = re.compile(r"[^0-9A-Za-z\u3040-\u30ff\u3400-\u9fff._-]+")
+METADATA_ENTITY_PAREN_RE = re.compile(r"^(?P<name>.+?)\s*\((?P<scope>[^()]+)\)$")
 R18_AGE_RESTRICTIONS = {"r18", "r18g"}
 DEFAULT_RULE_FIT_SOURCES = [
     {
@@ -1038,8 +1039,16 @@ def split_prompt_tokens(text: str) -> list[str]:
         token = part.strip()
         if not token:
             continue
-        token = re.sub(r"^\(+|\)+$", "", token).strip()
-        token = re.sub(r":[0-9.]+\)?$", "", token).strip()
+        if (
+            token.startswith("(")
+            and token.endswith(")")
+            and "\\(" not in token
+            and "\\)" not in token
+            and token.count("(") == 1
+            and token.count(")") == 1
+        ):
+            token = token[1:-1].strip()
+        token = re.sub(r":[0-9.]+(?<!\\)\)?$", "", token).strip()
         if token:
             tokens.append(token)
     return tokens
@@ -1065,6 +1074,240 @@ def extract_filename_tokens(path: Path, filename_drop_tokens: list[str]) -> list
 
 def normalize_key(text: str) -> str:
     return re.sub(r"\s+", " ", text.replace("_", " ").strip().lower())
+
+
+def _unescape_metadata_token(text: str) -> str:
+    return (text or "").replace("\\(", "(").replace("\\)", ")").strip()
+
+
+def _canonicalize_danbooru_like_token(text: str) -> str:
+    token = _unescape_metadata_token(text)
+    token = re.sub(r"\s+", " ", token).strip().lower()
+    if not token:
+        return ""
+    if "(" in token or ")" in token:
+        match = METADATA_ENTITY_PAREN_RE.match(token)
+        if match:
+            name = match.group("name").strip().rstrip("_").replace(" ", "_")
+            scope = match.group("scope").strip().replace(" ", "_")
+            if name and scope:
+                return f"{name}_({scope})"
+    return token.replace(" ", "_")
+
+
+def _metadata_semantic_info(tag: str, alias_data: dict[str, Any]) -> dict[str, Any] | None:
+    key = normalize_key(tag)
+    if not key:
+        return None
+    mappings = alias_data.get("mappings", {})
+    semantics = alias_data.get("semantics", {})
+    mapped = mappings.get(key)
+    semantic = mapped.get("semantic") if mapped else key if key in semantics else None
+    if semantic not in semantics:
+        return None
+    return semantics[semantic]
+
+
+def _looks_generic_metadata_tag(tag: str, alias_data: dict[str, Any]) -> bool:
+    info = _metadata_semantic_info(tag, alias_data)
+    if not info:
+        return False
+    return info.get("class") in {"theme", "feature", "meta", "rating", "identity", "relation"}
+
+
+def _infer_metadata_entity_category(
+    tag: str,
+    alias_data: dict[str, Any],
+    scope_hint: str = "",
+) -> str | None:
+    info = _metadata_semantic_info(tag, alias_data)
+    if info:
+        semantic_class = str(info.get("class", ""))
+        if semantic_class == "character":
+            return "character"
+        if semantic_class == "franchise":
+            return "copyright"
+        if semantic_class in {"theme", "feature", "meta", "rating", "identity", "relation"}:
+            return None
+    if tag.endswith("_(series)"):
+        return "copyright"
+    if scope_hint:
+        return "character"
+    return None
+
+
+def _candidate_builtin_variants(tag: str) -> list[str]:
+    canonical = _canonicalize_danbooru_like_token(tag)
+    if not canonical:
+        return []
+    variants = [canonical]
+    underscored = canonical
+    spaced = canonical.replace("_", " ")
+    compact = canonical.replace("_", "").replace(" ", "")
+    for variant in (underscored, spaced, compact):
+        if variant and variant not in variants:
+            variants.append(variant)
+    return variants
+
+
+def _has_fast_jp_mapping_signal(tag: str, builtin_jp_map: dict[str, str], jp_alias_cache: dict[str, Any]) -> bool:
+    for candidate in _candidate_builtin_variants(tag):
+        cached = jp_alias_cache.get(candidate)
+        if isinstance(cached, str) and cached.strip():
+            return True
+        kl = candidate.lower()
+        for k_in_map in (
+            candidate, kl,
+            kl.replace("_", ""),
+            kl.replace("_", " "),
+            kl.replace(" ", "_"),
+        ):
+            mapped = builtin_jp_map.get(k_in_map)
+            if isinstance(mapped, str) and mapped.strip():
+                return True
+    return False
+
+
+def _scope_hint_has_entity_signal(
+    scope_hint: str,
+    alias_data: dict[str, Any],
+    builtin_jp_map: dict[str, str],
+    jp_alias_cache: dict[str, Any],
+) -> bool:
+    info = _metadata_semantic_info(scope_hint, alias_data)
+    if info:
+        semantic_class = str(info.get("class", ""))
+        if semantic_class in {"character", "franchise"}:
+            return True
+        if semantic_class in {"theme", "feature", "meta", "rating", "identity", "relation"}:
+            return False
+    return _has_fast_jp_mapping_signal(scope_hint, builtin_jp_map, jp_alias_cache)
+
+
+def _resolve_metadata_entity_jp(
+    tag: str,
+    builtin_jp_map: dict[str, str],
+    jp_alias_cache: dict[str, Any],
+    pixiv_page: Any,
+    live_jp_lookup: bool,
+    wiki_strict_kana: bool,
+) -> tuple[str | None, str | None]:
+    for candidate in _candidate_builtin_variants(tag):
+        jp_form = lookup_jp_alias(
+            candidate,
+            jp_alias_cache,
+            page=pixiv_page,
+            live=live_jp_lookup,
+            wiki_strict_kana=wiki_strict_kana if live_jp_lookup else None,
+            builtin_map=builtin_jp_map,
+        )
+        if jp_form:
+            return candidate, jp_form
+    return None, None
+
+
+def extract_metadata_entity_groups(
+    metadata_info: dict[str, Any],
+    alias_data: dict[str, Any],
+    builtin_jp_map: dict[str, str],
+    jp_alias_cache: dict[str, Any],
+    pixiv_page: Any,
+    live_jp_lookup: bool,
+) -> dict[str, Any]:
+    metadata = metadata_info.get("metadata")
+    positive_prompt = getattr(metadata, "positive_prompt", "") if metadata else ""
+    raw_chunks = getattr(metadata, "raw_chunks", {}) if metadata else {}
+    parameters = getattr(metadata, "parameters", {}) if metadata else {}
+
+    lora_candidates = extract_lora_tokens(positive_prompt)
+    text_candidates = list(split_prompt_tokens(LORA_RE.sub("", positive_prompt)))
+    text_candidates.extend(lora_candidates)
+    for value in raw_chunks.values():
+        if isinstance(value, str):
+            text_candidates.extend(split_prompt_tokens(LORA_RE.sub("", value)))
+    for value in parameters.values():
+        if isinstance(value, str):
+            text_candidates.extend(split_prompt_tokens(LORA_RE.sub("", value)))
+
+    groups: dict[str, list[tuple[str, float]]] = {"character": [], "copyright": []}
+    hits: list[dict[str, Any]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+    seen_copy_norms: set[str] = set()
+
+    def add_group(category: str, token: str, source: str, resolved_from: str, display: str) -> None:
+        key = normalize_key(token)
+        if not key:
+            return
+        pair = (category, key)
+        if pair in seen_pairs:
+            return
+        seen_pairs.add(pair)
+        score = 1.0 if category == "character" else 0.95
+        groups.setdefault(category, []).append((token, score))
+        hits.append({
+            "category": category,
+            "token": token,
+            "source": source,
+            "resolved_from": resolved_from,
+            "jp": display,
+        })
+        if category == "copyright":
+            seen_copy_norms.add(key)
+
+    for raw in text_candidates:
+        source = "lora" if raw in lora_candidates else "metadata"
+        token = _canonicalize_danbooru_like_token(raw)
+        if not token:
+            continue
+        if raw.startswith("@"):
+            continue
+        if _looks_generic_metadata_tag(token, alias_data):
+            continue
+
+        copyright_candidate = ""
+        match = METADATA_ENTITY_PAREN_RE.match(_unescape_metadata_token(raw).lower())
+        scope_hint = ""
+        if match:
+            scope_hint = match.group("scope").strip().lower()
+            if scope_hint:
+                copyright_candidate = scope_hint.replace(" ", "_")
+
+        category = _infer_metadata_entity_category(token, alias_data, scope_hint)
+        if category == "character" and scope_hint and not _scope_hint_has_entity_signal(
+            scope_hint,
+            alias_data,
+            builtin_jp_map,
+            jp_alias_cache,
+        ):
+            continue
+        if category is None:
+            continue
+
+        resolved_from, jp_form = _resolve_metadata_entity_jp(
+            token,
+            builtin_jp_map,
+            jp_alias_cache,
+            pixiv_page,
+            live_jp_lookup,
+            wiki_strict_kana=False,
+        )
+        if not jp_form:
+            continue
+        add_group(category, token, source, resolved_from or token, jp_form)
+
+        if category == "character" and copyright_candidate:
+            resolved_copy_from, copy_jp_form = _resolve_metadata_entity_jp(
+                copyright_candidate,
+                builtin_jp_map,
+                jp_alias_cache,
+                pixiv_page,
+                live_jp_lookup,
+                wiki_strict_kana=False,
+            )
+            if copy_jp_form and normalize_key(copyright_candidate) not in seen_copy_norms:
+                add_group("copyright", copyright_candidate, source, resolved_copy_from or copyright_candidate, copy_jp_form)
+
+    return {"groups": groups, "hits": hits}
 
 
 def fetch_pixiv_tag_count(tag: str) -> int | None:
@@ -1553,20 +1796,6 @@ def build_pixiv_payload(
     ambiguous_tags = {normalize_key(item) for item in alias_data.get("ambiguous_tags", [])}
     drop_tags = {normalize_key(item) for item in alias_data.get("drop_tags", [])}
     extra_groups = extra_groups or {}
-    has_specific_character = any(
-        normalize_key(entry[0] if isinstance(entry, (tuple, list)) and entry else entry)
-        for entry in extra_groups.get("character", []) or []
-        if not isinstance(entry, (tuple, list)) or len(entry) != 2 or float(entry[1]) >= TAGGER_SCORE_THRESHOLDS["character"]
-    )
-
-    raw_candidates = []
-    raw_candidates.extend(extract_filename_tokens(image_path, filename_drop_tokens))
-    raw_candidates.extend(split_prompt_tokens(prompt_without_lora))
-    raw_candidates.extend(extract_lora_tokens(positive_prompt))
-    raw_candidates.extend(extra_candidates or [])
-    for entries in extra_groups.values():
-        for entry in entries or []:
-            raw_candidates.append(str(entry[0] if isinstance(entry, (tuple, list)) and entry else entry))
 
     # Build direct-pass-through index for tagger-output tags that should bypass
     # alias mapping. character/copyright are always direct (their semantic is
@@ -1585,6 +1814,39 @@ def build_pixiv_payload(
         builtin_jp_map.update(user_overrides)
     else:
         builtin_jp_map = user_overrides or bulk_danbooru
+
+    metadata_entities = extract_metadata_entity_groups(
+        metadata_info=metadata_info,
+        alias_data=alias_data,
+        builtin_jp_map=builtin_jp_map,
+        jp_alias_cache=jp_alias_cache,
+        pixiv_page=pixiv_page,
+        live_jp_lookup=live_jp_lookup,
+    )
+    metadata_entity_groups = metadata_entities.get("groups", {})
+    metadata_entity_hits = metadata_entities.get("hits", [])
+    merged_extra_groups: dict[str, list[tuple[str, float]]] = {
+        category: list(entries or []) for category, entries in extra_groups.items()
+    }
+    for category, entries in metadata_entity_groups.items():
+        merged_extra_groups.setdefault(category, []).extend(entries or [])
+    extra_groups = merged_extra_groups
+
+    has_specific_character = any(
+        normalize_key(entry[0] if isinstance(entry, (tuple, list)) and entry else entry)
+        for entry in extra_groups.get("character", []) or []
+        if not isinstance(entry, (tuple, list)) or len(entry) != 2 or float(entry[1]) >= TAGGER_SCORE_THRESHOLDS["character"]
+    )
+
+    raw_candidates = []
+    raw_candidates.extend(extract_filename_tokens(image_path, filename_drop_tokens))
+    raw_candidates.extend(split_prompt_tokens(prompt_without_lora))
+    raw_candidates.extend(extract_lora_tokens(positive_prompt))
+    raw_candidates.extend(extra_candidates or [])
+    for entries in extra_groups.values():
+        for entry in entries or []:
+            raw_candidates.append(str(entry[0] if isinstance(entry, (tuple, list)) and entry else entry))
+
     # normalized_key -> (display, semantic_class, domain_hint, score, source_category)
     direct_pass: dict[str, tuple[str, str, str, float, str]] = {}
     cat_meta = {
@@ -1878,6 +2140,7 @@ def build_pixiv_payload(
 
     return {
         "raw_candidates": dedup_raw,
+        "metadata_entity_hits": metadata_entity_hits,
         "popularity_decisions": popularity_decisions,
         "rejected_tags": rejected_tags,
         "final_tags": final_tags,
@@ -2670,6 +2933,7 @@ def compare_rule_fit_samples(
             "image_download_error": sample_manifest.get("image_download_error", ""),
             "local": {
                 "raw_candidates": payload.get("raw_candidates", []),
+                "metadata_entity_hits": payload.get("metadata_entity_hits", []),
                 "final_tags": payload.get("final_tags", []),
                 "rejected_tags": payload.get("rejected_tags", []),
                 "popularity_decisions": payload.get("popularity_decisions", []),

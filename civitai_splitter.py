@@ -692,6 +692,7 @@ def create_upload_manifest(
                 "details": pixiv_metadata_check.get("details", []),
             },
             "raw_candidates": pixiv_payload["raw_candidates"] if pixiv_payload else [],
+            "metadata_entity_hits": pixiv_payload["metadata_entity_hits"] if pixiv_payload else [],
             "popularity_decisions": pixiv_payload["popularity_decisions"] if pixiv_payload else [],
             "final_tags": pixiv_payload["final_tags"] if pixiv_payload else [],
             "rejected_tags": pixiv_payload["rejected_tags"] if pixiv_payload else [],
