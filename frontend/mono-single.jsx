@@ -50,6 +50,7 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   const [llmPersona,     setLlmPersona]     = React.useState('');
   const [llmAccount,     setLlmAccount]     = React.useState('');
   const [llmContentMode, setLlmContentMode] = React.useState('sfw');
+  const [pickN,        setPickN]        = React.useState('');
   const fileInputRef   = React.useRef(null);
   const dragItem       = React.useRef(null);
   const dragOverItem   = React.useRef(null);
@@ -153,6 +154,11 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
     onConfirm(cmd, files, { ...(sortMode !== 'random' ? { sort: sortMode } : {}), ...llmOpts });
   };
 
+  const selectTopN = n => {
+    const cnt = Math.min(parseInt(n, 10) || 0, sortedImages.length);
+    if (cnt > 0) setSelected(new Set(sortedImages.slice(0, cnt).map(f => f.name)));
+  };
+
   const isManual = sortMode === 'manual';
   const uploadCount = isManual ? orderedFiles.length : selected.size;
 
@@ -177,6 +183,12 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
                     onClick={() => setSelected(new Set(images.map(f => f.name)))}>全选</button>
             <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
                     onClick={() => setSelected(new Set())}>清空</button>
+            <input className="mn-input" value={pickN} onChange={e => setPickN(e.target.value)}
+                   onKeyDown={e => e.key === 'Enter' && selectTopN(pickN)}
+                   placeholder="N" style={{ width: 36, fontSize: 12, textAlign: 'center' }}
+                   title="输入数字后回车或点按钮，按当前排序选前 N 张" />
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                    onClick={() => selectTopN(pickN)}>选前N</button>
           </>}
           <div style={{ marginLeft: 'auto' }}>
             <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={addFiles} />
