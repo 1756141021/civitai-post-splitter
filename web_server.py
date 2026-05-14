@@ -63,6 +63,8 @@ _scheduler_timer: threading.Timer | None = None
 _scheduler_lock = threading.Lock()
 _shutdown_timer: threading.Timer | None = None
 _shutdown_lock = threading.Lock()
+# Serializes tasks that replace process-global sys.stdout/stderr/builtins.input
+_EXEC_LOCK = threading.Lock()
 
 SSE_CLIENTS: list[queue.Queue] = []
 CLIENTS_LOCK = threading.Lock()
@@ -249,6 +251,21 @@ class _WebInput:
 
 # ── Task runner ────────────────────────────────────────────────
 def _run_task(task_id: str, cmd: int, params: dict) -> None:
+    with TASKS_LOCK:
+        cancel_event = TASKS[task_id].get("cancel_event")
+
+    if cancel_event and cancel_event.is_set():
+        _push_log_line(task_id, "INFO", "worker", "任务已取消")
+        _set_task_status(task_id, "canceled")
+        return
+
+    _set_task_status(task_id, "running")
+
+    with _EXEC_LOCK:
+        _run_task_locked(task_id, cmd, params)
+
+
+def _run_task_locked(task_id: str, cmd: int, params: dict) -> None:
     orig_stdout = sys.stdout
     orig_stderr = sys.stderr
     orig_input  = builtins.input
@@ -265,19 +282,19 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
     with TASKS_LOCK:
         cancel_event = TASKS[task_id].get("cancel_event")
 
-    if cancel_event and cancel_event.is_set():
-        _push_log_line(task_id, "INFO", "worker", "任务已取消")
-        _set_task_status(task_id, "canceled")
-        return
-
-    _set_task_status(task_id, "running")
     try:
+        if cancel_event and cancel_event.is_set():
+            _push_log_line(task_id, "INFO", "worker", "任务已取消")
+            _set_task_status(task_id, "canceled")
+            return
+
         if cmd == 1:
             from civitai_splitter import cmd_split
             args = argparse.Namespace(
                 posts=params.get("posts", []),
                 api_key=os.environ.get("CIVITAI_API_KEY", params.get("api_key", "")),
                 delay=params.get("delay", 10),
+                cancel_event=cancel_event,
             )
             cmd_split(args)
             if _is_task_canceled(task_id):
@@ -285,10 +302,14 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 _set_task_status(task_id, "canceled")
                 return
 
-        elif cmd == 2:
+        elif cmd in (2, 3):
+            # Both cmd=2 and cmd=3 now route through the same upload entrypoint;
+            # the difference (targets) is supplied by the frontend `targets`
+            # param. Legacy fallback: cmd=2 → "civitai,pixiv", cmd=3 → "pixiv".
+            legacy_default = "civitai,pixiv" if cmd == 2 else "pixiv"
             from civitai_splitter import cmd_upload
             args = argparse.Namespace(
-                targets=params.get("targets", "civitai,pixiv"),
+                targets=params.get("targets", legacy_default),
                 count=params.get("count", 0),
                 files=params.get("files", []),
                 sort=params.get("sort", "random"),
@@ -302,31 +323,9 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 llm_persona=params.get("llm_persona", ""),
                 llm_account=params.get("llm_account", ""),
                 llm_content_mode=params.get("llm_content_mode", ""),
-                cancel_event=cancel_event,
-            )
-            cmd_upload(args)
-            if _is_task_canceled(task_id):
-                _push_log_line(task_id, "INFO", "worker", "任务已取消")
-                _set_task_status(task_id, "canceled")
-                return
-
-        elif cmd == 3:
-            from civitai_splitter import cmd_upload
-            args = argparse.Namespace(
-                targets="pixiv",
-                count=params.get("count", 0),
-                files=params.get("files", []),
-                sort=params.get("sort", "random"),
-                delay=params.get("delay", 10),
-                dry_run=False,
-                pixiv_privacy="public",
-                pixiv_allow_tag_edits="false",
-                pixiv_max_retries=1,
-                abort_after_failures=3,
-                llm_reverse=params.get("llm_reverse", False),
-                llm_persona=params.get("llm_persona", ""),
-                llm_account=params.get("llm_account", ""),
-                llm_content_mode=params.get("llm_content_mode", ""),
+                x_template=params.get("x_template", ""),
+                x_group=params.get("x_group", 1),
+                xhs_template=params.get("xhs_template", ""),
                 cancel_event=cancel_event,
             )
             cmd_upload(args)
@@ -395,6 +394,9 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
     except InterruptedError:
         _push_log_line(task_id, "INFO", "worker", "任务已取消")
         _set_task_status(task_id, "canceled")
+    except SystemExit as exc:
+        _push_log_line(task_id, "ERR", "worker", f"Task exited: {exc}")
+        _set_task_status(task_id, "failed")
     except Exception as exc:
         _push_log_line(task_id, "ERR", "worker", f"Task error: {exc}")
         _set_task_status(task_id, "failed")
@@ -433,6 +435,7 @@ def api_run(cmd):
         "count":      "—",
         "eta":        "—",
         "cmd":        cmd,
+        "params":     params,
         "cancel_flag": False,
         "cancel_event": threading.Event(),
         "created_at": datetime.now().strftime("%H:%M:%S"),
@@ -509,6 +512,40 @@ def api_settings():
         os.environ["CIVITAI_API_KEY"] = cfg["api_key"]
     _save_config(cfg)
     return jsonify({"ok": True})
+
+
+# Censor preset levels. Maps preset name → enabled_classes string. Class names
+# come from pixiv/censor.py CENSOR_CLASS_NAMES: anus, cum, dick, tits, vagina.
+_CENSOR_PRESETS = {
+    "off":    [],
+    "japan":  ["dick", "vagina", "anus", "cum"],
+    "strict": ["dick", "vagina", "anus", "cum", "tits"],
+}
+
+
+@app.route("/api/censor-preset", methods=["POST"])
+def api_censor_preset():
+    """Switch the auto-censor preset (off / japan / strict).
+
+    Rewrites pixiv/censor.json's `preset` field plus the derived
+    `enabled_classes` list so cmd_upload (which reads enabled_classes) picks
+    up the new level on the next run without server restart.
+    """
+    body = request.get_json(silent=True) or {}
+    preset = str(body.get("preset", "")).strip().lower()
+    if preset not in _CENSOR_PRESETS:
+        return jsonify({"ok": False, "error": f"unknown preset: {preset}"}), 400
+    censor_path = SCRIPT_DIR / "pixiv" / "censor.json"
+    try:
+        existing = json.loads(censor_path.read_text(encoding="utf-8")) if censor_path.exists() else {}
+    except Exception:
+        existing = {}
+    if not isinstance(existing, dict):
+        existing = {}
+    existing["preset"] = preset
+    existing["enabled_classes"] = list(_CENSOR_PRESETS[preset])
+    censor_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+    return jsonify({"ok": True, "preset": preset, "enabled_classes": existing["enabled_classes"]})
 
 
 @app.route("/api/llm-reverse-platforms", methods=["GET"])
@@ -601,6 +638,17 @@ def api_status():
     llm_cfg = normalize_llm_reverse_config(cfg.get("llm_reverse"))
     llm_key = str(llm_cfg.get("api_key", ""))
     llm_masked = "*" * (len(llm_key) - 4) + llm_key[-4:] if len(llm_key) > 4 else "*" * len(llm_key)
+    censor_path = SCRIPT_DIR / "pixiv" / "censor.json"
+    censor_preset = "japan"
+    try:
+        if censor_path.exists():
+            cdata = json.loads(censor_path.read_text(encoding="utf-8"))
+            if isinstance(cdata, dict):
+                p = str(cdata.get("preset", "")).strip().lower()
+                if p in _CENSOR_PRESETS:
+                    censor_preset = p
+    except Exception:
+        pass
     return jsonify({
         "mosaic_installed":  model_path.exists(),
         "upload_count":      upload_count,
@@ -613,6 +661,7 @@ def api_status():
         "llm_reverse_configured": bool(llm_cfg.get("base_url") and llm_cfg.get("api_key") and llm_cfg.get("model")),
         "llm_reverse_model": llm_cfg.get("model", ""),
         "llm_reverse_api_key_masked": llm_masked,
+        "censor_preset":      censor_preset,
     })
 
 

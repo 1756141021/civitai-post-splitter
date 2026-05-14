@@ -39,6 +39,28 @@ const SORT_OPTS = [
   { value: 'manual',    label: '手动排序' },
 ];
 
+const TARGETS_LS_KEY = 'civitai-splitter:upload-targets';
+const ALL_TARGETS = ['civitai', 'pixiv', 'x', 'xhs'];
+
+function _loadPersistedTargets(fallback) {
+  try {
+    const raw = localStorage.getItem(TARGETS_LS_KEY);
+    if (!raw) return fallback;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return fallback;
+    const valid = arr.filter(t => ALL_TARGETS.includes(t));
+    return valid.length > 0 ? valid : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function _savePersistedTargets(targetsList) {
+  try {
+    localStorage.setItem(TARGETS_LS_KEY, JSON.stringify(targetsList));
+  } catch {}
+}
+
 function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   const [images,       setImages]       = React.useState([]);
   const [selected,     setSelected]     = React.useState(new Set());
@@ -55,7 +77,16 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   const dragOverItem   = React.useRef(null);
   const prevSortMode   = React.useRef('random');
 
-  const label = cmd === 2 ? 'Dual upload (Civitai + Pixiv)' : 'Pixiv only';
+  // Default target set comes from the legacy `cmd` button (2 = dual,
+  // 3 = pixiv-only). Once the user adjusts, localStorage takes over.
+  const _cmdDefaultTargets = cmd === 3 ? ['pixiv'] : ['civitai', 'pixiv'];
+  const _initialTargets = _loadPersistedTargets(_cmdDefaultTargets);
+  const [targetCivitai, setTargetCivitai] = React.useState(_initialTargets.includes('civitai'));
+  const [targetPixiv,   setTargetPixiv]   = React.useState(_initialTargets.includes('pixiv'));
+  const [targetX,       setTargetX]       = React.useState(_initialTargets.includes('x'));
+  const [targetXhs,     setTargetXhs]     = React.useState(_initialTargets.includes('xhs'));
+
+  const label = 'Upload to selected platforms';
   const personas = (llmConfig && llmConfig.personas) || [];
 
   const applySortToImages = (imgs, mode) => {
@@ -135,13 +166,22 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   };
 
   const go = () => {
+    const targetsList = [
+      targetCivitai && 'civitai',
+      targetPixiv && 'pixiv',
+      targetX && 'x',
+      targetXhs && 'xhs',
+    ].filter(Boolean);
+    if (targetsList.length === 0) return;
+    _savePersistedTargets(targetsList);
+    const targets = targetsList.join(',');
     const llmOpts = { llm_reverse: llmReverse, llm_persona: llmPersona, llm_content_mode: llmContentMode };
     if (sortMode === 'manual') {
-      onConfirm(cmd, orderedFiles.map(f => f.name), { sort: 'manual', ...llmOpts });
+      onConfirm(cmd, orderedFiles.map(f => f.name), { sort: 'manual', targets, ...llmOpts });
       return;
     }
     const files = sortedImages.filter(f => selected.has(f.name)).map(f => f.name);
-    onConfirm(cmd, files, { ...(sortMode !== 'random' ? { sort: sortMode } : {}), ...llmOpts });
+    onConfirm(cmd, files, { ...(sortMode !== 'random' ? { sort: sortMode } : {}), targets, ...llmOpts });
   };
 
   const selectTopN = n => {
@@ -257,6 +297,24 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
           )}
         </div>
 
+        <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginRight: 4 }}>发布到</span>
+          <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={targetCivitai} onChange={e => setTargetCivitai(e.target.checked)} /> Civitai
+          </label>
+          <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={targetPixiv} onChange={e => setTargetPixiv(e.target.checked)} /> Pixiv
+          </label>
+          <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={targetX} onChange={e => setTargetX(e.target.checked)} /> X
+          </label>
+          <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}
+                 title="NSFW 图自动跳过（小红书禁 R18）">
+            <input type="checkbox" checked={targetXhs} onChange={e => setTargetXhs(e.target.checked)} /> 小红书
+            <span className="mn-mono" style={{ fontSize: 10, color: M.inkDim, marginLeft: 2 }}>(NSFW 跳过)</span>
+          </label>
+        </div>
+
         <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'grid', gridTemplateColumns: 'auto 1fr 130px', gap: 8, alignItems: 'center' }}>
           <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
             <input type="checkbox" checked={llmReverse} disabled={!llmConfig || !llmConfig.enabled}
@@ -277,11 +335,22 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
         <div style={{ padding: '10px 18px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', gap: 8, alignItems: 'center' }}>
           {!isManual && (
             <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
-                    onClick={() => onConfirm(cmd, [], {
-                      sort: sortMode,
-                      llm_reverse: llmReverse, llm_persona: llmPersona,
-                      llm_content_mode: llmContentMode,
-                    })} title="随机从 upload/ 选 1-5 张，排序方式遵循当前选项">
+                    onClick={() => {
+                      const targetsList = [
+                        targetCivitai && 'civitai',
+                        targetPixiv && 'pixiv',
+                        targetX && 'x',
+                        targetXhs && 'xhs',
+                      ].filter(Boolean);
+                      if (targetsList.length === 0) return;
+                      _savePersistedTargets(targetsList);
+                      onConfirm(cmd, [], {
+                        sort: sortMode,
+                        targets: targetsList.join(','),
+                        llm_reverse: llmReverse, llm_persona: llmPersona,
+                        llm_content_mode: llmContentMode,
+                      });
+                    }} title="随机从 upload/ 选 1-5 张，排序方式遵循当前选项">
               随机 1-5
             </button>
           )}
@@ -870,8 +939,13 @@ function SchedulerDialog({ current, onClose, onSave }) {
   const [maxHours, setMaxHours] = React.useState(String(sched.max_hours ?? 0.8));
   const [count,    setCount]    = React.useState(String(sched.count ?? 1));
   const [sortMode, setSortMode] = React.useState(sched.sort || 'random');
-  const [civitai,  setCivitai]  = React.useState((sched.targets || 'civitai,pixiv').includes('civitai'));
-  const [pixiv,    setPixiv]    = React.useState((sched.targets || 'civitai,pixiv').includes('pixiv'));
+  const _initialTargetsCsv = sched.targets || 'civitai,pixiv';
+  const [civitai,  setCivitai]  = React.useState(_initialTargetsCsv.includes('civitai'));
+  const [pixiv,    setPixiv]    = React.useState(_initialTargetsCsv.includes('pixiv'));
+  // .split(',') prevents 'x' matching 'civitai' / 'xhs' substring false-positive.
+  const _targetsArr = _initialTargetsCsv.split(',').map(s => s.trim());
+  const [xTarget,  setXTarget]  = React.useState(_targetsArr.includes('x'));
+  const [xhs,      setXhs]      = React.useState(_targetsArr.includes('xhs'));
   const [saving,   setSaving]   = React.useState(false);
   const [err,      setErr]      = React.useState('');
 
@@ -879,7 +953,7 @@ function SchedulerDialog({ current, onClose, onSave }) {
     const min = parseFloat(minHours), max = parseFloat(maxHours), cnt = parseInt(count, 10);
     if (!min || !max || min <= 0 || max <= 0 || min > max) { setErr('时间范围无效（min 需 ≤ max）'); return; }
     if (!cnt || cnt < 1) { setErr('张数至少 1'); return; }
-    const targets = [civitai && 'civitai', pixiv && 'pixiv'].filter(Boolean).join(',');
+    const targets = [civitai && 'civitai', pixiv && 'pixiv', xTarget && 'x', xhs && 'xhs'].filter(Boolean).join(',');
     if (!targets) { setErr('至少选一个目标'); return; }
     setSaving(true); setErr('');
     fetch('/api/scheduler', {
@@ -922,12 +996,19 @@ function SchedulerDialog({ current, onClose, onSave }) {
 
         <div style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 12.5, marginBottom: 6 }}>发布目标</div>
-          <div style={{ display: 'flex', gap: 18 }}>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
               <input type="checkbox" checked={civitai} onChange={e => setCivitai(e.target.checked)} /> Civitai
             </label>
             <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
               <input type="checkbox" checked={pixiv} onChange={e => setPixiv(e.target.checked)} /> Pixiv
+            </label>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
+              <input type="checkbox" checked={xTarget} onChange={e => setXTarget(e.target.checked)} /> X
+            </label>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}
+                   title="NSFW 图自动跳过（小红书禁 R18）">
+              <input type="checkbox" checked={xhs} onChange={e => setXhs(e.target.checked)} /> 小红书
             </label>
           </div>
         </div>
@@ -1079,8 +1160,10 @@ function MonoSingleApp() {
   };
 
   const retryTask = (id, cmd) => {
+    const t = tasks.find(x => x.id === id);
+    const params = (t && t.params) || {};
     removeTask(id);
-    runCmd(cmd);
+    runCmd(cmd, params);
   };
 
   const reloadStatus = () =>
@@ -1461,6 +1544,26 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
     <div style={{ background: M.panel, padding: '12px 18px 14px', flexShrink: 0 }}>
       <div className="ms-section-label" style={{ marginBottom: 8 }}>settings</div>
       <SetCompactRow label="Mosaic model" value={status.mosaic_installed ? 'installed' : 'not installed'} ok={status.mosaic_installed} />
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>打码档位</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select className="mn-input" value={status.censor_preset || 'japan'}
+                  disabled={!status.mosaic_installed}
+                  onChange={e => {
+                    const v = e.target.value;
+                    fetch('/api/censor-preset', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ preset: v }),
+                    }).then(() => onStatusReload && onStatusReload());
+                  }}
+                  style={{ fontSize: 11.5, padding: '2px 6px' }}>
+            <option value="off">关</option>
+            <option value="japan">Pixiv 标准</option>
+            <option value="strict">严格</option>
+          </select>
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
         <div style={{ fontSize: 12.5 }}>WD14 tagger</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
