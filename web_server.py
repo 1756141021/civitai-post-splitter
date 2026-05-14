@@ -787,7 +787,7 @@ def api_civitai_logout():
 
 def _sched_default() -> dict:
     return {"enabled": False, "targets": "civitai,pixiv", "count": 1, "sort": "random",
-            "min_hours": 0.4, "max_hours": 0.8, "next_fire_at": None}
+            "min_hours": 1.0, "max_hours": 3.0, "next_fire_at": None}
 
 
 def _broadcast_scheduler(sched: dict) -> None:
