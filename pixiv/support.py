@@ -908,6 +908,10 @@ class HainTagTaggerBridge:
         self._settings = None
         self._status = "uninitialized"
 
+    @property
+    def _model_dir(self) -> str:
+        return self._load_settings().get("tagger_model_dir", "")
+
     def predict_tags(self, path: Path) -> dict[str, Any]:
         engine = self._ensure_engine()
         if engine is None:
@@ -1019,7 +1023,7 @@ class HainTagTaggerBridge:
             payload = json.loads(settings_path.read_text(encoding="utf-8"))
         except Exception:
             return {}
-        return payload.get("settings", {}) if isinstance(payload, dict) else {}
+        return payload.get("settings", payload) if isinstance(payload, dict) else {}
 
 
 def sanitize_image_for_pixiv(src: Path, dest_dir: Path) -> CleanResult:
@@ -2049,6 +2053,17 @@ def build_pixiv_payload(
     required_entries = [item for item in semantic_entries if item.get("semantic") in required_semantics]
     content_entries = [item for item in semantic_entries if item.get("semantic") not in required_semantics]
 
+    def is_fanart_entity(item: dict[str, Any]) -> bool:
+        if item.get("domain") != "fanart":
+            return False
+        return item.get("class") in {"franchise", "character", "identity"} or item.get("source_category") in {"copyright", "character"}
+
+    def fanart_entity_key(item: dict[str, Any]) -> tuple[int, int, str, str]:
+        source_category = item.get("source_category")
+        cls = item.get("class")
+        entity_rank = 0 if source_category == "copyright" or cls == "franchise" else 1
+        return (entity_rank, int(item.get("source_order", 9999)), str(item.get("semantic", "")), item["display"])
+
     selling_points = general_jp_data.get("selling_points") or []
     tagger_keys: dict[str, float] = {}
     for entries in extra_groups.values():
@@ -2098,8 +2113,12 @@ def build_pixiv_payload(
         has_heat = 0 if count > 0 else 1
         return (has_heat, -count, int(item.get("source_order", 9999)), str(item.get("semantic", "")), item["display"])
 
+    protected_entity_entries = [item for item in content_entries if is_fanart_entity(item)]
+    normal_content_entries = [item for item in content_entries if not is_fanart_entity(item)]
+
+    protected_entity_entries.sort(key=fanart_entity_key)
     required_entries.sort(key=lambda item: int(item.get("source_order", 9999)))
-    content_entries.sort(key=heat_key)
+    normal_content_entries.sort(key=heat_key)
 
     final_tags = []
     final_tag_translations = []
@@ -2113,19 +2132,18 @@ def build_pixiv_payload(
         final_tags.append(display)
         final_tag_translations.append(item["zh"])
 
-    for item in required_entries:
-        add_final(item)
+    for entries in (protected_entity_entries, required_entries, normal_content_entries):
+        for item in entries:
+            if len(final_tags) >= 10:
+                break
+            add_final(item)
     if general_jp_data.get("force_original", True) and domain == "original" and "オリジナル" not in seen_display:
         final_tags.insert(0, "オリジナル")
         final_tag_translations.insert(0, "オリジナル")
         seen_display.add("オリジナル")
-    for item in content_entries:
-        if len(final_tags) >= 10:
-            break
-        add_final(item)
 
-    subject = next((item for item in content_entries if item["class"] in {"character", "identity", "franchise"}), None)
-    theme = next((item for item in content_entries if item["class"] in {"theme", "feature"}), None)
+    subject = next((item for item in [*protected_entity_entries, *normal_content_entries] if item["class"] in {"character", "identity", "franchise"}), None)
+    theme = next((item for item in normal_content_entries if item["class"] in {"theme", "feature"}), None)
     subject_ja = subject["display"] if subject else "AIイラスト"
     subject_zh = subject["zh"] if subject else "AI插画"
     theme_ja = theme["display"] if theme and theme["display"] != subject_ja else ""

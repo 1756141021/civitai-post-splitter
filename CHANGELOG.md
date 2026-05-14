@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-05-14 (3)
+
+### Fixed
+- `HainTagTaggerBridge._load_settings()` now falls back to root-level JSON keys when no `settings` wrapper exists, matching all other settings loaders. This prevents tagger `model_dir` from silently reading as empty when the path was saved via the Web UI.
+- Added `_model_dir` property to `HainTagTaggerBridge` so the tagger-probe check in `cmd_upload` no longer misreports "未配置 model_dir" when haintag is installed.
+- "随机 1-5" button in `ImagePickerDialog` now passes the current sort mode to the backend, so it picks from the most-recently-modified (or name-sorted) images when a non-random sort is active.
+
+### Added
+- Main web page now accepts file drag-and-drop directly (no need to open ImagePickerDialog): dragging images from Explorer onto the browser window shows a blue overlay and saves files to `upload/` via `/api/add-upload-files`; a toast confirms the count added.
+
 ## 2026-05-14 (2)
 
 ### Added

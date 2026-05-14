@@ -285,9 +285,10 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
           {!isManual && (
             <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
                     onClick={() => onConfirm(cmd, [], {
+                      sort: sortMode,
                       llm_reverse: llmReverse, llm_persona: llmPersona,
                       llm_account: llmAccount, llm_content_mode: llmContentMode,
-                    })} title="随机从 upload/ 选 1-5 张，和命令行行为一致">
+                    })} title="随机从 upload/ 选 1-5 张，排序方式遵循当前选项">
               随机 1-5
             </button>
           )}
@@ -602,6 +603,8 @@ function MonoSingleApp() {
   const [llmReverseConfig, setLlmReverseConfig] = React.useState(null);
   const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
+  const [pageDragging, setPageDragging] = React.useState(false);
+  const [dropToast,    setDropToast]    = React.useState('');
 
   React.useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 800);
@@ -666,6 +669,37 @@ function MonoSingleApp() {
       window.removeEventListener('pagehide', notifyShutdown);
       window.removeEventListener('beforeunload', notifyShutdown);
       es.close();
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+    const onEnter = e => { if (hasFiles(e)) { e.preventDefault(); setPageDragging(true); } };
+    const onOver  = e => { if (hasFiles(e)) e.preventDefault(); };
+    const onLeave = e => { if (!e.relatedTarget) setPageDragging(false); };
+    const onDrop  = async e => {
+      e.preventDefault();
+      setPageDragging(false);
+      const files = Array.from(e.dataTransfer.files);
+      if (!files.length) return;
+      const fd = new FormData();
+      files.forEach(f => fd.append('files', f));
+      try {
+        const r = await fetch('/api/add-upload-files', { method: 'POST', body: fd });
+        const data = await r.json();
+        const n = (data.saved || []).length;
+        if (n > 0) { setDropToast(`已添加 ${n} 张`); setTimeout(() => setDropToast(''), 2000); }
+      } catch (_) {}
+    };
+    document.addEventListener('dragenter', onEnter);
+    document.addEventListener('dragover',  onOver);
+    document.addEventListener('dragleave', onLeave);
+    document.addEventListener('drop',      onDrop);
+    return () => {
+      document.removeEventListener('dragenter', onEnter);
+      document.removeEventListener('dragover',  onOver);
+      document.removeEventListener('dragleave', onLeave);
+      document.removeEventListener('drop',      onDrop);
     };
   }, []);
 
@@ -743,6 +777,17 @@ function MonoSingleApp() {
             fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
           }
         }} />
+      )}
+
+      {pageDragging && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 800, background: 'rgba(0,120,212,0.18)', border: '3px dashed #0078d4', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{ fontSize: 24, color: '#0078d4', fontWeight: 600 }}>拖拽图片添加到上传队列</div>
+        </div>
+      )}
+      {dropToast && (
+        <div style={{ position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)', zIndex: 900, background: '#0078d4', color: '#fff', padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 500, pointerEvents: 'none' }}>
+          {dropToast}
+        </div>
       )}
 
       {/* ── Top bar ─────────────────────────────────────────────── */}
