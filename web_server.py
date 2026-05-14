@@ -20,6 +20,13 @@ from io import TextIOBase
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
+from pixiv.llm_reverse import (
+    default_llm_reverse_config,
+    infer_image_copy,
+    mask_llm_config,
+    normalize_llm_reverse_config,
+    validate_llm_reverse_config,
+)
 from pixiv.support import PIXIV_PROFILE_DIR
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -65,6 +72,7 @@ CMD_LABELS = {
     3: ("Pixiv only",     "Pixiv only"),
     4: ("Setup R-18 mosaic", "Local"),
     5: ("Check update",   "Local"),
+    6: ("LLM reverse",    "Local"),
 }
 
 # ── Flask app ──────────────────────────────────────────────────
@@ -78,7 +86,7 @@ def _has_active_tasks() -> bool:
 def _cancel_scheduler() -> dict:
     global _scheduler_timer
     cfg = _load_config()
-    sched = cfg.get("scheduler") or _sched_default()
+    sched = {**_sched_default(), **(cfg.get("scheduler") or {})}
     sched["enabled"] = False
     sched["next_fire_at"] = None
     cfg["scheduler"] = sched
@@ -282,12 +290,17 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 targets=params.get("targets", "civitai,pixiv"),
                 count=params.get("count", 0),
                 files=params.get("files", []),
+                sort=params.get("sort", "random"),
                 delay=params.get("delay", 10),
                 dry_run=False,
                 pixiv_privacy="public",
                 pixiv_allow_tag_edits="false",
                 pixiv_max_retries=1,
                 abort_after_failures=3,
+                llm_reverse=params.get("llm_reverse", False),
+                llm_persona=params.get("llm_persona", ""),
+                llm_account=params.get("llm_account", ""),
+                llm_content_mode=params.get("llm_content_mode", ""),
                 cancel_event=cancel_event,
             )
             cmd_upload(args)
@@ -302,12 +315,17 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 targets="pixiv",
                 count=params.get("count", 0),
                 files=params.get("files", []),
+                sort=params.get("sort", "random"),
                 delay=params.get("delay", 10),
                 dry_run=False,
                 pixiv_privacy="public",
                 pixiv_allow_tag_edits="false",
                 pixiv_max_retries=1,
                 abort_after_failures=3,
+                llm_reverse=params.get("llm_reverse", False),
+                llm_persona=params.get("llm_persona", ""),
+                llm_account=params.get("llm_account", ""),
+                llm_content_mode=params.get("llm_content_mode", ""),
                 cancel_event=cancel_event,
             )
             cmd_upload(args)
@@ -347,6 +365,25 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
                 _push_log_line(task_id, "INFO", "worker", "任务已取消")
                 _set_task_status(task_id, "canceled")
                 return
+
+        elif cmd == 6:
+            cfg = normalize_llm_reverse_config(_load_config().get("llm_reverse"))
+            image_name = str(params.get("image", "")).strip()
+            image_path = SCRIPT_DIR / "upload" / Path(image_name).name if image_name else None
+            image_url = str(params.get("image_url", "")).strip() or None
+            result = infer_image_copy(
+                image_path=image_path,
+                image_url=image_url,
+                config=cfg,
+                persona_id=params.get("llm_persona", ""),
+                account_id=params.get("llm_account", ""),
+                content_mode=params.get("llm_content_mode", ""),
+                cancel_event=cancel_event,
+            )
+            with TASKS_LOCK:
+                if task_id in TASKS:
+                    TASKS[task_id]["result"] = result
+            _push_log_line(task_id, "INFO", "worker", f"LLM 反推: {result.get('status')}")
 
         if cancel_event and cancel_event.is_set():
             _push_log_line(task_id, "INFO", "worker", "任务已取消")
@@ -473,6 +510,31 @@ def api_settings():
     return jsonify({"ok": True})
 
 
+@app.route("/api/llm-reverse-config", methods=["GET"])
+def api_llm_reverse_config_get():
+    cfg = _load_config()
+    return jsonify(mask_llm_config(cfg.get("llm_reverse")))
+
+
+@app.route("/api/llm-reverse-config", methods=["POST"])
+def api_llm_reverse_config_post():
+    body = request.get_json(silent=True) or {}
+    cfg = _load_config()
+    current = normalize_llm_reverse_config(cfg.get("llm_reverse"))
+    api_key = body.get("api_key", None)
+    if api_key == "":
+        body.pop("api_key", None)
+    elif api_key is None:
+        body["api_key"] = current.get("api_key", "")
+    next_cfg = normalize_llm_reverse_config({**current, **body})
+    errors = validate_llm_reverse_config(next_cfg)
+    if errors:
+        return jsonify({"error": "; ".join(errors)}), 400
+    cfg["llm_reverse"] = next_cfg
+    _save_config(cfg)
+    return jsonify(mask_llm_config(next_cfg))
+
+
 @app.route("/api/images")
 def api_images():
     upload_dir = SCRIPT_DIR / "upload"
@@ -482,7 +544,7 @@ def api_images():
     files = []
     for f in sorted(upload_dir.iterdir()):
         if f.is_file() and f.suffix.lower() in exts:
-            files.append({"name": f.name, "size": f.stat().st_size})
+            files.append({"name": f.name, "size": f.stat().st_size, "mtime": f.stat().st_mtime})
     return jsonify(files)
 
 
@@ -527,6 +589,9 @@ def api_status():
     else:
         masked = "*" * len(api_key)
     cfg = _load_config()
+    llm_cfg = normalize_llm_reverse_config(cfg.get("llm_reverse"))
+    llm_key = str(llm_cfg.get("api_key", ""))
+    llm_masked = "*" * (len(llm_key) - 4) + llm_key[-4:] if len(llm_key) > 4 else "*" * len(llm_key)
     return jsonify({
         "mosaic_installed":  model_path.exists(),
         "upload_count":      upload_count,
@@ -534,7 +599,11 @@ def api_status():
         "api_key_masked":    masked,
         "pixiv_logged_in":   PIXIV_PROFILE_DIR.exists(),
         "civitai_logged_in": CIVITAI_PROFILE_DIR.exists(),
-        "scheduler":         cfg.get("scheduler") or _sched_default(),
+        "scheduler":         {**_sched_default(), **(cfg.get("scheduler") or {})},
+        "llm_reverse_enabled": bool(llm_cfg.get("enabled")),
+        "llm_reverse_configured": bool(llm_cfg.get("base_url") and llm_cfg.get("api_key") and llm_cfg.get("model")),
+        "llm_reverse_model": llm_cfg.get("model", ""),
+        "llm_reverse_api_key_masked": llm_masked,
     })
 
 
@@ -659,7 +728,7 @@ def api_civitai_logout():
 
 
 def _sched_default() -> dict:
-    return {"enabled": False, "targets": "civitai,pixiv", "count": 1,
+    return {"enabled": False, "targets": "civitai,pixiv", "count": 1, "sort": "random",
             "min_hours": 1.0, "max_hours": 3.0, "next_fire_at": None}
 
 
@@ -669,7 +738,7 @@ def _broadcast_scheduler(sched: dict) -> None:
 
 def _arm_scheduler(cfg: dict) -> None:
     global _scheduler_timer
-    sched = cfg.get("scheduler") or _sched_default()
+    sched = {**_sched_default(), **(cfg.get("scheduler") or {})}
     with _scheduler_lock:
         if _scheduler_timer is not None:
             _scheduler_timer.cancel()
@@ -704,7 +773,7 @@ def _scheduler_fire() -> None:
     with _scheduler_lock:
         _scheduler_timer = None
     cfg = _load_config()
-    sched = cfg.get("scheduler") or _sched_default()
+    sched = {**_sched_default(), **(cfg.get("scheduler") or {})}
     if not sched.get("enabled"):
         return
     with TASKS_LOCK:
@@ -720,9 +789,10 @@ def _scheduler_fire() -> None:
     if not any_running and has_images:
         targets_str = sched.get("targets", "civitai,pixiv")
         count = max(1, int(sched.get("count", 1)))
+        sort_mode = sched.get("sort", "random")
         tl = targets_str.lower()
         cmd = 3 if ("pixiv" in tl and "civitai" not in tl) else 2
-        params = {"count": count, "files": [], "targets": targets_str}
+        params = {"count": count, "files": [], "targets": targets_str, "sort": sort_mode}
         task_id = uuid.uuid4().hex[:8]
         label, target = CMD_LABELS[cmd]
         task = {
@@ -753,7 +823,7 @@ def api_shutdown():
 def api_scheduler():
     body = request.get_json(silent=True) or {}
     cfg = _load_config()
-    sched = cfg.get("scheduler") or _sched_default()
+    sched = {**_sched_default(), **(cfg.get("scheduler") or {})}
     if "enabled" in body:
         sched["enabled"] = bool(body["enabled"])
     if "min_hours" in body:
@@ -764,6 +834,8 @@ def api_scheduler():
         sched["count"] = max(1, int(body["count"]))
     if "targets" in body:
         sched["targets"] = body["targets"]
+    if "sort" in body:
+        sched["sort"] = body["sort"] if body["sort"] in ("random", "name_asc", "name_desc", "time_asc", "time_desc") else "random"
     if sched.get("min_hours", 1.0) > sched.get("max_hours", 3.0):
         return jsonify({"error": "min_hours > max_hours"}), 400
     if any(k in body for k in ("enabled", "min_hours", "max_hours")):
@@ -803,7 +875,7 @@ def api_stream():
 
         for snap in all_tasks:
             yield f"event: task_update\ndata: {json.dumps(snap, ensure_ascii=False)}\n\n"
-        yield f"event: scheduler_update\ndata: {json.dumps((_load_config().get('scheduler') or _sched_default()), ensure_ascii=False)}\n\n"
+        yield f"event: scheduler_update\ndata: {json.dumps({**_sched_default(), **(_load_config().get('scheduler') or {})}, ensure_ascii=False)}\n\n"
         for entry in recent_logs[-50:]:
             yield f"event: log\ndata: {json.dumps(entry, ensure_ascii=False)}\n\n"
 

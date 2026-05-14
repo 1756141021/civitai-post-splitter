@@ -192,28 +192,42 @@ def cmd_split() -> None:
     run(["civitai_splitter.py", "split"], extra_env={"CIVITAI_API_KEY": api_key})
 
 
-def _ask_count() -> list[str]:
-    """问用户上传几张。留空 -> 随机 1-5（不传 --count）。"""
+_SORT_CHOICES = {
+    "1": "name_asc",
+    "2": "name_desc",
+    "3": "time_desc",
+    "4": "time_asc",
+}
+
+
+def _ask_upload_params() -> list[str]:
+    """问用户上传几张 + 排序方式。"""
     raw = input("  本次上传几张？（留空=随机 1-5）: ").strip()
-    if not raw:
-        return []
-    try:
-        n = int(raw)
-        if n > 0:
-            return ["--count", str(n)]
-    except ValueError:
-        pass
-    print("  无效数字，使用默认随机 1-5")
-    return []
+    extra: list[str] = []
+    if raw:
+        try:
+            n = int(raw)
+            if n > 0:
+                extra += ["--count", str(n)]
+        except ValueError:
+            print("  无效数字，使用随机 1-5")
+
+    print("  排序：[1] 文件名 A→Z  [2] 文件名 Z→A  [3] 最新优先  [4] 最旧优先  留空=随机")
+    s = input("  选择: ").strip()
+    mode = _SORT_CHOICES.get(s)
+    if mode:
+        extra += ["--sort", mode]
+
+    return extra
 
 
 def cmd_upload_dual() -> None:
-    extra = _ask_count()
+    extra = _ask_upload_params()
     run(["civitai_splitter.py", "upload", "--targets", "civitai,pixiv", *extra])
 
 
 def cmd_upload_pixiv() -> None:
-    extra = _ask_count()
+    extra = _ask_upload_params()
     run(["civitai_splitter.py", "upload", "--targets", "pixiv", *extra])
 
 

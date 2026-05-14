@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-05-14 (2)
+
+### Added
+- Added `--sort` parameter to `upload` command: `random` (default), `name_asc`, `name_desc`, `time_asc`, `time_desc`. Specifying a count now reliably picks the first N images by the chosen rule instead of random sampling.
+- Added manual drag-and-drop ordering in the Web UI image picker (`手动排序` mode): images reordered via drag handles; unselected images shown below for one-click append.
+- CLI `_ask_upload_params` now prompts for sort order after count.
+- Scheduler config includes a `sort` field persisted to `config.json`; timed uploads use the saved rule. Old configs without `sort` transparently default to `random`.
+- `/api/images` now returns `mtime` for client-side time-based sorting.
+
+## 2026-05-14
+
+### Added
+- Added Pixiv LLM reverse inference for generating title and caption copy through an OpenAI-compatible vision API.
+- Added persona/account configuration with SFW/NSFW content modes for Pixiv copy generation.
+- Added Web UI controls for configuring LLM reverse inference and enabling it during Pixiv upload selection.
+
+### Changed
+- Pixiv upload manifests now record LLM reverse inference status, selected persona/account, content mode, generated copy, and fallback errors without exposing API keys.
+
 ## 2026-05-13
 
 ### Added
@@ -7,6 +26,7 @@
 
 ### Changed
 - Pixiv tag generation now recognizes Danbooru-style metadata entities such as `hatsune miku`, `devil janai mon \(vocaloid\)`, and known franchise tags, then routes them through the existing Danbooru→Pixiv JP mapping chain.
+- Pixiv fanart tag ordering now places作品 and角色 tags before required and generic tags so prompt-derived entities are not pushed out by the 10-tag cap.
 - Metadata-driven fanart detection now stays strict to character/franchise-shaped tokens and no longer promotes generic feature tags like hair color or clothing details into character entities.
 
 ## 2026-05-12

@@ -226,22 +226,52 @@ function InputPromptOverlay({ prompt, task_id, onSubmit }) {
   );
 }
 
+const SORT_OPTS = [
+  { value: 'random',    label: '随机' },
+  { value: 'name_asc',  label: '文件名 A→Z' },
+  { value: 'name_desc', label: '文件名 Z→A' },
+  { value: 'time_desc', label: '最新优先' },
+  { value: 'time_asc',  label: '最旧优先' },
+  { value: 'manual',    label: '手动排序' },
+];
+
 function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
-  const [images,    setImages]    = React.useState([]);
-  const [selected,  setSelected]  = React.useState(new Set());
-  const [loading,   setLoading]   = React.useState(true);
-  const [uploading, setUploading] = React.useState(false);
-  const fileInputRef = React.useRef(null);
+  const [images,       setImages]       = React.useState([]);
+  const [selected,     setSelected]     = React.useState(new Set());
+  const [loading,      setLoading]      = React.useState(true);
+  const [uploading,    setUploading]    = React.useState(false);
+  const [sortMode,     setSortMode]     = React.useState('random');
+  const [orderedFiles, setOrderedFiles] = React.useState([]);
+  const fileInputRef  = React.useRef(null);
+  const dragItem      = React.useRef(null);
+  const dragOverItem  = React.useRef(null);
+  const prevSortMode  = React.useRef('random');
   const label = cmd === 2 ? 'Dual upload (Civitai + Pixiv)' : 'Pixiv only';
+
+  const applySortToImages = (imgs, mode) => {
+    if (mode === 'name_asc')  return [...imgs].sort((a, b) => a.name.localeCompare(b.name));
+    if (mode === 'name_desc') return [...imgs].sort((a, b) => b.name.localeCompare(a.name));
+    if (mode === 'time_desc') return [...imgs].sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+    if (mode === 'time_asc')  return [...imgs].sort((a, b) => (a.mtime || 0) - (b.mtime || 0));
+    return imgs;
+  };
+
+  const sortedImages = React.useMemo(() => {
+    if (sortMode === 'manual') return orderedFiles;
+    return applySortToImages(images, sortMode);
+  }, [images, sortMode, orderedFiles]);
+
+  React.useEffect(() => {
+    if (sortMode === 'manual' && prevSortMode.current !== 'manual') {
+      setOrderedFiles(applySortToImages(images, prevSortMode.current));
+    }
+    prevSortMode.current = sortMode;
+  }, [sortMode]);
 
   const loadImages = () =>
     fetch('/api/images').then(r => r.json()).then(list => {
       setImages(list);
-      setSelected(prev => {
-        const existing = new Set([...prev].filter(n => list.some(f => f.name === n)));
-        list.forEach(f => { if (!prev.size) existing.add(f.name); });
-        return prev.size === 0 ? new Set(list.map(f => f.name)) : existing;
-      });
+      setSelected(prev => prev.size === 0 ? new Set(list.map(f => f.name)) : new Set([...prev].filter(n => list.some(f => f.name === n))));
       setLoading(false);
     }).catch(() => setLoading(false));
 
@@ -263,20 +293,38 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
     const newNames = files.map(f => f.name);
     await fetch('/api/images').then(r => r.json()).then(list => {
       setImages(list);
-      setSelected(prev => {
-        const next = new Set(prev);
-        newNames.forEach(n => next.add(n));
-        return next;
+      setSelected(prev => { const next = new Set(prev); newNames.forEach(n => next.add(n)); return next; });
+      if (sortMode === 'manual') setOrderedFiles(prev => {
+        const nameSet = new Set(prev.map(f => f.name));
+        const added = list.filter(f => newNames.includes(f.name) && !nameSet.has(f.name));
+        return [...prev, ...added];
       });
     });
     setUploading(false);
     e.target.value = '';
   };
 
-  const go = () => {
-    const files = images.filter(f => selected.has(f.name)).map(f => f.name);
-    onConfirm(cmd, files);
+  const handleDragEnd = () => {
+    const from = dragItem.current, to = dragOverItem.current;
+    if (from === null || to === null || from === to) return;
+    setOrderedFiles(prev => {
+      const arr = [...prev];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      return arr;
+    });
+    dragItem.current = null;
+    dragOverItem.current = null;
   };
+
+  const go = () => {
+    if (sortMode === 'manual') { onConfirm(cmd, orderedFiles.map(f => f.name), { sort: 'manual' }); return; }
+    const files = sortedImages.filter(f => selected.has(f.name)).map(f => f.name);
+    onConfirm(cmd, files, sortMode !== 'random' ? { sort: sortMode } : {});
+  };
+
+  const isManual = sortMode === 'manual';
+  const uploadCount = isManual ? orderedFiles.length : selected.size;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
@@ -284,14 +332,21 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
         <div style={{ padding: '14px 18px 10px', borderBottom: `1px solid ${M.line}` }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>{label}</div>
           <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>
-            {loading ? '加载中…' : `upload/ 共 ${images.length} 张 · 已选 ${selected.size} 张`}
+            {loading ? '加载中…' : isManual
+              ? `upload/ 共 ${images.length} 张 · 已排序 ${orderedFiles.length} 张`
+              : `upload/ 共 ${images.length} 张 · 已选 ${selected.size} 张`}
           </div>
         </div>
         <div style={{ padding: '8px 18px', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
-                  onClick={() => setSelected(new Set(images.map(f => f.name)))}>全选</button>
-          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
-                  onClick={() => setSelected(new Set())}>清空</button>
+          <select className="mn-input" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ fontSize: 12, width: 110 }}>
+            {SORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {!isManual && <>
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                    onClick={() => setSelected(new Set(images.map(f => f.name)))}>全选</button>
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                    onClick={() => setSelected(new Set())}>清空</button>
+          </>}
           <div style={{ marginLeft: 'auto' }}>
             <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={addFiles} />
             <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
@@ -301,44 +356,83 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
           </div>
         </div>
         <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>
-          {loading && (
-            <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>
-          )}
+          {loading && <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>}
           {!loading && images.length === 0 && (
             <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>
               upload/ 为空。点"添加文件"从电脑上选图。
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
-            {images.map(f => {
-              const sel = selected.has(f.name);
-              return (
-                <div key={f.name} onClick={() => toggle(f.name)}
-                     style={{ cursor: 'pointer', borderRadius: 6, border: `2px solid ${sel ? M.accent : M.line}`, overflow: 'hidden', position: 'relative', background: M.bg }}>
-                  <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name}
-                       style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                  <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%',
-                                background: sel ? M.accent : 'rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center' }}>
-                    {sel && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
-                  </div>
-                  <div style={{ padding: '3px 5px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: M.panel }}>
-                    {f.name}
+          {!loading && isManual ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {orderedFiles.map((f, i) => (
+                <div key={f.name} draggable
+                     onDragStart={() => { dragItem.current = i; }}
+                     onDragEnter={() => { dragOverItem.current = i; }}
+                     onDragOver={e => e.preventDefault()}
+                     onDragEnd={handleDragEnd}
+                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 6,
+                              border: `1px solid ${M.line}`, background: M.bg, cursor: 'grab', userSelect: 'none' }}>
+                  <span style={{ color: M.inkFaint, fontSize: 14, lineHeight: 1, cursor: 'grab' }}>⠿</span>
+                  <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim, minWidth: 24, textAlign: 'right' }}>{i + 1}</span>
+                  <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
+                       style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                  <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '1px 6px', flexShrink: 0 }}
+                          onClick={() => setOrderedFiles(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              ))}
+              {images.filter(f => !orderedFiles.some(o => o.name === f.name)).length > 0 && (
+                <div style={{ marginTop: 8, borderTop: `1px dashed ${M.lineSoft}`, paddingTop: 10 }}>
+                  <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 8 }}>点击添加到队列末尾：</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
+                    {images.filter(f => !orderedFiles.some(o => o.name === f.name)).map(f => (
+                      <div key={f.name} onClick={() => setOrderedFiles(prev => [...prev, f])}
+                           style={{ cursor: 'pointer', borderRadius: 6, border: `2px dashed ${M.line}`, overflow: 'hidden', background: M.bg, opacity: 0.7 }}>
+                        <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
+                             style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                        <div style={{ padding: '2px 4px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
+                                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          ) : !loading && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
+              {sortedImages.map(f => {
+                const sel = selected.has(f.name);
+                return (
+                  <div key={f.name} onClick={() => toggle(f.name)}
+                       style={{ cursor: 'pointer', borderRadius: 6, border: `2px solid ${sel ? M.accent : M.line}`, overflow: 'hidden', position: 'relative', background: M.bg }}>
+                    <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
+                         style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%',
+                                  background: sel ? M.accent : 'rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center' }}>
+                      {sel && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
+                    </div>
+                    <div style={{ padding: '3px 5px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
+                                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: M.panel }}>
+                      {f.name}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div style={{ padding: '10px 18px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
-                  onClick={() => onConfirm(cmd, [])} title="随机从 upload/ 选 1-5 张，和命令行行为一致">
-            随机 1-5
-          </button>
+          {!isManual && (
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
+                    onClick={() => onConfirm(cmd, [], {})} title="随机从 upload/ 选 1-5 张，和命令行行为一致">
+              随机 1-5
+            </button>
+          )}
+          {isManual && <div style={{ marginRight: 'auto' }} />}
           <button className="mn-btn" onClick={onCancel}>取消</button>
           <button className="mn-btn mn-btn-accent" onClick={go}
-                  disabled={selected.size === 0} style={{ opacity: selected.size === 0 ? 0.5 : 1 }}>
-            上传 {selected.size} 张
+                  disabled={uploadCount === 0} style={{ opacity: uploadCount === 0 ? 0.5 : 1 }}>
+            上传 {uploadCount} 张
           </button>
         </div>
       </div>
@@ -454,6 +548,7 @@ function SchedulerDialog({ current, onClose, onSave }) {
   const [minHours, setMinHours] = React.useState(String(sched.min_hours ?? 1));
   const [maxHours, setMaxHours] = React.useState(String(sched.max_hours ?? 3));
   const [count,    setCount]    = React.useState(String(sched.count ?? 1));
+  const [sortMode, setSortMode] = React.useState(sched.sort || 'random');
   const [civitai,  setCivitai]  = React.useState((sched.targets || 'civitai,pixiv').includes('civitai'));
   const [pixiv,    setPixiv]    = React.useState((sched.targets || 'civitai,pixiv').includes('pixiv'));
   const [saving,   setSaving]   = React.useState(false);
@@ -469,7 +564,7 @@ function SchedulerDialog({ current, onClose, onSave }) {
     fetch('/api/scheduler', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: true, min_hours: min, max_hours: max, count: cnt, targets }),
+      body: JSON.stringify({ enabled: true, min_hours: min, max_hours: max, count: cnt, targets, sort: sortMode }),
     })
       .then(r => r.json())
       .then(d => { setSaving(false); if (d.ok) { onSave(); onClose(); } else { setErr(d.error || '保存失败'); } })
@@ -495,6 +590,13 @@ function SchedulerDialog({ current, onClose, onSave }) {
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12.5, marginBottom: 6 }}>每次发布张数</div>
           <input className="mn-input" value={count} onChange={e => setCount(e.target.value)} style={{ width: 72, fontSize: 12 }} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>选图排序</div>
+          <select className="mn-input" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ fontSize: 12, width: '100%' }}>
+            {SORT_OPTS.filter(o => o.value !== 'manual').map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
         </div>
 
         <div style={{ marginBottom: 18 }}>
@@ -534,7 +636,7 @@ function MonoSingleApp() {
   const [taggerSetup,      setTaggerSetup]      = React.useState(false);
   const [taggerConfigured, setTaggerConfigured] = React.useState(true);
   const [schedulerDialog,  setSchedulerDialog]  = React.useState(false);
-  const [status,           setStatus]           = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, targets: 'civitai,pixiv' } });
+  const [status,           setStatus]           = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
   const [isDark,           setIsDark]           = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
 
   React.useEffect(() => {
@@ -619,9 +721,9 @@ function MonoSingleApp() {
     fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
 
   const startUpload   = cmd => setUploadDialog({ cmd });
-  const confirmUpload = (cmd, files) => {
+  const confirmUpload = (cmd, files, options = {}) => {
     setUploadDialog(null);
-    runCmd(cmd, files && files.length > 0 ? { files } : {});
+    runCmd(cmd, { ...(files && files.length > 0 ? { files } : {}), ...options });
   };
 
   const runningCount = tasks.filter(t => t.status === 'running').length;

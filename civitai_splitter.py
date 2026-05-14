@@ -18,6 +18,7 @@ from PIL import Image, PngImagePlugin
 from playwright.sync_api import sync_playwright
 
 from pixiv.censor import CensorEngine, DEFAULT_CENSOR_CLASSES, parse_class_set
+from pixiv.llm_reverse import apply_llm_result_to_pixiv_payload, default_llm_reverse_config, infer_image_copy, normalize_llm_reverse_config
 from pixiv.standalone import StandaloneMetadataReader, StandaloneTaggerBridge
 from pixiv.support import (
     HainTagBridge,
@@ -113,15 +114,26 @@ def check_civitai_safety(
     return False, ""
 
 
-def _resolve_haintag_root() -> Path:
+def load_app_config() -> dict:
     cfg_file = SCRIPT_DIR / "config.json"
     if cfg_file.exists():
         try:
-            override = json.loads(cfg_file.read_text(encoding="utf-8")).get("haintag_root", "")
-            if override:
-                return Path(override)
+            payload = json.loads(cfg_file.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                return payload
         except Exception:
             pass
+    return {}
+
+
+def load_llm_reverse_config() -> dict:
+    return normalize_llm_reverse_config(load_app_config().get("llm_reverse") or default_llm_reverse_config())
+
+
+def _resolve_haintag_root() -> Path:
+    override = load_app_config().get("haintag_root", "")
+    if override:
+        return Path(override)
     return SCRIPT_DIR.parent / "haintag"
 
 
@@ -595,6 +607,10 @@ def create_upload_manifest(
     censor_engine: CensorEngine | None = None,
     censor_classes=None,
     civitai_safety_cfg: dict | None = None,
+    llm_reverse_config: dict | None = None,
+    llm_persona_id: str = "",
+    llm_account_id: str = "",
+    llm_content_mode: str = "",
     cancel_event=None,
 ) -> tuple[dict, bool]:
     _raise_if_canceled(cancel_event)
@@ -664,6 +680,7 @@ def create_upload_manifest(
         if "pixiv" in targets else None
     )
     _raise_if_canceled(cancel_event)
+    llm_reverse_result = {"enabled": False, "status": "disabled", "error": ""}
     if pixiv_payload is not None:
         pixiv_payload["privacy"] = pixiv_privacy
         pixiv_payload["allow_tag_edits"] = pixiv_allow_tag_edits
@@ -671,6 +688,26 @@ def create_upload_manifest(
             if pixiv_payload.get("age_restriction") not in {"r18", "r18g"}:
                 log.info("    censor: 检测到露出，强制 age_restriction=r18")
                 force_pixiv_age_restriction(pixiv_payload, "r18")
+        if llm_reverse_config and llm_reverse_config.get("enabled"):
+            _raise_if_canceled(cancel_event)
+            llm_reverse_result = infer_image_copy(
+                image_path=Path(pixiv_clean.output_path) if pixiv_clean else image_path,
+                config=llm_reverse_config,
+                persona_id=llm_persona_id,
+                account_id=llm_account_id,
+                content_mode=llm_content_mode,
+                cancel_event=cancel_event,
+            )
+            if llm_reverse_result.get("status") == "ok":
+                apply_llm_result_to_pixiv_payload(pixiv_payload, llm_reverse_result)
+                log.info(
+                    f"    LLM 反推: 已生成标题/简介 ({llm_reverse_result.get('content_mode', 'sfw')})"
+                )
+            else:
+                log.warning(
+                    f"    LLM 反推: {llm_reverse_result.get('status')} — {llm_reverse_result.get('error', '')}"
+                )
+            _raise_if_canceled(cancel_event)
 
     manifest = {
         "created_at": datetime.now().isoformat(timespec="seconds"),
@@ -706,6 +743,7 @@ def create_upload_manifest(
             "privacy": pixiv_privacy,
             "allow_tag_edits": pixiv_allow_tag_edits,
             "post_url": "",
+            "llm_reverse": llm_reverse_result,
             "tagger": {
                 "status": tagger_result.get("status", "disabled"),
                 "available": tagger_result.get("available", False),
@@ -827,6 +865,19 @@ def cmd_split(args):
         log.info(f"\n  Post {post_id} 完成: {len(progress['completed'])} 成功, {len(progress['failed'])} 失败")
 
 
+def _select_by_sort(images: list, sort_mode: str, count: int) -> list:
+    n = min(count, len(images))
+    if sort_mode == "name_asc":
+        return sorted(images, key=lambda f: f.name.lower())[:n]
+    if sort_mode == "name_desc":
+        return sorted(images, key=lambda f: f.name.lower(), reverse=True)[:n]
+    if sort_mode == "time_asc":
+        return sorted(images, key=lambda f: f.stat().st_mtime)[:n]
+    if sort_mode == "time_desc":
+        return sorted(images, key=lambda f: f.stat().st_mtime, reverse=True)[:n]
+    return random.sample(images, n)
+
+
 def cmd_upload(args):
     files = ensure_runtime_files(SCRIPT_DIR)
     alias_data = load_json(files["aliases"], {})
@@ -844,6 +895,10 @@ def cmd_upload(args):
         general_jp_data["_danbooru_map"] = danbooru_jp_map
         log.info(f"Danbooru→JP 词典已加载: {len(danbooru_jp_map)} 条")
     civitai_safety_cfg = load_json(files["civitai_safety"], {})
+    llm_reverse_config = load_llm_reverse_config()
+    llm_reverse_enabled = bool(getattr(args, "llm_reverse", False)) and llm_reverse_config.get("enabled")
+    if getattr(args, "llm_reverse", False) and not llm_reverse_enabled:
+        log.warning("LLM 反推: 已请求但未启用或配置不完整，将跳过")
 
     UPLOAD_DIR.mkdir(exist_ok=True)
     DONE_DIR.mkdir(exist_ok=True)
@@ -884,23 +939,24 @@ def cmd_upload(args):
             )
         else:
             log.info("自动打码: 未启用（如需放模型到 models/auto_censor.pt + pip install ultralytics opencv-python）")
+    sort_mode = getattr(args, "sort", "random")
     selected_names = getattr(args, "files", None) or []
     if selected_names:
-        name_lower = {n.lower() for n in selected_names}
-        image_files = [f for f in all_images if f.name.lower() in name_lower]
+        name_map = {f.name.lower(): f for f in all_images}
+        image_files = [name_map[n.lower()] for n in selected_names if n.lower() in name_map]
         if not image_files:
-            log.warning("指定的文件不在 upload/ 目录，改用随机选取")
-            image_files = random.sample(all_images, min(random.randint(1, 5), len(all_images)))
-        mode_desc = f"指定 {len(image_files)} 张"
+            log.warning("指定的文件不在 upload/ 目录，改用排序规则")
+            image_files = _select_by_sort(all_images, sort_mode, 1)
+        mode_desc = f"指定顺序 {len(image_files)} 张"
     else:
-        requested = max(0, int(args.count or 0))
+        requested = max(0, int(getattr(args, "count", 0) or 0))
         if requested > 0:
             count = min(requested, len(all_images))
-            mode_desc = f"按指定数量选 {count} 张"
+            mode_desc = f"按 {sort_mode} 选 {count} 张"
         else:
             count = min(random.randint(1, 5), len(all_images))
             mode_desc = f"随机选 {count} 张"
-        image_files = random.sample(all_images, count)
+        image_files = _select_by_sort(all_images, sort_mode, count)
     log.info(f"upload/ 有 {len(all_images)} 张图片，本次{mode_desc}上传。目标：{targets}\n")
 
     temp_dir = make_temp_dir("civitai_upload_")
@@ -959,6 +1015,10 @@ def cmd_upload(args):
                 censor_engine=censor_engine,
                 censor_classes=censor_classes,
                 civitai_safety_cfg=civitai_safety_cfg,
+                llm_reverse_config=llm_reverse_config if llm_reverse_enabled else None,
+                llm_persona_id=getattr(args, "llm_persona", ""),
+                llm_account_id=getattr(args, "llm_account", ""),
+                llm_content_mode=getattr(args, "llm_content_mode", ""),
                 cancel_event=_cancel_ev,
             )
             _raise_if_canceled(_cancel_ev)
@@ -1277,7 +1337,16 @@ def main():
     sp_upload.add_argument("--pixiv-allow-tag-edits", default="false", help="Pixiv 是否允许他人编辑标签（true/false）")
     sp_upload.add_argument("--pixiv-max-retries", type=int, default=1, help="Pixiv 失败重试次数（默认 1，publish 已点击则不重试）")
     sp_upload.add_argument("--abort-after-failures", type=int, default=3, help="连续失败 N 张后中断批次，避免触发风控（默认 3）")
+    sp_upload.add_argument("--llm-reverse", action="store_true", help="用 LLM 为 Pixiv 生成标题和简介")
+    sp_upload.add_argument("--llm-persona", default="", help="LLM 人设 ID")
+    sp_upload.add_argument("--llm-account", default="", help="LLM 账号 ID")
+    sp_upload.add_argument("--llm-content-mode", default="", choices=["", "sfw", "nsfw"], help="LLM 文案模式")
     sp_upload.add_argument("--count", type=int, default=0, help="本次发几张（默认 0 = 随机 1-5）")
+    sp_upload.add_argument(
+        "--sort", default="random",
+        choices=["random", "name_asc", "name_desc", "time_asc", "time_desc"],
+        help="选图排序（默认 random）",
+    )
 
     sp_collect = subparsers.add_parser("pixiv-fit-collect", help="采集 Pixiv 规则拟合样本")
     sp_collect.add_argument("--target-count", type=int, default=50, help="目标样本数（默认50）")

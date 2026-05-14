@@ -30,26 +30,78 @@ function InputPromptOverlay({ prompt, task_id, onSubmit, onCancelTask }) {
   );
 }
 
-function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
-  const [images,    setImages]    = React.useState([]);
-  const [selected,  setSelected]  = React.useState(new Set());
-  const [loading,   setLoading]   = React.useState(true);
-  const [uploading, setUploading] = React.useState(false);
-  const fileInputRef = React.useRef(null);
+const SORT_OPTS = [
+  { value: 'random',    label: '随机' },
+  { value: 'name_asc',  label: '文件名 A→Z' },
+  { value: 'name_desc', label: '文件名 Z→A' },
+  { value: 'time_desc', label: '最新优先' },
+  { value: 'time_asc',  label: '最旧优先' },
+  { value: 'manual',    label: '手动排序' },
+];
+
+function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
+  const [images,       setImages]       = React.useState([]);
+  const [selected,     setSelected]     = React.useState(new Set());
+  const [loading,      setLoading]      = React.useState(true);
+  const [uploading,    setUploading]    = React.useState(false);
+  const [sortMode,     setSortMode]     = React.useState('random');
+  const [orderedFiles, setOrderedFiles] = React.useState([]);
+  const [llmReverse,     setLlmReverse]     = React.useState(false);
+  const [llmPersona,     setLlmPersona]     = React.useState('');
+  const [llmAccount,     setLlmAccount]     = React.useState('');
+  const [llmContentMode, setLlmContentMode] = React.useState('sfw');
+  const fileInputRef   = React.useRef(null);
+  const dragItem       = React.useRef(null);
+  const dragOverItem   = React.useRef(null);
+  const prevSortMode   = React.useRef('random');
+
   const label = cmd === 2 ? 'Dual upload (Civitai + Pixiv)' : 'Pixiv only';
+  const personas = (llmConfig && llmConfig.personas) || [];
+  const accounts = (llmConfig && llmConfig.accounts) || [];
+  const selectedAccount = accounts.find(a => a.id === llmAccount) || accounts[0] || {};
+  const allowedModes = selectedAccount.allowed_content_modes || ['sfw', 'nsfw'];
+
+  const applySortToImages = (imgs, mode) => {
+    if (mode === 'name_asc')  return [...imgs].sort((a, b) => a.name.localeCompare(b.name));
+    if (mode === 'name_desc') return [...imgs].sort((a, b) => b.name.localeCompare(a.name));
+    if (mode === 'time_desc') return [...imgs].sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+    if (mode === 'time_asc')  return [...imgs].sort((a, b) => (a.mtime || 0) - (b.mtime || 0));
+    return imgs;
+  };
+
+  const sortedImages = React.useMemo(() => {
+    if (sortMode === 'manual') return orderedFiles;
+    return applySortToImages(images, sortMode);
+  }, [images, sortMode, orderedFiles]);
+
+  React.useEffect(() => {
+    if (sortMode === 'manual' && prevSortMode.current !== 'manual') {
+      setOrderedFiles(applySortToImages(images, prevSortMode.current));
+    }
+    prevSortMode.current = sortMode;
+  }, [sortMode]);
 
   const loadImages = () =>
     fetch('/api/images').then(r => r.json()).then(list => {
       setImages(list);
-      setSelected(prev => {
-        const existing = new Set([...prev].filter(n => list.some(f => f.name === n)));
-        list.forEach(f => { if (!prev.size) existing.add(f.name); });
-        return prev.size === 0 ? new Set(list.map(f => f.name)) : existing;
-      });
+      setSelected(prev => prev.size === 0 ? new Set(list.map(f => f.name)) : new Set([...prev].filter(n => list.some(f => f.name === n))));
       setLoading(false);
     }).catch(() => setLoading(false));
 
   React.useEffect(() => { loadImages(); }, []);
+
+  React.useEffect(() => {
+    if (!llmConfig) return;
+    const account = (llmConfig.accounts || []).find(a => a.id === llmConfig.default_account_id) || (llmConfig.accounts || [])[0] || {};
+    const persona = (llmConfig.personas || []).find(p => p.id === (account.persona_id || llmConfig.default_persona_id)) || (llmConfig.personas || [])[0] || {};
+    setLlmAccount(account.id || '');
+    setLlmPersona(persona.id || '');
+    setLlmContentMode(account.default_content_mode || persona.default_content_mode || llmConfig.default_content_mode || 'sfw');
+  }, [llmConfig]);
+
+  React.useEffect(() => {
+    if (!allowedModes.includes(llmContentMode)) setLlmContentMode(allowedModes[0] || 'sfw');
+  }, [llmAccount]);
 
   const toggle = name => setSelected(prev => {
     const next = new Set(prev);
@@ -67,20 +119,42 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
     const newNames = files.map(f => f.name);
     await fetch('/api/images').then(r => r.json()).then(list => {
       setImages(list);
-      setSelected(prev => {
-        const next = new Set(prev);
-        newNames.forEach(n => next.add(n));
-        return next;
+      setSelected(prev => { const next = new Set(prev); newNames.forEach(n => next.add(n)); return next; });
+      if (sortMode === 'manual') setOrderedFiles(prev => {
+        const nameSet = new Set(prev.map(f => f.name));
+        const added = list.filter(f => newNames.includes(f.name) && !nameSet.has(f.name));
+        return [...prev, ...added];
       });
     });
     setUploading(false);
     e.target.value = '';
   };
 
-  const go = () => {
-    const files = images.filter(f => selected.has(f.name)).map(f => f.name);
-    onConfirm(cmd, files);
+  const handleDragEnd = () => {
+    const from = dragItem.current, to = dragOverItem.current;
+    if (from === null || to === null || from === to) return;
+    setOrderedFiles(prev => {
+      const arr = [...prev];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      return arr;
+    });
+    dragItem.current = null;
+    dragOverItem.current = null;
   };
+
+  const go = () => {
+    const llmOpts = { llm_reverse: llmReverse, llm_persona: llmPersona, llm_account: llmAccount, llm_content_mode: llmContentMode };
+    if (sortMode === 'manual') {
+      onConfirm(cmd, orderedFiles.map(f => f.name), { sort: 'manual', ...llmOpts });
+      return;
+    }
+    const files = sortedImages.filter(f => selected.has(f.name)).map(f => f.name);
+    onConfirm(cmd, files, { ...(sortMode !== 'random' ? { sort: sortMode } : {}), ...llmOpts });
+  };
+
+  const isManual = sortMode === 'manual';
+  const uploadCount = isManual ? orderedFiles.length : selected.size;
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
@@ -88,14 +162,22 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
         <div style={{ padding: '14px 18px 10px', borderBottom: `1px solid ${M.line}` }}>
           <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>{label}</div>
           <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>
-            {loading ? '加载中…' : `upload/ 共 ${images.length} 张 · 已选 ${selected.size} 张`}
+            {loading ? '加载中…' : isManual
+              ? `upload/ 共 ${images.length} 张 · 已排序 ${orderedFiles.length} 张`
+              : `upload/ 共 ${images.length} 张 · 已选 ${selected.size} 张`}
           </div>
         </div>
+
         <div style={{ padding: '8px 18px', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
-                  onClick={() => setSelected(new Set(images.map(f => f.name)))}>全选</button>
-          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
-                  onClick={() => setSelected(new Set())}>清空</button>
+          <select className="mn-input" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ fontSize: 12, width: 110 }}>
+            {SORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          {!isManual && <>
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                    onClick={() => setSelected(new Set(images.map(f => f.name)))}>全选</button>
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
+                    onClick={() => setSelected(new Set())}>清空</button>
+          </>}
           <div style={{ marginLeft: 'auto' }}>
             <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={addFiles} />
             <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
@@ -104,45 +186,116 @@ function ImagePickerDialog({ cmd, onConfirm, onCancel }) {
             </button>
           </div>
         </div>
+
         <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>
-          {loading && (
-            <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>
-          )}
+          {loading && <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>}
           {!loading && images.length === 0 && (
             <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>
               upload/ 为空。点"添加文件"从电脑上选图。
             </div>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
-            {images.map(f => {
-              const sel = selected.has(f.name);
-              return (
-                <div key={f.name} onClick={() => toggle(f.name)}
-                     style={{ cursor: 'pointer', borderRadius: 6, border: `2px solid ${sel ? M.accent : M.line}`, overflow: 'hidden', position: 'relative', background: M.bg }}>
-                  <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name}
-                       style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                  <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%',
-                                background: sel ? M.accent : 'rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center' }}>
-                    {sel && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
-                  </div>
-                  <div style={{ padding: '3px 5px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
-                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: M.panel }}>
-                    {f.name}
+
+          {!loading && isManual ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {orderedFiles.map((f, i) => (
+                <div key={f.name} draggable
+                     onDragStart={() => { dragItem.current = i; }}
+                     onDragEnter={() => { dragOverItem.current = i; }}
+                     onDragOver={e => e.preventDefault()}
+                     onDragEnd={handleDragEnd}
+                     style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px', borderRadius: 6,
+                              border: `1px solid ${M.line}`, background: M.bg, cursor: 'grab', userSelect: 'none' }}>
+                  <span style={{ color: M.inkFaint, fontSize: 14, lineHeight: 1, cursor: 'grab' }}>⠿</span>
+                  <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim, minWidth: 24, textAlign: 'right' }}>{i + 1}</span>
+                  <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
+                       style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                  <span style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                  <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '1px 6px', flexShrink: 0 }}
+                          onClick={() => setOrderedFiles(prev => prev.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              ))}
+              {images.filter(f => !orderedFiles.some(o => o.name === f.name)).length > 0 && (
+                <div style={{ marginTop: 8, borderTop: `1px dashed ${M.lineSoft}`, paddingTop: 10 }}>
+                  <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 8 }}>点击添加到队列末尾：</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
+                    {images.filter(f => !orderedFiles.some(o => o.name === f.name)).map(f => (
+                      <div key={f.name} onClick={() => setOrderedFiles(prev => [...prev, f])}
+                           style={{ cursor: 'pointer', borderRadius: 6, border: `2px dashed ${M.line}`, overflow: 'hidden', background: M.bg, opacity: 0.7 }}>
+                        <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
+                             style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                        <div style={{ padding: '2px 4px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
+                                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          ) : !loading && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
+              {sortedImages.map(f => {
+                const sel = selected.has(f.name);
+                return (
+                  <div key={f.name} onClick={() => toggle(f.name)}
+                       style={{ cursor: 'pointer', borderRadius: 6, border: `2px solid ${sel ? M.accent : M.line}`, overflow: 'hidden', position: 'relative', background: M.bg }}>
+                    <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
+                         style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%',
+                                  background: sel ? M.accent : 'rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center' }}>
+                      {sel && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
+                    </div>
+                    <div style={{ padding: '3px 5px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
+                                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: M.panel }}>
+                      {f.name}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+
+        <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 130px', gap: 8, alignItems: 'center' }}>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+            <input type="checkbox" checked={llmReverse} disabled={!llmConfig || !llmConfig.enabled}
+                   onChange={e => setLlmReverse(e.target.checked)} />
+            LLM 标题/简介
+          </label>
+          <select className="mn-input" value={llmAccount} disabled={!llmReverse}
+                  onChange={e => {
+                    const account = accounts.find(a => a.id === e.target.value) || {};
+                    setLlmAccount(e.target.value);
+                    if (account.persona_id) setLlmPersona(account.persona_id);
+                    setLlmContentMode(account.default_content_mode || llmConfig.default_content_mode || 'sfw');
+                  }} style={{ fontSize: 12 }}>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.label || a.id}</option>)}
+          </select>
+          <select className="mn-input" value={llmPersona} disabled={!llmReverse}
+                  onChange={e => setLlmPersona(e.target.value)} style={{ fontSize: 12 }}>
+            {personas.map(p => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
+          </select>
+          <select className="mn-input" value={llmContentMode} disabled={!llmReverse}
+                  onChange={e => setLlmContentMode(e.target.value)} style={{ fontSize: 12 }}>
+            <option value="sfw">SFW</option>
+            <option value="nsfw" disabled={!allowedModes.includes('nsfw')}>NSFW</option>
+          </select>
+        </div>
+
         <div style={{ padding: '10px 18px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
-                  onClick={() => onConfirm(cmd, [])} title="随机从 upload/ 选 1-5 张，和命令行行为一致">
-            随机 1-5
-          </button>
+          {!isManual && (
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
+                    onClick={() => onConfirm(cmd, [], {
+                      llm_reverse: llmReverse, llm_persona: llmPersona,
+                      llm_account: llmAccount, llm_content_mode: llmContentMode,
+                    })} title="随机从 upload/ 选 1-5 张，和命令行行为一致">
+              随机 1-5
+            </button>
+          )}
+          {isManual && <div style={{ marginRight: 'auto' }} />}
           <button className="mn-btn" onClick={onCancel}>取消</button>
           <button className="mn-btn mn-btn-accent" onClick={go}
-                  disabled={selected.size === 0} style={{ opacity: selected.size === 0 ? 0.5 : 1 }}>
-            上传 {selected.size} 张
+                  disabled={uploadCount === 0} style={{ opacity: uploadCount === 0 ? 0.5 : 1 }}>
+            上传 {uploadCount} 张
           </button>
         </div>
       </div>
@@ -256,11 +409,111 @@ function TaggerSetupDialog({ onClose }) {
   );
 }
 
+function LlmReverseDialog({ onClose }) {
+  const [cfg, setCfg] = React.useState(null);
+  const [personasText, setPersonasText] = React.useState('[]');
+  const [accountsText, setAccountsText] = React.useState('[]');
+  const [apiKey, setApiKey] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const [msg, setMsg] = React.useState('');
+
+  React.useEffect(() => {
+    fetch('/api/llm-reverse-config').then(r => r.json()).then(d => {
+      setCfg(d);
+      setPersonasText(JSON.stringify(d.personas || [], null, 2));
+      setAccountsText(JSON.stringify(d.accounts || [], null, 2));
+    }).catch(() => setMsg('加载失败'));
+  }, []);
+
+  const save = () => {
+    setSaving(true);
+    setMsg('');
+    let personas, accounts;
+    try {
+      personas = JSON.parse(personasText || '[]');
+      accounts = JSON.parse(accountsText || '[]');
+    } catch (err) {
+      setSaving(false);
+      setMsg('personas/accounts JSON 格式错误');
+      return;
+    }
+    const payload = { ...cfg, personas, accounts };
+    if (apiKey.trim()) payload.api_key = apiKey.trim();
+    delete payload.has_api_key;
+    delete payload.api_key_masked;
+    fetch('/api/llm-reverse-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(r => r.json().then(d => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        setSaving(false);
+        if (!ok) { setMsg(d.error || '保存失败'); return; }
+        setCfg(d);
+        setApiKey('');
+        setMsg('已保存');
+        setTimeout(() => onClose(true), 700);
+      })
+      .catch(() => { setSaving(false); setMsg('请求失败'); });
+  };
+
+  if (!cfg) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+        <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 520, padding: 24 }}>加载中…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 720, maxHeight: '88vh', overflow: 'auto', padding: '20px 24px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>LLM reverse</div>
+        <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 16 }}>OpenAI-compatible vision API. API key is stored locally in config.json.</div>
+
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, fontSize: 12.5 }}>
+          <input type="checkbox" checked={!!cfg.enabled} onChange={e => setCfg({ ...cfg, enabled: e.target.checked })} /> Enable
+        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <input className="mn-input" value={cfg.base_url || ''} onChange={e => setCfg({ ...cfg, base_url: e.target.value })} placeholder="base URL, e.g. https://api.example.com/v1" style={{ fontSize: 12 }} />
+          <input className="mn-input" value={cfg.model || ''} onChange={e => setCfg({ ...cfg, model: e.target.value })} placeholder="model" style={{ fontSize: 12 }} />
+          <input className="mn-input" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={cfg.has_api_key ? `API key (${cfg.api_key_masked})` : 'API key'} type="password" style={{ fontSize: 12 }} />
+          <input className="mn-input" value={cfg.timeout_seconds || 45} onChange={e => setCfg({ ...cfg, timeout_seconds: Number(e.target.value) || 45 })} placeholder="timeout seconds" style={{ fontSize: 12 }} />
+          <input className="mn-input" value={cfg.default_persona_id || ''} onChange={e => setCfg({ ...cfg, default_persona_id: e.target.value })} placeholder="default persona id" style={{ fontSize: 12 }} />
+          <input className="mn-input" value={cfg.default_account_id || ''} onChange={e => setCfg({ ...cfg, default_account_id: e.target.value })} placeholder="default account id" style={{ fontSize: 12 }} />
+        </div>
+        <select className="mn-input" value={cfg.default_content_mode || 'sfw'} onChange={e => setCfg({ ...cfg, default_content_mode: e.target.value })} style={{ fontSize: 12, marginBottom: 12 }}>
+          <option value="sfw">Default SFW</option>
+          <option value="nsfw">Default NSFW</option>
+        </select>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div>
+            <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 4 }}>personas</div>
+            <textarea className="mn-input" value={personasText} onChange={e => setPersonasText(e.target.value)} style={{ width: '100%', minHeight: 190, fontSize: 11, fontFamily: M.mono }} />
+          </div>
+          <div>
+            <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 4 }}>accounts</div>
+            <textarea className="mn-input" value={accountsText} onChange={e => setAccountsText(e.target.value)} style={{ width: '100%', minHeight: 190, fontSize: 11, fontFamily: M.mono }} />
+          </div>
+        </div>
+        {msg && <div className="mn-mono" style={{ color: msg.includes('失败') || msg.includes('错误') ? M.red : M.ok, fontSize: 11, marginTop: 10 }}>{msg}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+          <button className="mn-btn" onClick={() => onClose(false)}>取消</button>
+          <button className="mn-btn mn-btn-accent" onClick={save} disabled={saving}>{saving ? '…' : 'Save'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SchedulerDialog({ current, onClose, onSave }) {
   const sched = current || {};
   const [minHours, setMinHours] = React.useState(String(sched.min_hours ?? 1));
   const [maxHours, setMaxHours] = React.useState(String(sched.max_hours ?? 3));
   const [count,    setCount]    = React.useState(String(sched.count ?? 1));
+  const [sortMode, setSortMode] = React.useState(sched.sort || 'random');
   const [civitai,  setCivitai]  = React.useState((sched.targets || 'civitai,pixiv').includes('civitai'));
   const [pixiv,    setPixiv]    = React.useState((sched.targets || 'civitai,pixiv').includes('pixiv'));
   const [saving,   setSaving]   = React.useState(false);
@@ -276,7 +529,7 @@ function SchedulerDialog({ current, onClose, onSave }) {
     fetch('/api/scheduler', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: true, min_hours: min, max_hours: max, count: cnt, targets }),
+      body: JSON.stringify({ enabled: true, min_hours: min, max_hours: max, count: cnt, targets, sort: sortMode }),
     })
       .then(r => r.json())
       .then(d => { setSaving(false); if (d.ok) { onSave(); onClose(); } else { setErr(d.error || '保存失败'); } })
@@ -302,6 +555,13 @@ function SchedulerDialog({ current, onClose, onSave }) {
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12.5, marginBottom: 6 }}>每次发布张数</div>
           <input className="mn-input" value={count} onChange={e => setCount(e.target.value)} style={{ width: 72, fontSize: 12 }} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, marginBottom: 6 }}>选图排序</div>
+          <select className="mn-input" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ fontSize: 12, width: '100%' }}>
+            {SORT_OPTS.filter(o => o.value !== 'manual').map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
         </div>
 
         <div style={{ marginBottom: 18 }}>
@@ -338,7 +598,9 @@ function MonoSingleApp() {
   const [taggerSetup,    setTaggerSetup]    = React.useState(false);
   const [taggerConfigured, setTaggerConfigured] = React.useState(true);
   const [schedulerDialog, setSchedulerDialog] = React.useState(false);
-  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, targets: 'civitai,pixiv' } });
+  const [llmReverseDialog, setLlmReverseDialog] = React.useState(false);
+  const [llmReverseConfig, setLlmReverseConfig] = React.useState(null);
+  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
 
   React.useEffect(() => {
@@ -348,6 +610,7 @@ function MonoSingleApp() {
 
   React.useEffect(() => {
     fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
+    fetch('/api/llm-reverse-config').then(r => r.json()).then(setLlmReverseConfig).catch(() => {});
   }, []);
 
   React.useEffect(() => {
@@ -435,9 +698,9 @@ function MonoSingleApp() {
     fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
 
   const startUpload = cmd => setUploadDialog({ cmd });
-  const confirmUpload = (cmd, files) => {
+  const confirmUpload = (cmd, files, options = {}) => {
     setUploadDialog(null);
-    runCmd(cmd, files && files.length > 0 ? { files } : {});
+    runCmd(cmd, { ...(files && files.length > 0 ? { files } : {}), ...options });
   };
 
   const runningCount = tasks.filter(t => t.status === 'running').length;
@@ -454,6 +717,7 @@ function MonoSingleApp() {
       {uploadDialog && (
         <ImagePickerDialog
           cmd={uploadDialog.cmd}
+          llmConfig={llmReverseConfig}
           onConfirm={confirmUpload}
           onCancel={() => setUploadDialog(null)}
         />
@@ -470,6 +734,15 @@ function MonoSingleApp() {
           onClose={() => setSchedulerDialog(false)}
           onSave={() => fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {})}
         />
+      )}
+      {llmReverseDialog && (
+        <LlmReverseDialog onClose={saved => {
+          setLlmReverseDialog(false);
+          if (saved) {
+            fetch('/api/llm-reverse-config').then(r => r.json()).then(setLlmReverseConfig).catch(() => {});
+            fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
+          }
+        }} />
       )}
 
       {/* ── Top bar ─────────────────────────────────────────────── */}
@@ -513,7 +786,8 @@ function MonoSingleApp() {
                        taggerConfigured={taggerConfigured}
                        onTaggerSetup={() => setTaggerSetup(true)}
                        tick={tick}
-                       onSchedulerConfigure={() => setSchedulerDialog(true)} />
+                       onSchedulerConfigure={() => setSchedulerDialog(true)}
+                       onLlmReverseConfigure={() => setLlmReverseDialog(true)} />
         </div>
       </div>
 
@@ -744,7 +1018,7 @@ function LogZone({ logs }) {
 }
 
 // ── Settings (right column bottom) ─────────────────────────────
-function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup, tick, onSchedulerConfigure }) {
+function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup, tick, onSchedulerConfigure, onLlmReverseConfigure }) {
   const [apiKey,        setApiKey]        = React.useState('');
   const [saved,         setSaved]         = React.useState(false);
   const [pixivSwitching,   setPixivSwitching]   = React.useState(false);
@@ -793,6 +1067,16 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: taggerConfigured ? M.ok : M.red }} />
           <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{taggerConfigured ? 'configured' : 'not set'}</span>
           <button className="mn-btn mn-btn-ghost" onClick={onTaggerSetup} style={{ padding: '2px 8px', fontSize: 11 }}>Configure</button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>LLM reverse</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.llm_reverse_enabled && status.llm_reverse_configured ? M.ok : M.inkFaint }} />
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>
+            {status.llm_reverse_enabled ? (status.llm_reverse_configured ? (status.llm_reverse_model || 'configured') : 'not set') : 'off'}
+          </span>
+          <button className="mn-btn mn-btn-ghost" onClick={onLlmReverseConfigure} style={{ padding: '2px 8px', fontSize: 11 }}>Configure</button>
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
