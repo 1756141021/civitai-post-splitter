@@ -2122,7 +2122,9 @@ def build_pixiv_payload(
 
     final_tags = []
     final_tag_translations = []
+    entity_tags: list[str] = []
     seen_display = set()
+    _ENTITY_CLASSES = {"character", "franchise", "copyright", "identity"}
 
     def add_final(item: dict[str, Any]) -> None:
         display = item["display"]
@@ -2131,6 +2133,8 @@ def build_pixiv_payload(
         seen_display.add(display)
         final_tags.append(display)
         final_tag_translations.append(item["zh"])
+        if item.get("class") in _ENTITY_CLASSES:
+            entity_tags.append(display)
 
     for entries in (protected_entity_entries, required_entries, normal_content_entries):
         for item in entries:
@@ -2163,6 +2167,7 @@ def build_pixiv_payload(
         "rejected_tags": rejected_tags,
         "final_tags": final_tags,
         "final_tag_translations": final_tag_translations,
+        "entity_tags": entity_tags,
         "domain": domain,
         "title_ja": title_ja,
         "title_zh": title_zh,

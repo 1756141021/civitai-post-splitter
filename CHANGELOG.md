@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-05-14 (4)
+
+### Added
+- **X (Twitter) publishing**: new `x/` module mirrors pixiv module shape. Playwright over persistent profile with cookies.json import (Cookie-Editor JSON), stealth init script for X automation-detection bypass, Ctrl+Enter post shortcut, sensitive-media auto-label hook. Default template `en_sfw` per X traffic research (2 hashtags sweet spot, entity + template core).
+- **小红书 (xhs) publishing**: new `xhs/` module. Web 版 publishing flow (`creator.xiaohongshu.com/publish/publish`) with dropdown-driven topic insertion (xhs requires picking topics from suggestion list, plain `#xxx` text isn't registered as a topic). Auto-ticks AI synthesis declaration checkbox per GB45438-2025 compliance. NSFW images (r18/r18g) are hard-rejected before publish.
+- **Universal `manifest.copy` area**: LLM reverse output now lives in `manifest.copy.{title,caption}.{ja,en,zh}` so X/xhs/pixiv all read from one place. Pixiv legacy fields kept for back-compat. New `apply_llm_result_to_copy_block` projects platform-specific LLM fields onto the universal area.
+- **`PLATFORM_RULES` table** in `civitai_splitter.py`: drives per-platform `needs_sanitize`, `needs_censor`, `needs_copy`, `max_age`. Replaces the old `needs_pixiv_pipeline = pixiv or x` hack. civitai stays image-only (no sanitize/censor/LLM); pixiv/x/xhs share the sanitized artifact.
+- **LLM reverse account `max_nsfw_level`** (sfw / r18 / r18g): per-account NSFW capability flag. cmd_upload skips reverse when image age exceeds account ceiling instead of asking the API to look at content it'll refuse.
+- **LLM reverse on-demand**: only runs when targets include a platform that needs copy (civitai-only uploads skip the LLM call entirely).
+- **Censor preset system** (`pixiv/censor.json` `preset` field): `off` / `japan` (Pixiv 标准) / `strict` levels. Default `japan` covers genital area + bodily fluids (no nipples — matches Pixiv platform compliance). `strict` adds nipples. UI label displays "Pixiv 标准" for the `japan` preset. New `/api/censor-preset` endpoint and Web UI selector under settings.
+- **Web UI multi-target selector**: `ImagePickerDialog` and `SchedulerDialog` now show 4 checkboxes (Civitai / Pixiv / X / 小红书). Selection persisted to `localStorage` under `civitai-splitter:upload-targets`.
+
+### Changed
+- `TARGETS` set in `civitai_splitter.py` now includes `x` and `xhs`. `--targets` accepts these.
+- `cmd_upload` web-server bridge (`web_server.py`) `cmd=2` / `cmd=3` paths consolidated into one upload entry; targets are driven by `params.targets` instead of hardcoded per-cmd defaults.
+- `pixiv/support.py` `build_pixiv_payload` now exposes `entity_tags` (character / copyright / franchise / identity tags as a flat list) so platform modules can pick them without parsing the full payload.
+
+### Removed
+- `x-collect-tags` subcommand and the `hot_tags.json` / `hot_tags_auto.json` / Danbooru reverse-index machinery in `x/support.py`. Replaced by a 2-tag picker driven by template `core` + `social` fields, matching the X 2-hashtag sweet-spot research (3+ tags drop engagement by 17%).
+
 ## 2026-05-14 (3)
 
 ### Fixed

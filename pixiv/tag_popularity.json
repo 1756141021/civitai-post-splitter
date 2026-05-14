@@ -6,7 +6,7 @@
         "オリジナル": 14524083,
         "創作": 1420539
       },
-      "updated_at": "2026-05-11T22:33:58"
+      "updated_at": "2026-05-14T22:22:06"
     },
     "oc": {
       "winner": "うちの子",
@@ -31,15 +31,15 @@
         "メガネ": 59073,
         "めがね": 11821
       },
-      "updated_at": "2026-05-11T12:28:56"
+      "updated_at": "2026-05-14T18:53:20"
     },
     "blue_eyes": {
       "winner": "碧眼",
       "counts": {
-        "碧眼": 0,
-        "青い目": 0
+        "碧眼": 14548,
+        "青い目": 4389
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T17:36:49"
     },
     "purple_eyes": {
       "winner": "紫目",
@@ -47,7 +47,7 @@
         "紫目": 4561,
         "紫眼": 496
       },
-      "updated_at": "2026-05-11T12:28:50"
+      "updated_at": "2026-05-14T22:22:09"
     },
     "school_uniform": {
       "winner": "制服",
@@ -55,15 +55,15 @@
         "制服": 431949,
         "学生服": 17716
       },
-      "updated_at": "2026-05-11T22:29:23"
+      "updated_at": "2026-05-13T22:55:18"
     },
     "kimono": {
       "winner": "着物",
       "counts": {
-        "着物": 0,
-        "和服": 0
+        "着物": 134583,
+        "和服": 69878
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T13:58:20"
     },
     "honkai_star_rail": {
       "winner": "崩壊スターレイル",
@@ -125,9 +125,9 @@
     "barefeet": {
       "winner": "素足",
       "counts": {
-        "素足": 0
+        "素足": 28500
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:33:28"
     },
     "cat_ears": {
       "winner": "猫耳",
@@ -136,14 +136,14 @@
         "ねこみみ": 29139,
         "ネコミミ": 23560
       },
-      "updated_at": "2026-05-11T00:25:45"
+      "updated_at": "2026-05-14T22:22:12"
     },
     "dress": {
       "winner": "ドレス",
       "counts": {
-        "ドレス": 0
+        "ドレス": 81995
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:14:47"
     },
     "bed": {
       "winner": "ベッド",
@@ -162,10 +162,10 @@
     "maid": {
       "winner": "メイド",
       "counts": {
-        "メイド": 0,
-        "メイド服": 0
+        "メイド": 196548,
+        "メイド服": 84146
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T22:22:12"
     },
     "genshin_impact": {
       "winner": "原神",
@@ -181,7 +181,7 @@
         "きつね耳": 3188,
         "キツネ耳": 1737
       },
-      "updated_at": "2026-05-11T18:39:57"
+      "updated_at": "2026-05-14T22:22:09"
     },
     "fox_tail": {
       "winner": "狐尻尾",
@@ -190,7 +190,7 @@
         "狐尻尾": 158,
         "きつねしっぽ": 11
       },
-      "updated_at": "2026-05-11T18:40:44"
+      "updated_at": "2026-05-14T22:22:09"
     },
     "kitsune": {
       "winner": "狐っ娘",
@@ -204,11 +204,11 @@
     "rabbit_ears": {
       "winner": "うさみみ",
       "counts": {
-        "うさみみ": 0,
-        "兎耳": 0,
-        "ウサ耳": 0
+        "うさみみ": 25992,
+        "兎耳": 1669,
+        "ウサ耳": 3010
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T14:24:16"
     },
     "wolf_ears": {
       "winner": "狼耳",
@@ -219,12 +219,12 @@
       "updated_at": ""
     },
     "dragon_horns": {
-      "winner": "ドラゴンの角",
+      "winner": "竜角",
       "counts": {
-        "ドラゴンの角": 0,
-        "竜角": 0
+        "ドラゴンの角": 5,
+        "竜角": 10
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:45:29"
     },
     "demon_horns": {
       "winner": "悪魔の角",
@@ -241,7 +241,7 @@
         "ヘイロー": 377,
         "光輪": 330
       },
-      "updated_at": "2026-05-11T22:29:36"
+      "updated_at": "2026-05-14T18:53:20"
     },
     "vampire": {
       "winner": "吸血鬼",
@@ -249,7 +249,7 @@
         "吸血鬼": 41193,
         "ヴァンパイア": 26381
       },
-      "updated_at": "2026-05-11T20:16:08"
+      "updated_at": "2026-05-13T15:49:35"
     },
     "one_piece_swimsuit": {
       "winner": "ワンピース水着",
@@ -257,7 +257,7 @@
         "ワンピース水着": 3843,
         "ワンピ水着": 2
       },
-      "updated_at": "2026-05-11T18:40:07"
+      "updated_at": "2026-05-13T13:05:04"
     },
     "character:frieren": {
       "winner": "フリーレン",
@@ -325,9 +325,9 @@
     "feature:pussy": {
       "winner": "おまんこ",
       "counts": {
-        "おまんこ": 0
+        "おまんこ": 943
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T16:07:32"
     },
     "feature:embarrassed": {
       "winner": "恥じらい",
@@ -374,9 +374,9 @@
     "feature:pantyhose": {
       "winner": "タイツ",
       "counts": {
-        "タイツ": 0
+        "タイツ": 49326
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:19:13"
     },
     "feature:female pubic hair": {
       "winner": "マン毛",
@@ -402,16 +402,16 @@
     "feature:clothes lift": {
       "winner": "たくし上げ",
       "counts": {
-        "たくし上げ": 0
+        "たくし上げ": 17481
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:38:54"
     },
     "feature:clothes pull": {
       "winner": "拉丝",
       "counts": {
-        "拉丝": 0
+        "拉丝": 10
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T11:20:05"
     },
     "feature:pantyhose pull": {
       "winner": "裾上げタイツ脱ぎ",
@@ -444,9 +444,9 @@
     "feature:nipples": {
       "winner": "乳首",
       "counts": {
-        "乳首": 0
+        "乳首": 4629
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T22:54:54"
     },
     "feature:jewelry": {
       "winner": "ジュエリー",
@@ -472,16 +472,16 @@
     "feature:wet clothes": {
       "winner": "濡れ透け",
       "counts": {
-        "濡れ透け": 0
+        "濡れ透け": 19100
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T11:20:12"
     },
     "feature:lifting own clothes": {
       "winner": "たくしあげ",
       "counts": {
-        "たくしあげ": 0
+        "たくしあげ": 29890
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:39:01"
     },
     "feature:black pantyhose": {
       "winner": "黒スト",
@@ -507,9 +507,9 @@
     "feature:green eyes": {
       "winner": "緑眼",
       "counts": {
-        "緑眼": 0
+        "緑眼": 690
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:54:48"
     },
     "feature:shirt": {
       "winner": "シャツ",
@@ -544,7 +544,7 @@
       "counts": {
         "ぼかし背景": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T13:58:22"
     },
     "feature:colored pubic hair": {
       "winner": "色付き陰毛",
@@ -626,9 +626,9 @@
     "feature:mage staff": {
       "winner": "魔法の杖",
       "counts": {
-        "魔法の杖": 0
+        "魔法の杖": 307
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:54:50"
     },
     "feature:wet": {
       "winner": "濡れ",
@@ -689,23 +689,23 @@
     "feature:shirt lift": {
       "winner": "たくし上げ",
       "counts": {
-        "たくし上げ": 0
+        "たくし上げ": 17481
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:38:52"
     },
     "feature:lamp": {
       "winner": "ランプ",
       "counts": {
-        "ランプ": 0
+        "ランプ": 1745
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:14:45"
     },
     "feature:plant": {
       "winner": "植物",
       "counts": {
-        "植物": 0
+        "植物": 26562
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:05:07"
     },
     "feature:robe": {
       "winner": "ローブ",
@@ -740,7 +740,7 @@
       "counts": {
         "横を見る": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T13:58:20"
     },
     "feature:lactation": {
       "winner": "母乳",
@@ -759,9 +759,9 @@
     "feature:huge breasts": {
       "winner": "爆乳",
       "counts": {
-        "爆乳": 0
+        "爆乳": 256650
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:14:26"
     },
     "feature:pants pull": {
       "winner": "ズボン下ろし",
@@ -787,9 +787,9 @@
     "feature:aqua eyes": {
       "winner": "アクアアイ",
       "counts": {
-        "アクアアイ": 0
+        "アクアアイ": 9
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:21:23"
     },
     "feature:open clothes": {
       "winner": "はだけ",
@@ -801,16 +801,16 @@
     "feature:depth of field": {
       "winner": "背景ぼかし",
       "counts": {
-        "背景ぼかし": 0
+        "背景ぼかし": 1
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:08:58"
     },
     "feature:parted lips": {
       "winner": "開いた唇",
       "counts": {
         "開いた唇": 0
       },
-      "updated_at": "2026-05-11T22:29:28"
+      "updated_at": "2026-05-13T22:15:44"
     },
     "feature:winter clothes": {
       "winner": "冬の装い",
@@ -857,9 +857,9 @@
     "feature:streaked hair": {
       "winner": "メッシュ",
       "counts": {
-        "メッシュ": 0
+        "メッシュ": 6360
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T22:54:49"
     },
     "feature:curly hair": {
       "winner": "巻き毛",
@@ -908,7 +908,7 @@
       "counts": {
         "短い眉毛": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T22:22:05"
     },
     "feature:bow": {
       "winner": "リボン",
@@ -934,9 +934,9 @@
     "feature:armpits": {
       "winner": "腋",
       "counts": {
-        "腋": 0
+        "腋": 142656
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:11:49"
     },
     "feature:v": {
       "winner": "ピース",
@@ -969,16 +969,16 @@
     "feature:palm tree": {
       "winner": "ヤシの木",
       "counts": {
-        "ヤシの木": 0
+        "ヤシの木": 494
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T22:36:04"
     },
     "feature:tree": {
       "winner": "木",
       "counts": {
-        "木": 0
+        "木": 12821
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:54:56"
     },
     "feature:petite": {
       "winner": "ロリ",
@@ -1032,30 +1032,30 @@
     "feature:bell": {
       "winner": "ベル",
       "counts": {
-        "ベル": 0
+        "ベル": 5517
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:21:35"
     },
     "feature:drill hair": {
       "winner": "縦ロール",
       "counts": {
-        "縦ロール": 0
+        "縦ロール": 4663
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T16:31:12"
     },
     "feature:x hair ornament": {
       "winner": "Xヘアアクセサリー",
       "counts": {
-        "Xヘアアクセサリー": 0
+        "Xヘアアクセサリー": 2
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:26:00"
     },
     "feature:sky": {
       "winner": "空",
       "counts": {
-        "空": 0
+        "空": 85944
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:24:04"
     },
     "feature:gradient hair": {
       "winner": "グラデ髪",
@@ -1095,9 +1095,9 @@
     "feature:blue sky": {
       "winner": "青い空",
       "counts": {
-        "青い空": 0
+        "青い空": 342
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:47:15"
     },
     "feature:aqua hair": {
       "winner": "アクアヘアー",
@@ -1116,9 +1116,9 @@
     "feature:cloud": {
       "winner": "雲",
       "counts": {
-        "雲": 0
+        "雲": 45634
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:24:02"
     },
     "feature:green hair": {
       "winner": "緑髪",
@@ -1139,7 +1139,7 @@
       "counts": {
         "動物の耳毛": 0
       },
-      "updated_at": "2026-05-11T18:41:04"
+      "updated_at": "2026-05-14T22:22:07"
     },
     "feature:bright pupils": {
       "winner": "明るい瞳孔",
@@ -1172,9 +1172,9 @@
     "feature:micro bikini": {
       "winner": "マイクロビキニ",
       "counts": {
-        "マイクロビキニ": 0
+        "マイクロビキニ": 47423
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T15:39:59"
     },
     "feature:water": {
       "winner": "水",
@@ -1235,16 +1235,16 @@
     "feature:cloudy sky": {
       "winner": "曇り空",
       "counts": {
-        "曇り空": 0
+        "曇り空": 428
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:07:13"
     },
     "feature:hairclip": {
       "winner": "髪留め",
       "counts": {
-        "髪留め": 0
+        "髪留め": 360
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T14:24:11"
     },
     "feature:fingernails": {
       "winner": "爪",
@@ -1270,16 +1270,16 @@
     "feature:arms up": {
       "winner": "脇見せのポーズ",
       "counts": {
-        "脇見せのポーズ": 0
+        "脇見せのポーズ": 181
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:53:17"
     },
     "feature:arm up": {
       "winner": "腕を上げる",
       "counts": {
-        "腕を上げる": 0
+        "腕を上げる": 16
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:47:13"
     },
     "feature:groin": {
       "winner": "鼠蹊部",
@@ -1326,9 +1326,9 @@
     "feature:foreshortening": {
       "winner": "遠近法",
       "counts": {
-        "遠近法": 0
+        "遠近法": 464
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:33:31"
     },
     "feature:twin drills": {
       "winner": "ツインドリル",
@@ -1384,7 +1384,7 @@
       "counts": {
         "羽毛の翼": 0
       },
-      "updated_at": "2026-05-11T00:47:34"
+      "updated_at": "2026-05-13T13:05:10"
     },
     "feature:frilled apron": {
       "winner": "フリルエプロン",
@@ -1461,7 +1461,7 @@
       "counts": {
         "白いエプロン": 0
       },
-      "updated_at": "2026-05-11T00:47:58"
+      "updated_at": "2026-05-12T18:56:52"
     },
     "feature:white shoes": {
       "winner": "白い靴",
@@ -1473,23 +1473,23 @@
     "feature:white socks": {
       "winner": "白ソックス",
       "counts": {
-        "白ソックス": 0
+        "白ソックス": 4004
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:33"
     },
     "feature:white wings": {
       "winner": "白い翼",
       "counts": {
-        "白い翼": 0
+        "白い翼": 132
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T13:05:09"
     },
     "feature:wings": {
       "winner": "翼",
       "counts": {
-        "翼": 0
+        "翼": 24161
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:23:59"
     },
     "feature:yellow halo": {
       "winner": "黄色い光輪",
@@ -1503,21 +1503,21 @@
       "counts": {
         "激しい息遣い": 0
       },
-      "updated_at": "2026-05-11T18:40:32"
+      "updated_at": "2026-05-13T11:20:10"
     },
     "franchise:blue archive": {
       "winner": "ブルーアーカイブ",
       "counts": {
-        "ブルーアーカイブ": 0
+        "ブルーアーカイブ": 737047
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T11:20:11"
     },
     "feature:angel wings": {
       "winner": "天使",
       "counts": {
-        "天使": 0
+        "天使": 111826
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:24:07"
     },
     "character:azusa (blue archive)": {
       "winner": "白洲アズサ",
@@ -1536,9 +1536,9 @@
     "feature:maid apron": {
       "winner": "メイドエプロン",
       "counts": {
-        "メイドエプロン": 0
+        "メイドエプロン": 19
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:56:48"
     },
     "feature:unconventional maid": {
       "winner": "非伝統的なメイド",
@@ -1564,9 +1564,9 @@
     "feature:white footwear": {
       "winner": "白い靴",
       "counts": {
-        "白い靴": 0
+        "白い靴": 7
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:25:58"
     },
     "feature:sitting": {
       "winner": "座り",
@@ -1606,9 +1606,9 @@
     "feature:low wings": {
       "winner": "腰羽",
       "counts": {
-        "腰羽": 0
+        "腰羽": 297
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T13:05:08"
     },
     "feature:jersey maid": {
       "winner": "ジャージメイド",
@@ -1662,30 +1662,30 @@
     "feature:breath": {
       "winner": "呼吸",
       "counts": {
-        "呼吸": 0
+        "呼吸": 172
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:11:35"
     },
     "feature:angel": {
       "winner": "天使",
       "counts": {
-        "天使": 0
+        "天使": 111826
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:23:49"
     },
     "feature:feathers": {
       "winner": "羽毛",
       "counts": {
-        "羽毛": 0
+        "羽毛": 758
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:24:06"
     },
     "feature:blue shorts": {
       "winner": "青いショートパンツ",
       "counts": {
-        "青いショートパンツ": 0
+        "青いショートパンツ": 1
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T18:50:13"
     },
     "feature:thigh gap": {
       "winner": "絶対空域",
@@ -1697,16 +1697,16 @@
     "feature:lens flare": {
       "winner": "レンズフレア",
       "counts": {
-        "レンズフレア": 0
+        "レンズフレア": 128
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T15:49:25"
     },
     "feature:grin": {
       "winner": "輝く白い歯",
       "counts": {
-        "輝く白い歯": 0
+        "輝く白い歯": 1032
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T13:58:15"
     },
     "feature:knees together feet apart": {
       "winner": "膝を揃えて足を開く",
@@ -1718,9 +1718,9 @@
     "feature:full body": {
       "winner": "全身",
       "counts": {
-        "全身": 0
+        "全身": 5302
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:29:56"
     },
     "feature:vision (genshin impact)": {
       "winner": "神の目",
@@ -1732,9 +1732,9 @@
     "feature:steam": {
       "winner": "湯けむり",
       "counts": {
-        "湯けむり": 0
+        "湯けむり": 178
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:04:58"
     },
     "feature:black jacket": {
       "winner": "黒のジャケット",
@@ -1797,7 +1797,7 @@
       "counts": {
         "白いネグリジェ": 0
       },
-      "updated_at": "2026-05-11T12:29:01"
+      "updated_at": "2026-05-11T23:14:40"
     },
     "feature:on back": {
       "winner": "仰向け",
@@ -1811,7 +1811,7 @@
       "counts": {
         "視聴者に向かって手を伸ばす": 0
       },
-      "updated_at": "2026-05-11T12:29:04"
+      "updated_at": "2026-05-11T23:14:42"
     },
     "feature:half-closed eyes": {
       "winner": "半目",
@@ -1923,7 +1923,7 @@
       "counts": {
         "张手": 0
       },
-      "updated_at": "2026-05-11T12:29:43"
+      "updated_at": "2026-05-11T23:14:49"
     },
     "feature:sparkle": {
       "winner": "キラキラ",
@@ -1933,11 +1933,12 @@
       "updated_at": "2026-05-11T12:29:45"
     },
     "feature:feet out of frame": {
-      "winner": "小全景镜头",
+      "winner": "feet_out_of_frame",
       "counts": {
-        "小全景镜头": 1
+        "小全景镜头": 1,
+        "feet_out_of_frame": 0
       },
-      "updated_at": "2026-05-11T12:29:47"
+      "updated_at": "2026-05-14T17:36:44"
     },
     "feature:camisole": {
       "winner": "キャミソール",
@@ -1991,16 +1992,16 @@
     "feature:outstretched arm": {
       "winner": "手を伸ばす",
       "counts": {
-        "手を伸ばす": 0
+        "手を伸ばす": 3090
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:14:54"
     },
     "feature:colored eyelashes": {
       "winner": "色付きまつげ",
       "counts": {
         "色付きまつげ": 0
       },
-      "updated_at": "2026-05-11T20:16:10"
+      "updated_at": "2026-05-12T18:45:29"
     },
     "feature:eyelashes": {
       "winner": "まつげ",
@@ -2012,37 +2013,37 @@
     "feature:light": {
       "winner": "光",
       "counts": {
-        "光": 0
+        "光": 24881
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:15:00"
     },
     "feature:book stack": {
       "winner": "本の山",
       "counts": {
-        "本の山": 0
+        "本の山": 78
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:15:02"
     },
     "feature:yellow-framed eyewear": {
       "winner": "黄色フレームの眼鏡",
       "counts": {
         "黄色フレームの眼鏡": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:51:21"
     },
     "feature:knees up": {
       "winner": "膝を上げる",
       "counts": {
         "膝を上げる": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:21:27"
     },
     "feature:sleeveless dress": {
       "winner": "ノースリーブワンピース",
       "counts": {
-        "ノースリーブワンピース": 0
+        "ノースリーブワンピース": 528
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:18:35"
     },
     "feature:fangs": {
       "winner": "八重歯",
@@ -2056,21 +2057,21 @@
       "counts": {
         "足切れ": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:33:35"
     },
     "feature:sundress": {
       "winner": "サマードレス",
       "counts": {
-        "サマードレス": 0
+        "サマードレス": 5953
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:33:38"
     },
     "feature:sunlight": {
       "winner": "日光",
       "counts": {
-        "日光": 0
+        "日光": 847
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:36"
     },
     "feature:fang": {
       "winner": "牙",
@@ -2131,9 +2132,9 @@
     "feature:sleeveless": {
       "winner": "ノースリーブ",
       "counts": {
-        "ノースリーブ": 0
+        "ノースリーブ": 21504
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:18:37"
     },
     "feature:head on pillow": {
       "winner": "枕に頭を乗せる",
@@ -2159,9 +2160,9 @@
     "feature:bespectacled": {
       "winner": "メガネプラス",
       "counts": {
-        "メガネプラス": 0
+        "メガネプラス": 193
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T15:49:34"
     },
     "feature:see-through dress": {
       "winner": "透けるドレス",
@@ -2196,14 +2197,14 @@
       "counts": {
         "滑肩连衣裙": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:45:22"
     },
     "feature:light rays": {
       "winner": "光線",
       "counts": {
-        "光線": 0
+        "光線": 400
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:33:30"
     },
     "feature:open hands": {
       "winner": "開いた手",
@@ -2229,19 +2230,19 @@
     "feature:bookshelf": {
       "winner": "本棚",
       "counts": {
-        "本棚": 0
+        "本棚": 1303
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T19:17:31"
     },
     "feature:skin fang": {
       "winner": "歯茎",
       "counts": {
-        "歯茎": 0
+        "歯茎": 403
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:39:05"
     },
     "feature:blurry foreground": {
-      "winner": "虚化前景",
+      "winner": "blurry_foreground",
       "counts": {
         "虚化前景": 0
       },
@@ -2252,7 +2253,7 @@
       "counts": {
         "短めの前髪": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:18:30"
     },
     "feature:male focus": {
       "winner": "男の子",
@@ -2287,14 +2288,14 @@
       "counts": {
         "むき出しの腕": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T15:39:46"
     },
     "feature:open book": {
       "winner": "開かれた本",
       "counts": {
         "開かれた本": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:51:12"
     },
     "feature:light smile": {
       "winner": "微笑み",
@@ -2350,7 +2351,7 @@
       "counts": {
         "開けたジャケット": 0
       },
-      "updated_at": "2026-05-11T18:33:53"
+      "updated_at": "2026-05-13T11:47:46"
     },
     "feature:hair intakes": {
       "winner": "インテーク",
@@ -2371,7 +2372,7 @@
       "counts": {
         "手で顔を覆う": 0
       },
-      "updated_at": "2026-05-11T18:34:23"
+      "updated_at": "2026-05-13T11:47:39"
     },
     "feature:reference inset": {
       "winner": "参照インセット",
@@ -2481,9 +2482,9 @@
     "feature:building": {
       "winner": "ビル",
       "counts": {
-        "ビル": 0
+        "ビル": 4293
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:07:15"
     },
     "feature:hair behind ear": {
       "winner": "耳の後ろで髪を結ぶ",
@@ -2754,9 +2755,9 @@
     "feature:heart": {
       "winner": "ハート",
       "counts": {
-        "ハート": 0
+        "ハート": 20145
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:47:18"
     },
     "feature:midriff": {
       "winner": "へそ出し",
@@ -2768,9 +2769,9 @@
     "feature:cleavage": {
       "winner": "胸の谷間",
       "counts": {
-        "胸の谷間": 0
+        "胸の谷間": 5060
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:05:04"
     },
     "feature:black sleeves": {
       "winner": "黒のスリーブ",
@@ -2803,9 +2804,9 @@
     "feature:colored inner hair": {
       "winner": "インナーカラー",
       "counts": {
-        "インナーカラー": 0
+        "インナーカラー": 7578
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:05:00"
     },
     "feature:tongue": {
       "winner": "舌責め",
@@ -2943,30 +2944,30 @@
     "feature:black bow": {
       "winner": "黒リボン",
       "counts": {
-        "黒リボン": 0
+        "黒リボン": 132
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:57:00"
     },
     "feature:air bubble": {
       "winner": "泡",
       "counts": {
-        "泡": 0
+        "泡": 3805
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:33:33"
     },
     "feature:partially submerged": {
       "winner": "腰まで水に浸かる",
       "counts": {
         "腰まで水に浸かる": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:05:09"
     },
     "feature:bubble": {
       "winner": "シャボン玉",
       "counts": {
-        "シャボン玉": 0
+        "シャボン玉": 5910
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:33:32"
     },
     "feature:short hair": {
       "winner": "ショートヘア",
@@ -3078,7 +3079,7 @@
       "counts": {
         "ボウ付きブラジャー": 0
       },
-      "updated_at": "2026-05-11T20:16:57"
+      "updated_at": "2026-05-13T22:16:02"
     },
     "feature:low ponytail": {
       "winner": "ローポニーテール",
@@ -3127,21 +3128,21 @@
       "counts": {
         "站立前屈": 0
       },
-      "updated_at": "2026-05-11T20:17:24"
+      "updated_at": "2026-05-13T11:20:03"
     },
     "feature:pink ribbon": {
       "winner": "ピンクのリボン",
       "counts": {
-        "ピンクのリボン": 0
+        "ピンクのリボン": 11
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T22:15:41"
     },
     "feature:cross": {
       "winner": "十字架",
       "counts": {
-        "十字架": 0
+        "十字架": 5534
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T22:22:04"
     },
     "feature:photo background": {
       "winner": "デジラマ",
@@ -3202,79 +3203,79 @@
     "feature:petals": {
       "winner": "花びら",
       "counts": {
-        "花びら": 0
+        "花びら": 3765
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:21:33"
     },
     "feature:white headwear": {
       "winner": "白い頭飾り",
       "counts": {
-        "白い頭飾り": 0
+        "白い頭飾り": 1
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:31"
     },
     "feature:beret": {
       "winner": "ベレー",
       "counts": {
-        "ベレー": 0
+        "ベレー": 507
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:32"
     },
     "feature:white skirt": {
       "winner": "白いスカート",
       "counts": {
-        "白いスカート": 0
+        "白いスカート": 33
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:35"
     },
     "feature:antenna hair": {
       "winner": "アホ毛",
       "counts": {
-        "アホ毛": 0
+        "アホ毛": 21245
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:38"
     },
     "feature:looking up": {
       "winner": "上を見る",
       "counts": {
-        "上を見る": 0
+        "上を見る": 4
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:23:51"
     },
     "feature:cherry blossoms": {
       "winner": "桜の花",
       "counts": {
-        "桜の花": 0
+        "桜の花": 1819
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:39"
     },
     "feature:red neckerchief": {
       "winner": "赤いネッカチーフ",
       "counts": {
         "赤いネッカチーフ": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:40"
     },
     "feature:white sailor collar": {
       "winner": "白いセーラーカラー",
       "counts": {
         "白いセーラーカラー": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:41"
     },
     "feature:unworn headwear": {
       "winner": "没戴的帽子",
       "counts": {
         "没戴的帽子": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:42"
     },
     "feature:unworn hat": {
       "winner": "没戴的帽子",
       "counts": {
         "没戴的帽子": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T12:20:43"
     },
     "feature:pendant": {
       "winner": "ペンダント",
@@ -3293,9 +3294,9 @@
     "feature:choker": {
       "winner": "チョーカー",
       "counts": {
-        "チョーカー": 0
+        "チョーカー": 9457
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T17:25:51"
     },
     "feature:white choker": {
       "winner": "白いチョーカー",
@@ -3321,23 +3322,23 @@
     "feature:red bow": {
       "winner": "赤いリボン",
       "counts": {
-        "赤いリボン": 0
+        "赤いリボン": 268
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:04:56"
     },
     "feature:black shoes": {
       "winner": "black_shoes",
       "counts": {
-        "black_shoes": 0
+        "black_shoes": 1
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T14:24:05"
     },
     "feature:black footwear": {
       "winner": "黒い靴",
       "counts": {
-        "黒い靴": 0
+        "黒い靴": 6
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T11:47:49"
     },
     "feature:bench": {
       "winner": "ベンチ",
@@ -3356,9 +3357,9 @@
     "feature:mole under eye": {
       "winner": "泣きぼくろ",
       "counts": {
-        "泣きぼくろ": 0
+        "泣きぼくろ": 6596
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:05:02"
     },
     "feature:white skin": {
       "winner": "白い肌",
@@ -3370,9 +3371,9 @@
     "feature:mole": {
       "winner": "ほくろ",
       "counts": {
-        "ほくろ": 0
+        "ほくろ": 4130
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:16:27"
     },
     "feature:on bench": {
       "winner": "ベンチ",
@@ -3412,23 +3413,23 @@
     "feature:falling petals": {
       "winner": "花びら",
       "counts": {
-        "花びら": 0
+        "花びら": 3757
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T22:16:07"
     },
     "feature:miniskirt": {
       "winner": "ミニスカ",
       "counts": {
-        "ミニスカ": 0
+        "ミニスカ": 14437
       },
-      "updated_at": ""
+      "updated_at": "2026-05-12T18:14:31"
     },
     "feature:hair spread out": {
       "winner": "広がった髪",
       "counts": {
         "広がった髪": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:11:41"
     },
     "feature:red bowtie": {
       "winner": "赤い蝶ネクタイ",
@@ -3440,16 +3441,16 @@
     "feature:white flower": {
       "winner": "白い花",
       "counts": {
-        "白い花": 0
+        "白い花": 519
       },
-      "updated_at": ""
+      "updated_at": "2026-05-11T23:18:17"
     },
     "feature:hairband": {
       "winner": "カチューシャ",
       "counts": {
-        "カチューシャ": 0
+        "カチューシャ": 9437
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T14:24:09"
     },
     "feature:hat bow": {
       "winner": "帽子リボン",
@@ -3510,16 +3511,16 @@
     "feature:short shorts": {
       "winner": "ショートパンツ",
       "counts": {
-        "ショートパンツ": 0
+        "ショートパンツ": 40377
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T11:47:41"
     },
     "feature:floating hair": {
       "winner": "浮いている髪",
       "counts": {
         "浮いている髪": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T10:33:36"
     },
     "feature:gym shorts": {
       "winner": "ジムショーツ",
@@ -3566,9 +3567,9 @@
     "feature:leg up": {
       "winner": "脚上げ",
       "counts": {
-        "脚上げ": 0
+        "脚上げ": 11
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T14:24:14"
     },
     "feature:unaligned breasts": {
       "winner": "不整列な胸",
@@ -3582,7 +3583,7 @@
       "counts": {
         "星形ヘアピン": 0
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T16:31:25"
     },
     "feature:kneehighs": {
       "winner": "ハイソックス",
@@ -3601,9 +3602,9 @@
     "feature:red nails": {
       "winner": "赤い爪",
       "counts": {
-        "赤い爪": 0
+        "赤い爪": 7
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T15:03:24"
     },
     "feature:t-shirt": {
       "winner": "Tシャツ",
@@ -3636,9 +3637,9 @@
     "feature:star-shaped pupils": {
       "winner": "目が星",
       "counts": {
-        "目が星": 0
+        "目が星": 383
       },
-      "updated_at": ""
+      "updated_at": "2026-05-13T16:31:14"
     },
     "feature:cross-laced footwear": {
       "winner": "クロス編み靴",
@@ -3650,9 +3651,9 @@
     "feature:side ponytail": {
       "winner": "サイドテール",
       "counts": {
-        "サイドテール": 0
+        "サイドテール": 11604
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T15:39:49"
     },
     "feature:dolphin shorts": {
       "winner": "ドルフィンパンツ",
@@ -3664,28 +3665,7070 @@
     "feature:two side up": {
       "winner": "ツーサイドアップ",
       "counts": {
-        "ツーサイドアップ": 0
+        "ツーサイドアップ": 10959
       },
-      "updated_at": ""
+      "updated_at": "2026-05-14T18:50:00"
     },
     "feature:nail polish": {
       "winner": "マニキュア",
       "counts": {
-        "マニキュア": 0
+        "マニキュア": 42394
+      },
+      "updated_at": "2026-05-13T15:03:25"
+    },
+    "feature:road": {
+      "winner": "道路",
+      "counts": {
+        "道路": 1473
+      },
+      "updated_at": "2026-05-13T10:07:09"
+    },
+    "feature:orange shorts": {
+      "winner": "オレンジのショートパンツ",
+      "counts": {
+        "オレンジのショートパンツ": 0
       },
       "updated_at": ""
     },
-    "feature:road": {
+    "feature:gun": {
+      "winner": "銃",
+      "counts": {
+        "銃": 60500
+      },
+      "updated_at": "2026-05-11T23:04:30"
+    },
+    "feature:weapon": {
+      "winner": "武器",
+      "counts": {
+        "武器": 33031
+      },
+      "updated_at": "2026-05-11T23:04:33"
+    },
+    "feature:holding weapon": {
+      "winner": "武器を持つ",
+      "counts": {
+        "武器を持つ": 2
+      },
+      "updated_at": "2026-05-11T23:04:35"
+    },
+    "feature:holding": {
+      "winner": "持つ",
+      "counts": {
+        "持つ": 23
+      },
+      "updated_at": "2026-05-11T23:04:38"
+    },
+    "feature:holding gun": {
+      "winner": "銃を持つ",
+      "counts": {
+        "銃を持つ": 5
+      },
+      "updated_at": "2026-05-11T23:04:40"
+    },
+    "feature:blue skirt": {
+      "winner": "青いスカート",
+      "counts": {
+        "青いスカート": 972
+      },
+      "updated_at": "2026-05-11T23:04:42"
+    },
+    "feature:rifle": {
+      "winner": "ライフル",
+      "counts": {
+        "ライフル": 3128
+      },
+      "updated_at": "2026-05-11T23:04:44"
+    },
+    "feature:suspenders": {
+      "winner": "サスペンダー",
+      "counts": {
+        "サスペンダー": 4209
+      },
+      "updated_at": "2026-05-11T23:04:47"
+    },
+    "feature:collared shirt": {
+      "winner": "襟付きシャツ",
+      "counts": {
+        "襟付きシャツ": 4
+      },
+      "updated_at": "2026-05-11T23:04:51"
+    },
+    "feature:suspender skirt": {
+      "winner": "吊りスカート",
+      "counts": {
+        "吊りスカート": 12650
+      },
+      "updated_at": "2026-05-11T23:04:54"
+    },
+    "feature:suit": {
+      "winner": "スーツ",
+      "counts": {
+        "スーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:child": {
+      "winner": "子供",
+      "counts": {
+        "子供": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pants": {
+      "winner": "ズボン",
+      "counts": {
+        "ズボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:shotgun": {
+      "winner": "ショットガン",
+      "counts": {
+        "ショットガン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:semi-rimless eyewear": {
+      "winner": "ナイロール",
+      "counts": {
+        "ナイロール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black skirt": {
+      "winner": "黒スカート",
+      "counts": {
+        "黒スカート": 44
+      },
+      "updated_at": "2026-05-13T17:16:36"
+    },
+    "feature:formal clothes": {
+      "winner": "フォーマル",
+      "counts": {
+        "フォーマル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:neck ribbon": {
+      "winner": "ネックリボン",
+      "counts": {
+        "ネックリボン": 25
+      },
+      "updated_at": "2026-05-13T10:07:12"
+    },
+    "feature:walking": {
+      "winner": "歩く",
+      "counts": {
+        "歩く": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black pants": {
+      "winner": "黒パンツ",
+      "counts": {
+        "黒パンツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:expressionless": {
+      "winner": "無表情",
+      "counts": {
+        "無表情": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black-framed eyewear": {
+      "winner": "黒縁眼鏡",
+      "counts": {
+        "黒縁眼鏡": 0
+      },
+      "updated_at": ""
+    },
+    "feature:braided ponytail": {
+      "winner": "編み込みポニーテール",
+      "counts": {
+        "編み込みポニーテール": 3
+      },
+      "updated_at": "2026-05-11T23:09:18"
+    },
+    "feature:shirt tucked in": {
+      "winner": "シャツイン",
+      "counts": {
+        "シャツイン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:car": {
+      "winner": "車",
+      "counts": {
+        "車": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cityscape": {
+      "winner": "cityscape",
+      "counts": {
+        "cityscape": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black suit": {
+      "winner": "黒のスーツ",
+      "counts": {
+        "黒のスーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:necktie": {
+      "winner": "ネクタイ",
+      "counts": {
+        "ネクタイ": 10212
+      },
+      "updated_at": "2026-05-14T17:36:40"
+    },
+    "feature:street": {
       "winner": "道路",
       "counts": {
         "道路": 0
       },
       "updated_at": ""
     },
-    "feature:orange shorts": {
-      "winner": "オレンジのショートパンツ",
+    "feature:under-rim eyewear": {
+      "winner": "アンダーリム",
       "counts": {
-        "オレンジのショートパンツ": 0
+        "アンダーリム": 0
+      },
+      "updated_at": ""
+    },
+    "feature:crowd": {
+      "winner": "群衆",
+      "counts": {
+        "群衆": 0
+      },
+      "updated_at": ""
+    },
+    "feature:skyscraper": {
+      "winner": "超高層ビル",
+      "counts": {
+        "超高層ビル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:high-waist skirt": {
+      "winner": "ハイウエストスカート",
+      "counts": {
+        "ハイウエストスカート": 1822
+      },
+      "updated_at": "2026-05-14T17:36:47"
+    },
+    "feature:sheathed": {
+      "winner": "帯刀",
+      "counts": {
+        "帯刀": 0
+      },
+      "updated_at": ""
+    },
+    "feature:3boys": {
+      "winner": "3人の男性",
+      "counts": {
+        "3人の男性": 0
+      },
+      "updated_at": ""
+    },
+    "feature:backlighting": {
+      "winner": "逆光",
+      "counts": {
+        "逆光": 11656
+      },
+      "updated_at": "2026-05-13T13:58:28"
+    },
+    "feature:watch": {
+      "winner": "腕時計",
+      "counts": {
+        "腕時計": 894
+      },
+      "updated_at": "2026-05-12T17:29:52"
+    },
+    "feature:people": {
+      "winner": "人々",
+      "counts": {
+        "人々": 211
+      },
+      "updated_at": "2026-05-11T23:09:20"
+    },
+    "feature:finger on trigger": {
+      "winner": "引き金に指をかける",
+      "counts": {
+        "引き金に指をかける": 0
+      },
+      "updated_at": ""
+    },
+    "feature:puffy long sleeves": {
+      "winner": "ふんわり長袖",
+      "counts": {
+        "ふんわり長袖": 0
+      },
+      "updated_at": "2026-05-12T18:51:19"
+    },
+    "feature:multiple others": {
+      "winner": "複数キャラクター",
+      "counts": {
+        "複数キャラクター": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wide sleeves": {
+      "winner": "広い袖",
+      "counts": {
+        "広い袖": 1
+      },
+      "updated_at": "2026-05-11T23:08:56"
+    },
+    "feature:cup": {
+      "winner": "コップ",
+      "counts": {
+        "コップ": 930
+      },
+      "updated_at": "2026-05-11T23:09:01"
+    },
+    "feature:teacup": {
+      "winner": "ティーカップ",
+      "counts": {
+        "ティーカップ": 1017
+      },
+      "updated_at": "2026-05-11T23:09:04"
+    },
+    "feature:tea": {
+      "winner": "お茶",
+      "counts": {
+        "お茶": 2952
+      },
+      "updated_at": "2026-05-11T23:09:06"
+    },
+    "feature:red kimono": {
+      "winner": "赤い着物",
+      "counts": {
+        "赤い着物": 135
+      },
+      "updated_at": "2026-05-11T23:09:08"
+    },
+    "feature:lantern": {
+      "winner": "ランタン",
+      "counts": {
+        "ランタン": 1835
+      },
+      "updated_at": "2026-05-11T23:09:11"
+    },
+    "feature:japanese clothes": {
+      "winner": "和服",
+      "counts": {
+        "和服": 69703
+      },
+      "updated_at": "2026-05-11T23:09:13"
+    },
+    "feature:paper lantern": {
+      "winner": "提灯",
+      "counts": {
+        "提灯": 1651
+      },
+      "updated_at": "2026-05-11T23:09:16"
+    },
+    "feature:single braid": {
+      "winner": "片編み込み",
+      "counts": {
+        "片編み込み": 3
+      },
+      "updated_at": "2026-05-11T23:09:23"
+    },
+    "feature:hand on own chin": {
+      "winner": "手で顎を支える",
+      "counts": {
+        "手で顎を支える": 0
+      },
+      "updated_at": "2026-05-12T18:45:27"
+    },
+    "feature:head rest": {
+      "winner": "頬杖",
+      "counts": {
+        "頬杖": 5146
+      },
+      "updated_at": "2026-05-12T18:51:14"
+    },
+    "feature:chinese clothes": {
+      "winner": "チャイナ服",
+      "counts": {
+        "チャイナ服": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hand on own cheek": {
+      "winner": "頬に手",
+      "counts": {
+        "頬に手": 585
+      },
+      "updated_at": "2026-05-13T11:47:48"
+    },
+    "feature:smug": {
+      "winner": "どや顔",
+      "counts": {
+        "どや顔": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding cup": {
+      "winner": "カップを持つ",
+      "counts": {
+        "カップを持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:animal print": {
+      "winner": "アニマルプリント",
+      "counts": {
+        "アニマルプリント": 0
+      },
+      "updated_at": ""
+    },
+    "feature:saucer": {
+      "winner": "ソーサー",
+      "counts": {
+        "ソーサー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:elbow rest": {
+      "winner": "肘置き",
+      "counts": {
+        "肘置き": 0
+      },
+      "updated_at": ""
+    },
+    "feature:faceless": {
+      "winner": "顔なし",
+      "counts": {
+        "顔なし": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red shirt": {
+      "winner": "赤シャツ",
+      "counts": {
+        "赤シャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:faceless male": {
+      "winner": "顔なし男性",
+      "counts": {
+        "顔なし男性": 0
+      },
+      "updated_at": ""
+    },
+    "feature:fang out": {
+      "winner": "牙を出す",
+      "counts": {
+        "牙を出す": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sign": {
+      "winner": "看板",
+      "counts": {
+        "看板": 0
+      },
+      "updated_at": ""
+    },
+    "feature:freckles": {
+      "winner": "そばかす",
+      "counts": {
+        "そばかす": 0
+      },
+      "updated_at": ""
+    },
+    "feature:east asian architecture": {
+      "winner": "東アジア建築",
+      "counts": {
+        "東アジア建築": 0
+      },
+      "updated_at": ""
+    },
+    "feature:chair": {
+      "winner": "椅子",
+      "counts": {
+        "椅子": 4840
+      },
+      "updated_at": "2026-05-12T18:45:16"
+    },
+    "feature:plate": {
+      "winner": "皿",
+      "counts": {
+        "皿": 0
+      },
+      "updated_at": ""
+    },
+    "feature:print kimono": {
+      "winner": "プリント着物",
+      "counts": {
+        "プリント着物": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red jacket": {
+      "winner": "赤いジャケット",
+      "counts": {
+        "赤いジャケット": 9
+      },
+      "updated_at": "2026-05-13T11:47:38"
+    },
+    "feature:architecture": {
+      "winner": "建築",
+      "counts": {
+        "建築": 0
+      },
+      "updated_at": ""
+    },
+    "feature:table": {
+      "winner": "テーブル",
+      "counts": {
+        "テーブル": 669
+      },
+      "updated_at": "2026-05-12T18:45:18"
+    },
+    "feature:drink": {
+      "winner": "飲み物",
+      "counts": {
+        "飲み物": 0
+      },
+      "updated_at": ""
+    },
+    "feature:floral print": {
+      "winner": "花柄",
+      "counts": {
+        "花柄": 0
+      },
+      "updated_at": ""
+    },
+    "feature:eyeshadow": {
+      "winner": "アイシャドウ",
+      "counts": {
+        "アイシャドウ": 2195
+      },
+      "updated_at": "2026-05-14T22:22:11"
+    },
+    "feature:smirk": {
+      "winner": "ニヤリ",
+      "counts": {
+        "ニヤリ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:coffee": {
+      "winner": "コーヒー",
+      "counts": {
+        "コーヒー": 11535
+      },
+      "updated_at": "2026-05-12T19:17:30"
+    },
+    "feature:alternate hairstyle": {
+      "winner": "髪型チェンジ",
+      "counts": {
+        "髪型チェンジ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:mug": {
+      "winner": "マグカップ",
+      "counts": {
+        "マグカップ": 1824
+      },
+      "updated_at": "2026-05-12T19:17:25"
+    },
+    "feature:hair over eyes": {
+      "winner": "両目隠れ",
+      "counts": {
+        "両目隠れ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:yuri": {
+      "winner": "レズ",
+      "counts": {
+        "レズ": 8681
+      },
+      "updated_at": "2026-05-11T23:11:33"
+    },
+    "feature:revealing clothes": {
+      "winner": "エロ衣装",
+      "counts": {
+        "エロ衣装": 18463
+      },
+      "updated_at": "2026-05-11T23:11:37"
+    },
+    "feature:arched back": {
+      "winner": "仰け反り",
+      "counts": {
+        "仰け反り": 503
+      },
+      "updated_at": "2026-05-11T23:11:39"
+    },
+    "feature::o": {
+      "winner": "Oの字口",
+      "counts": {
+        "Oの字口": 185
+      },
+      "updated_at": "2026-05-11T23:11:44"
+    },
+    "feature:from side": {
+      "winner": "たかみよこがお",
+      "counts": {
+        "たかみよこがお": 44
+      },
+      "updated_at": "2026-05-11T23:11:52"
+    },
+    "feature:scrunchie": {
+      "winner": "シュシュ",
+      "counts": {
+        "シュシュ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:curtains": {
+      "winner": "カーテン",
+      "counts": {
+        "カーテン": 1760
+      },
+      "updated_at": "2026-05-13T22:16:04"
+    },
+    "feature:bottomless": {
+      "winner": "穿いてない",
+      "counts": {
+        "穿いてない": 0
+      },
+      "updated_at": ""
+    },
+    "feature:nude": {
+      "winner": "裸",
+      "counts": {
+        "裸": 14254
+      },
+      "updated_at": "2026-05-12T18:04:50"
+    },
+    "feature:bandeau": {
+      "winner": "バンドゥ",
+      "counts": {
+        "バンドゥ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:naked ribbon": {
+      "winner": "裸リボン",
+      "counts": {
+        "裸リボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hair flowing over": {
+      "winner": "流れる髪",
+      "counts": {
+        "流れる髪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sash": {
+      "winner": "サッシュ",
+      "counts": {
+        "サッシュ": 14
+      },
+      "updated_at": "2026-05-14T17:36:45"
+    },
+    "feature:hair bun": {
+      "winner": "お団子",
+      "counts": {
+        "お団子": 4974
+      },
+      "updated_at": "2026-05-13T13:05:15"
+    },
+    "feature:hip bones": {
+      "winner": "ヒップボーン",
+      "counts": {
+        "ヒップボーン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red panties": {
+      "winner": "赤い下着",
+      "counts": {
+        "赤い下着": 0
+      },
+      "updated_at": ""
+    },
+    "feature:suspension": {
+      "winner": "吊り",
+      "counts": {
+        "吊り": 0
+      },
+      "updated_at": ""
+    },
+    "feature:side-tie bikini bottom": {
+      "winner": "紐ビキニ",
+      "counts": {
+        "紐ビキニ": 4153
+      },
+      "updated_at": "2026-05-14T15:39:48"
+    },
+    "feature:looking at another": {
+      "winner": "誰かを見る",
+      "counts": {
+        "誰かを見る": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pale skin": {
+      "winner": "色白",
+      "counts": {
+        "色白": 8890
+      },
+      "updated_at": "2026-05-11T23:18:10"
+    },
+    "feature:detached sleeves": {
+      "winner": "袖だけ霊夢",
+      "counts": {
+        "袖だけ霊夢": 85
+      },
+      "updated_at": "2026-05-11T23:18:12"
+    },
+    "feature:holding flower": {
+      "winner": "手に花",
+      "counts": {
+        "手に花": 827
+      },
+      "updated_at": "2026-05-11T23:18:15"
+    },
+    "feature:stained glass": {
+      "winner": "ステンドグラス",
+      "counts": {
+        "ステンドグラス": 5232
+      },
+      "updated_at": "2026-05-11T23:18:20"
+    },
+    "feature:black background": {
+      "winner": "黒背景",
+      "counts": {
+        "黒背景": 374
+      },
+      "updated_at": "2026-05-11T23:18:25"
+    },
+    "feature:window": {
+      "winner": "窓",
+      "counts": {
+        "窓": 4571
+      },
+      "updated_at": "2026-05-11T23:18:33"
+    },
+    "feature:lily (flower)": {
+      "winner": "百合の花",
+      "counts": {
+        "百合の花": 0
+      },
+      "updated_at": ""
+    },
+    "feature:head tilt": {
+      "winner": "首傾げ",
+      "counts": {
+        "首傾げ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:lips": {
+      "winner": "唇",
+      "counts": {
+        "唇": 0
+      },
+      "updated_at": ""
+    },
+    "feature:makeup": {
+      "winner": "メイク",
+      "counts": {
+        "メイク": 4022
+      },
+      "updated_at": "2026-05-14T22:22:12"
+    },
+    "feature:forehead mark": {
+      "winner": "額の印",
+      "counts": {
+        "額の印": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black dress": {
+      "winner": "黒ワンピ",
+      "counts": {
+        "黒ワンピ": 9283
+      },
+      "updated_at": "2026-05-12T18:56:42"
+    },
+    "feature:facial mark": {
+      "winner": "顔の模様",
+      "counts": {
+        "顔の模様": 1
+      },
+      "updated_at": "2026-05-13T16:31:22"
+    },
+    "feature:purple sleeves": {
+      "winner": "紫の袖",
+      "counts": {
+        "紫の袖": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hair tie": {
+      "winner": "髪留め",
+      "counts": {
+        "髪留め": 0
+      },
+      "updated_at": ""
+    },
+    "feature:floral background": {
+      "winner": "花の背景",
+      "counts": {
+        "花の背景": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wind": {
+      "winner": "風",
+      "counts": {
+        "風": 0
+      },
+      "updated_at": ""
+    },
+    "feature:looking down": {
+      "winner": "下を見る",
+      "counts": {
+        "下を見る": 3
+      },
+      "updated_at": "2026-05-12T19:17:34"
+    },
+    "feature:snowflakes": {
+      "winner": "雪の結晶",
+      "counts": {
+        "雪の結晶": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red lips": {
+      "winner": "赤い唇",
+      "counts": {
+        "赤い唇": 0
+      },
+      "updated_at": ""
+    },
+    "feature:multicolored eyes": {
+      "winner": "多色眼",
+      "counts": {
+        "多色眼": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white rose": {
+      "winner": "白いバラ",
+      "counts": {
+        "白いバラ": 29
+      },
+      "updated_at": "2026-05-14T18:53:14"
+    },
+    "feature:one side up": {
+      "winner": "ワンサイドアップ",
+      "counts": {
+        "ワンサイドアップ": 815
+      },
+      "updated_at": "2026-05-12T17:23:47"
+    },
+    "feature:torn clothes": {
+      "winner": "服ビリ",
+      "counts": {
+        "服ビリ": 8278
+      },
+      "updated_at": "2026-05-12T17:23:55"
+    },
+    "feature:from below": {
+      "winner": "ローアングル",
+      "counts": {
+        "ローアングル": 24686
+      },
+      "updated_at": "2026-05-12T17:23:57"
+    },
+    "feature:arrow (projectile)": {
+      "winner": "矢",
+      "counts": {
+        "矢": 481
+      },
+      "updated_at": "2026-05-12T17:24:00"
+    },
+    "feature:bow (weapon)": {
+      "winner": "弓",
+      "counts": {
+        "弓": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white feathers": {
+      "winner": "白い羽",
+      "counts": {
+        "白い羽": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bird": {
+      "winner": "鳥",
+      "counts": {
+        "鳥": 60760
+      },
+      "updated_at": "2026-05-13T22:36:20"
+    },
+    "feature:long dress": {
+      "winner": "ロングドレス",
+      "counts": {
+        "ロングドレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:looking afar": {
+      "winner": "遠くを見る",
+      "counts": {
+        "遠くを見る": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding arrow": {
+      "winner": "矢を持つ",
+      "counts": {
+        "矢を持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:closed eyes": {
+      "winner": "瞑目",
+      "counts": {
+        "瞑目": 1677
+      },
+      "updated_at": "2026-05-13T13:58:13"
+    },
+    "feature:arms at sides": {
+      "winner": "両腕を体の横に",
+      "counts": {
+        "両腕を体の横に": 0
+      },
+      "updated_at": ""
+    },
+    "feature:looking ahead": {
+      "winner": "前方を見る",
+      "counts": {
+        "前方を見る": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue ribbon": {
+      "winner": "青いリボン",
+      "counts": {
+        "青いリボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:long skirt": {
+      "winner": "ロングスカート",
+      "counts": {
+        "ロングスカート": 0
+      },
+      "updated_at": ""
+    },
+    "feature:falling feathers": {
+      "winner": "落ちる羽",
+      "counts": {
+        "落ちる羽": 0
+      },
+      "updated_at": ""
+    },
+    "feature:purple skirt": {
+      "winner": "紫のスカート",
+      "counts": {
+        "紫のスカート": 0
+      },
+      "updated_at": "2026-05-12T17:25:40"
+    },
+    "feature:fake animal ears": {
+      "winner": "付け耳",
+      "counts": {
+        "付け耳": 294
+      },
+      "updated_at": "2026-05-12T17:25:42"
+    },
+    "feature:plaid skirt": {
+      "winner": "チェックスカート",
+      "counts": {
+        "チェックスカート": 1226
+      },
+      "updated_at": "2026-05-12T17:25:43"
+    },
+    "feature:thigh strap": {
+      "winner": "サイバンド",
+      "counts": {
+        "サイバンド": 5
+      },
+      "updated_at": "2026-05-12T17:25:45"
+    },
+    "feature:headphones": {
+      "winner": "ヘッドフォン",
+      "counts": {
+        "ヘッドフォン": 5906
+      },
+      "updated_at": "2026-05-12T17:25:47"
+    },
+    "feature:black shirt": {
+      "winner": "黒シャツ",
+      "counts": {
+        "黒シャツ": 235
+      },
+      "updated_at": "2026-05-12T17:25:49"
+    },
+    "feature:plaid": {
+      "winner": "タータンチェック",
+      "counts": {
+        "タータンチェック": 181
+      },
+      "updated_at": "2026-05-12T17:25:53"
+    },
+    "feature:animal ear headphones": {
+      "winner": "動物耳ヘッドホン",
+      "counts": {
+        "動物耳ヘッドホン": 0
+      },
+      "updated_at": "2026-05-12T17:25:54"
+    },
+    "feature:shoulder cutout": {
+      "winner": "カットアウェイショルダー",
+      "counts": {
+        "カットアウェイショルダー": 1612
+      },
+      "updated_at": "2026-05-12T17:25:57"
+    },
+    "feature:cat ear headphones": {
+      "winner": "猫耳ヘッドホン",
+      "counts": {
+        "猫耳ヘッドホン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black choker": {
+      "winner": "黒のチョーカー",
+      "counts": {
+        "黒のチョーカー": 0
+      },
+      "updated_at": "2026-05-12T18:21:25"
+    },
+    "feature:clothing cutout": {
+      "winner": "カットアウト",
+      "counts": {
+        "カットアウト": 28
+      },
+      "updated_at": "2026-05-13T17:16:35"
+    },
+    "feature:stuffed cat": {
+      "winner": "ぬいぐるみ猫",
+      "counts": {
+        "ぬいぐるみ猫": 0
+      },
+      "updated_at": ""
+    },
+    "feature:gloves": {
+      "winner": "手袋",
+      "counts": {
+        "手袋": 40802
+      },
+      "updated_at": "2026-05-14T17:36:32"
+    },
+    "feature:teddy bear": {
+      "winner": "テディベア",
+      "counts": {
+        "テディベア": 2766
+      },
+      "updated_at": "2026-05-13T17:16:32"
+    },
+    "feature:fingerless gloves": {
+      "winner": "フィンガーレスグローブ",
+      "counts": {
+        "フィンガーレスグローブ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white gloves": {
+      "winner": "白手袋",
+      "counts": {
+        "白手袋": 1383
+      },
+      "updated_at": "2026-05-12T18:19:09"
+    },
+    "feature:holding stuffed toy": {
+      "winner": "ぬいぐるみを持つ",
+      "counts": {
+        "ぬいぐるみを持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:plaid clothes": {
+      "winner": "チェック柄",
+      "counts": {
+        "チェック柄": 1328
+      },
+      "updated_at": "2026-05-13T17:16:39"
+    },
+    "feature:headset": {
+      "winner": "ヘッドセット",
+      "counts": {
+        "ヘッドセット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black nails": {
+      "winner": "黒のネイル",
+      "counts": {
+        "黒のネイル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:purple flower": {
+      "winner": "紫の花",
+      "counts": {
+        "紫の花": 21
+      },
+      "updated_at": "2026-05-13T10:07:16"
+    },
+    "feature:black collar": {
+      "winner": "黒い襟",
+      "counts": {
+        "黒い襟": 0
+      },
+      "updated_at": "2026-05-14T17:36:42"
+    },
+    "feature:clothes writing": {
+      "winner": "文字Tシャツ",
+      "counts": {
+        "文字Tシャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:collar": {
+      "winner": "首輪",
+      "counts": {
+        "首輪": 15986
+      },
+      "updated_at": "2026-05-12T18:38:49"
+    },
+    "feature:poster (object)": {
+      "winner": "ポスター",
+      "counts": {
+        "ポスター": 0
+      },
+      "updated_at": ""
+    },
+    "feature:harness": {
+      "winner": "ボディハーネス",
+      "counts": {
+        "ボディハーネス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:purple background": {
+      "winner": "紫の背景",
+      "counts": {
+        "紫の背景": 0
+      },
+      "updated_at": ""
+    },
+    "feature:print shirt": {
+      "winner": "プリントシャツ",
+      "counts": {
+        "プリントシャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:thighhighs": {
+      "winner": "ニーソックス",
+      "counts": {
+        "ニーソックス": 28599
+      },
+      "updated_at": "2026-05-12T18:53:31"
+    },
+    "feature:pantyshot": {
+      "winner": "パンチラ",
+      "counts": {
+        "パンチラ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:eyebrows visible through hair": {
+      "winner": "eyebrows_visible_through_hair",
+      "counts": {
+        "eyebrows_visible_through_hair": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bandaid": {
+      "winner": "絆創膏",
+      "counts": {
+        "絆創膏": 6131
+      },
+      "updated_at": "2026-05-12T18:38:59"
+    },
+    "feature:bandaged arm": {
+      "winner": "包帯腕",
+      "counts": {
+        "包帯腕": 0
+      },
+      "updated_at": ""
+    },
+    "feature:gauntlets": {
+      "winner": "ガントレット",
+      "counts": {
+        "ガントレット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:reflection": {
+      "winner": "映り込み",
+      "counts": {
+        "映り込み": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hairpin": {
+      "winner": "ヘアピン",
+      "counts": {
+        "ヘアピン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:legs together": {
+      "winner": "足を閉じる",
+      "counts": {
+        "足を閉じる": 0
+      },
+      "updated_at": ""
+    },
+    "feature:heart hair ornament": {
+      "winner": "ハートの髪飾り",
+      "counts": {
+        "ハートの髪飾り": 1
+      },
+      "updated_at": "2026-05-13T16:31:27"
+    },
+    "feature:bandages": {
+      "winner": "包帯",
+      "counts": {
+        "包帯": 0
+      },
+      "updated_at": ""
+    },
+    "feature:arm warmers": {
+      "winner": "アームウォーマー",
+      "counts": {
+        "アームウォーマー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:purple nails": {
+      "winner": "紫の爪",
+      "counts": {
+        "紫の爪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bandaged hand": {
+      "winner": "包帯の手",
+      "counts": {
+        "包帯の手": 0
+      },
+      "updated_at": ""
+    },
+    "feature:heart o-ring": {
+      "winner": "ハート型リング",
+      "counts": {
+        "ハート型リング": 0
+      },
+      "updated_at": ""
+    },
+    "feature:dot nose": {
+      "winner": "点鼻",
+      "counts": {
+        "点鼻": 0
+      },
+      "updated_at": ""
+    },
+    "feature:stuffed rabbit": {
+      "winner": "兎のぬいぐるみ",
+      "counts": {
+        "兎のぬいぐるみ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:doll": {
+      "winner": "ドール",
+      "counts": {
+        "ドール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hugging object": {
+      "winner": "抱きしめる物",
+      "counts": {
+        "抱きしめる物": 0
+      },
+      "updated_at": ""
+    },
+    "feature:chest harness": {
+      "winner": "ハーネス",
+      "counts": {
+        "ハーネス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hugging own legs": {
+      "winner": "体育座り",
+      "counts": {
+        "体育座り": 0
+      },
+      "updated_at": ""
+    },
+    "feature:ring": {
+      "winner": "リング",
+      "counts": {
+        "リング": 0
+      },
+      "updated_at": ""
+    },
+    "feature:photo (object)": {
+      "winner": "写真の絵",
+      "counts": {
+        "写真の絵": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bandaid on cheek": {
+      "winner": "頬の絆創膏",
+      "counts": {
+        "頬の絆創膏": 0
+      },
+      "updated_at": ""
+    },
+    "feature:spikes": {
+      "winner": "スパイク",
+      "counts": {
+        "スパイク": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hug": {
+      "winner": "ハグ",
+      "counts": {
+        "ハグ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue bow": {
+      "winner": "青いリボン",
+      "counts": {
+        "青いリボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:animal hat": {
+      "winner": "動物キャップ",
+      "counts": {
+        "動物キャップ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:furry with non-furry": {
+      "winner": "獣人",
+      "counts": {
+        "獣人": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue flower": {
+      "winner": "青い花",
+      "counts": {
+        "青い花": 779
+      },
+      "updated_at": "2026-05-12T18:54:45"
+    },
+    "feature:cover": {
+      "winner": "封面",
+      "counts": {
+        "封面": 0
+      },
+      "updated_at": ""
+    },
+    "feature:floating": {
+      "winner": "浮遊",
+      "counts": {
+        "浮遊": 1068
+      },
+      "updated_at": "2026-05-12T17:29:44"
+    },
+    "feature:butterfly": {
+      "winner": "蝶",
+      "counts": {
+        "蝶": 23266
+      },
+      "updated_at": "2026-05-12T17:29:45"
+    },
+    "feature:bug": {
+      "winner": "昆虫",
+      "counts": {
+        "昆虫": 7459
+      },
+      "updated_at": "2026-05-12T17:29:47"
+    },
+    "feature:one eye closed": {
+      "winner": "ウィンク",
+      "counts": {
+        "ウィンク": 22802
+      },
+      "updated_at": "2026-05-12T17:29:49"
+    },
+    "feature:clock": {
+      "winner": "時計",
+      "counts": {
+        "時計": 5428
+      },
+      "updated_at": "2026-05-12T17:29:51"
+    },
+    "feature:china dress": {
+      "winner": "チャイナドレス",
+      "counts": {
+        "チャイナドレス": 50610
+      },
+      "updated_at": "2026-05-12T17:29:58"
+    },
+    "feature:pocket watch": {
+      "winner": "懐中時計",
+      "counts": {
+        "懐中時計": 888
+      },
+      "updated_at": "2026-05-12T17:30:00"
+    },
+    "feature:no panties": {
+      "winner": "はいてない",
+      "counts": {
+        "はいてない": 40700
+      },
+      "updated_at": "2026-05-12T17:30:02"
+    },
+    "feature:horns": {
+      "winner": "角",
+      "counts": {
+        "角": 26481
+      },
+      "updated_at": "2026-05-12T18:14:24"
+    },
+    "feature:blue butterfly": {
+      "winner": "青い蝶",
+      "counts": {
+        "青い蝶": 0
+      },
+      "updated_at": ""
+    },
+    "feature:side slit": {
+      "winner": "スリット",
+      "counts": {
+        "スリット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:constellation": {
+      "winner": "星座",
+      "counts": {
+        "星座": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hair flower": {
+      "winner": "頭に花",
+      "counts": {
+        "頭に花": 136
+      },
+      "updated_at": "2026-05-12T18:14:37"
+    },
+    "feature:yellow butterfly": {
+      "winner": "黄色い蝶",
+      "counts": {
+        "黄色い蝶": 0
+      },
+      "updated_at": ""
+    },
+    "feature:impossible clothes": {
+      "winner": "乳袋",
+      "counts": {
+        "乳袋": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hair flaps": {
+      "winner": "侧翘",
+      "counts": {
+        "侧翘": 0
+      },
+      "updated_at": ""
+    },
+    "feature:brown hair": {
+      "winner": "茶髪",
+      "counts": {
+        "茶髪": 52886
+      },
+      "updated_at": "2026-05-13T16:31:24"
+    },
+    "feature:train": {
+      "winner": "電車",
+      "counts": {
+        "電車": 0
+      },
+      "updated_at": ""
+    },
+    "feature:glowing butterfly": {
+      "winner": "光る蝶",
+      "counts": {
+        "光る蝶": 0
+      },
+      "updated_at": ""
+    },
+    "feature:taut clothes": {
+      "winner": "張り詰めた衣服",
+      "counts": {
+        "張り詰めた衣服": 0
+      },
+      "updated_at": "2026-05-13T13:05:14"
+    },
+    "feature:butterfly hair ornament": {
+      "winner": "蝶髪飾り",
+      "counts": {
+        "蝶髪飾り": 0
+      },
+      "updated_at": ""
+    },
+    "feature:space": {
+      "winner": "宇宙",
+      "counts": {
+        "宇宙": 0
+      },
+      "updated_at": ""
+    },
+    "feature:taut dress": {
+      "winner": "ぴっちりドレス",
+      "counts": {
+        "ぴっちりドレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:toenails": {
+      "winner": "爪",
+      "counts": {
+        "爪": 1451
+      },
+      "updated_at": "2026-05-12T18:55:04"
+    },
+    "feature:extra ears": {
+      "winner": "四つ耳",
+      "counts": {
+        "四つ耳": 218
+      },
+      "updated_at": "2026-05-14T22:22:09"
+    },
+    "feature:red gemstone": {
+      "winner": "ルビー",
+      "counts": {
+        "ルビー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue gemstone": {
+      "winner": "サファイア",
+      "counts": {
+        "サファイア": 0
+      },
+      "updated_at": ""
+    },
+    "feature:compass": {
+      "winner": "方位磁針",
+      "counts": {
+        "方位磁針": 0
+      },
+      "updated_at": ""
+    },
+    "feature:turtleneck dress": {
+      "winner": "タートルネックドレス",
+      "counts": {
+        "タートルネックドレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:reclining": {
+      "winner": "横になる",
+      "counts": {
+        "横になる": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pelvic curtain": {
+      "winner": "前垂れ",
+      "counts": {
+        "前垂れ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:animal": {
+      "winner": "アニマル",
+      "counts": {
+        "アニマル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:gold trim": {
+      "winner": "金縁",
+      "counts": {
+        "金縁": 0
+      },
+      "updated_at": ""
+    },
+    "feature:paint palette": {
+      "winner": "パレット",
+      "counts": {
+        "パレット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:gears": {
+      "winner": "齿轮",
+      "counts": {
+        "齿轮": 81
+      },
+      "updated_at": "2026-05-12T18:51:08"
+    },
+    "feature:invisible chair": {
+      "winner": "空气椅子",
+      "counts": {
+        "空气椅子": 0
+      },
+      "updated_at": ""
+    },
+    "feature:crying": {
+      "winner": "泣く",
+      "counts": {
+        "泣く": 0
+      },
+      "updated_at": ""
+    },
+    "feature:key": {
+      "winner": "キー",
+      "counts": {
+        "キー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:phonograph": {
+      "winner": "蓄音機",
+      "counts": {
+        "蓄音機": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white bow": {
+      "winner": "白いリボン",
+      "counts": {
+        "白いリボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:completely nude": {
+      "winner": "生まれたままの姿",
+      "counts": {
+        "生まれたままの姿": 44
+      },
+      "updated_at": "2026-05-12T18:04:52"
+    },
+    "feature:leaf": {
+      "winner": "葉っぱ",
+      "counts": {
+        "葉っぱ": 2697
+      },
+      "updated_at": "2026-05-12T18:04:56"
+    },
+    "feature:red flower": {
+      "winner": "赤い花",
+      "counts": {
+        "赤い花": 191
+      },
+      "updated_at": "2026-05-12T18:05:05"
+    },
+    "feature:mini person": {
+      "winner": "ミニサイズの人",
+      "counts": {
+        "ミニサイズの人": 0
+      },
+      "updated_at": ""
+    },
+    "feature:minigirl": {
+      "winner": "小人",
+      "counts": {
+        "小人": 0
+      },
+      "updated_at": ""
+    },
+    "feature:convenient censoring": {
+      "winner": "見えない構図",
+      "counts": {
+        "見えない構図": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wet hair": {
+      "winner": "濡れ髪",
+      "counts": {
+        "濡れ髪": 2803
+      },
+      "updated_at": "2026-05-13T15:49:35"
+    },
+    "feature:towel": {
+      "winner": "バスタオル",
+      "counts": {
+        "バスタオル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:leaning to the side": {
+      "winner": "身体倾斜",
+      "counts": {
+        "身体倾斜": 0
+      },
+      "updated_at": ""
+    },
+    "feature:character name": {
+      "winner": "キャラクター名",
+      "counts": {
+        "キャラクター名": 0
+      },
+      "updated_at": ""
+    },
+    "feature:dark background": {
+      "winner": "暗い背景",
+      "counts": {
+        "暗い背景": 0
+      },
+      "updated_at": ""
+    },
+    "feature:dragon girl": {
+      "winner": "ドラゴン娘",
+      "counts": {
+        "ドラゴン娘": 5550
+      },
+      "updated_at": "2026-05-12T18:14:22"
+    },
+    "feature:gold bikini": {
+      "winner": "金色ビキニ",
+      "counts": {
+        "金色ビキニ": 7072
+      },
+      "updated_at": "2026-05-12T18:14:27"
+    },
+    "feature:underboob": {
+      "winner": "下乳",
+      "counts": {
+        "下乳": 32686
+      },
+      "updated_at": "2026-05-12T18:14:29"
+    },
+    "feature:microskirt": {
+      "winner": "マイクロミニスカート",
+      "counts": {
+        "マイクロミニスカート": 2573
+      },
+      "updated_at": "2026-05-12T18:14:33"
+    },
+    "feature:heart ahoge": {
+      "winner": "アホ毛がハート",
+      "counts": {
+        "アホ毛がハート": 405
+      },
+      "updated_at": "2026-05-12T18:14:35"
+    },
+    "feature:visor cap": {
+      "winner": "サンバイザー",
+      "counts": {
+        "サンバイザー": 1691
+      },
+      "updated_at": "2026-05-12T18:14:39"
+    },
+    "feature:beer": {
+      "winner": "ビール",
+      "counts": {
+        "ビール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:beer mug": {
+      "winner": "ジョッキ",
+      "counts": {
+        "ジョッキ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:alcohol": {
+      "winner": "お酒",
+      "counts": {
+        "お酒": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink hat": {
+      "winner": "ピンクの帽子",
+      "counts": {
+        "ピンクの帽子": 0
+      },
+      "updated_at": ""
+    },
+    "feature:yellow flower": {
+      "winner": "黄色い花",
+      "counts": {
+        "黄色い花": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sideboob": {
+      "winner": "よこちち",
+      "counts": {
+        "よこちち": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cheerleader": {
+      "winner": "チアリーダー",
+      "counts": {
+        "チアリーダー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:thick thighs": {
+      "winner": "ぶっともも",
+      "counts": {
+        "ぶっともも": 6756
+      },
+      "updated_at": "2026-05-14T17:36:35"
+    },
+    "feature:hair on horn": {
+      "winner": "角に髪",
+      "counts": {
+        "角に髪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red horns": {
+      "winner": "赤い角",
+      "counts": {
+        "赤い角": 0
+      },
+      "updated_at": ""
+    },
+    "feature:drawing sword": {
+      "winner": "抜刀",
+      "counts": {
+        "抜刀": 905
+      },
+      "updated_at": "2026-05-12T18:16:08"
+    },
+    "feature:fox mask": {
+      "winner": "狐面",
+      "counts": {
+        "狐面": 5965
+      },
+      "updated_at": "2026-05-12T18:16:10"
+    },
+    "feature:hakama": {
+      "winner": "袴",
+      "counts": {
+        "袴": 8497
+      },
+      "updated_at": "2026-05-12T18:16:12"
+    },
+    "feature:hakama skirt": {
+      "winner": "行灯袴",
+      "counts": {
+        "行灯袴": 64
+      },
+      "updated_at": "2026-05-12T18:16:13"
+    },
+    "feature:holding sword": {
+      "winner": "剣を持つ",
+      "counts": {
+        "剣を持つ": 3
+      },
+      "updated_at": "2026-05-12T18:16:15"
+    },
+    "feature:katana": {
+      "winner": "刀",
+      "counts": {
+        "刀": 30722
+      },
+      "updated_at": "2026-05-12T18:16:17"
+    },
+    "feature:mask": {
+      "winner": "マスク",
+      "counts": {
+        "マスク": 20776
+      },
+      "updated_at": "2026-05-12T18:16:25"
+    },
+    "feature:red hakama": {
+      "winner": "緋袴",
+      "counts": {
+        "緋袴": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sword": {
+      "winner": "刀",
+      "counts": {
+        "刀": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tattoo": {
+      "winner": "タトゥー",
+      "counts": {
+        "タトゥー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white kimono": {
+      "winner": "白きもの",
+      "counts": {
+        "白きもの": 0
+      },
+      "updated_at": ""
+    },
+    "feature:rabbit girl": {
+      "winner": "ウサギ娘",
+      "counts": {
+        "ウサギ娘": 583
+      },
+      "updated_at": "2026-05-12T18:21:16"
+    },
+    "feature:mask on head": {
+      "winner": "頭にかぶったマスク",
+      "counts": {
+        "頭にかぶったマスク": 0
+      },
+      "updated_at": ""
+    },
+    "feature:chest tattoo": {
+      "winner": "胸のタトゥー",
+      "counts": {
+        "胸のタトゥー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sheath": {
+      "winner": "鞘",
+      "counts": {
+        "鞘": 0
+      },
+      "updated_at": ""
+    },
+    "feature:neck bell": {
+      "winner": "首輪のベル",
+      "counts": {
+        "首輪のベル": 2
+      },
+      "updated_at": "2026-05-12T18:53:19"
+    },
+    "feature:unsheathing": {
+      "winner": "鞘から抜く",
+      "counts": {
+        "鞘から抜く": 0
+      },
+      "updated_at": ""
+    },
+    "feature:miko": {
+      "winner": "巫女",
+      "counts": {
+        "巫女": 0
+      },
+      "updated_at": ""
+    },
+    "feature:flower tattoo": {
+      "winner": "花のタトゥー",
+      "counts": {
+        "花のタトゥー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:purple bow": {
+      "winner": "紫色のボウ",
+      "counts": {
+        "紫色のボウ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding sheath": {
+      "winner": "鞘を持つ",
+      "counts": {
+        "鞘を持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:arm tattoo": {
+      "winner": "腕のタトゥー",
+      "counts": {
+        "腕のタトゥー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:long eyelashes": {
+      "winner": "長いまつげ",
+      "counts": {
+        "長いまつげ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:breast tattoo": {
+      "winner": "胸のタトゥー",
+      "counts": {
+        "胸のタトゥー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hakama short skirt": {
+      "winner": "袴スカート",
+      "counts": {
+        "袴スカート": 0
+      },
+      "updated_at": ""
+    },
+    "feature:shoulder tattoo": {
+      "winner": "肩のタトゥー",
+      "counts": {
+        "肩のタトゥー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tassel": {
+      "winner": "タッセル",
+      "counts": {
+        "タッセル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red skirt": {
+      "winner": "赤いスカート",
+      "counts": {
+        "赤いスカート": 0
+      },
+      "updated_at": ""
+    },
+    "feature:scabbard": {
+      "winner": "鞘付き武器",
+      "counts": {
+        "鞘付き武器": 0
+      },
+      "updated_at": ""
+    },
+    "feature:oni mask": {
+      "winner": "鬼の仮面",
+      "counts": {
+        "鬼の仮面": 0
+      },
+      "updated_at": ""
+    },
+    "feature:off-shoulder sweater": {
+      "winner": "オフショルダー",
+      "counts": {
+        "オフショルダー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:smoking": {
+      "winner": "くわえタバコ",
+      "counts": {
+        "くわえタバコ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:moon": {
+      "winner": "月",
+      "counts": {
+        "月": 43237
+      },
+      "updated_at": "2026-05-12T18:45:14"
+    },
+    "feature:oil-paper umbrella": {
+      "winner": "番傘",
+      "counts": {
+        "番傘": 0
+      },
+      "updated_at": ""
+    },
+    "feature:butterfly wings": {
+      "winner": "蝶の翼",
+      "counts": {
+        "蝶の翼": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding mask": {
+      "winner": "マスクを持つ",
+      "counts": {
+        "マスクを持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:asymmetrical hair": {
+      "winner": "非対称な髪型",
+      "counts": {
+        "非対称な髪型": 0
+      },
+      "updated_at": ""
+    },
+    "feature:eyeliner": {
+      "winner": "アイライナー",
+      "counts": {
+        "アイライナー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:crossed legs": {
+      "winner": "足組み",
+      "counts": {
+        "足組み": 11554
+      },
+      "updated_at": "2026-05-12T18:18:53"
+    },
+    "feature:stool": {
+      "winner": "ベンチ",
+      "counts": {
+        "ベンチ": 1997
+      },
+      "updated_at": "2026-05-12T18:18:54"
+    },
+    "feature:bar stool": {
+      "winner": "バーカウンター",
+      "counts": {
+        "バーカウンター": 145
+      },
+      "updated_at": "2026-05-12T18:18:55"
+    },
+    "feature:maid headdress": {
+      "winner": "ホワイトブリム",
+      "counts": {
+        "ホワイトブリム": 535
+      },
+      "updated_at": "2026-05-12T18:19:01"
+    },
+    "feature:frilled dress": {
+      "winner": "フリルドレス",
+      "counts": {
+        "フリルドレス": 591
+      },
+      "updated_at": "2026-05-12T18:19:03"
+    },
+    "feature:pink dress": {
+      "winner": "ピンクのドレス",
+      "counts": {
+        "ピンクのドレス": 70
+      },
+      "updated_at": "2026-05-12T18:19:05"
+    },
+    "feature:puffy short sleeves": {
+      "winner": "ふんわりした短い袖",
+      "counts": {
+        "ふんわりした短い袖": 0
+      },
+      "updated_at": "2026-05-12T18:56:58"
+    },
+    "feature:white pantyhose": {
+      "winner": "白タイツ",
+      "counts": {
+        "白タイツ": 38548
+      },
+      "updated_at": "2026-05-12T18:19:11"
+    },
+    "feature:mary janes": {
+      "winner": "ストラップシューズ",
+      "counts": {
+        "ストラップシューズ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:green footwear": {
+      "winner": "緑の靴",
+      "counts": {
+        "緑の靴": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cleavage cutout": {
+      "winner": "谷間ホール",
+      "counts": {
+        "谷間ホール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:green ribbon": {
+      "winner": "緑のリボン",
+      "counts": {
+        "緑のリボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:high heels": {
+      "winner": "ハイヒール",
+      "counts": {
+        "ハイヒール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:puffy sleeves": {
+      "winner": "ふんわり袖",
+      "counts": {
+        "ふんわり袖": 2
+      },
+      "updated_at": "2026-05-12T18:47:20"
+    },
+    "feature:elbow gloves": {
+      "winner": "ロンググローブ",
+      "counts": {
+        "ロンググローブ": 16417
+      },
+      "updated_at": "2026-05-14T18:53:09"
+    },
+    "feature:collared dress": {
+      "winner": "襟付きドレス",
+      "counts": {
+        "襟付きドレス": 0
+      },
+      "updated_at": "2026-05-14T22:22:10"
+    },
+    "feature:pleated dress": {
+      "winner": "プリーツドレス",
+      "counts": {
+        "プリーツドレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:thighband pantyhose": {
+      "winner": "ランガード",
+      "counts": {
+        "ランガード": 0
+      },
+      "updated_at": ""
+    },
+    "feature:green shoes": {
+      "winner": "green_shoes",
+      "counts": {
+        "green_shoes": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wing collar": {
+      "winner": "ウイングカラー",
+      "counts": {
+        "ウイングカラー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wolf tail": {
+      "winner": "おおかみしっぽ",
+      "counts": {
+        "おおかみしっぽ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:branch": {
+      "winner": "枝",
+      "counts": {
+        "枝": 370
+      },
+      "updated_at": "2026-05-12T18:21:29"
+    },
+    "feature:crescent moon": {
+      "winner": "三日月",
+      "counts": {
+        "三日月": 5084
+      },
+      "updated_at": "2026-05-12T18:21:32"
+    },
+    "feature:scenery": {
+      "winner": "背景イラスト",
+      "counts": {
+        "背景イラスト": 0
+      },
+      "updated_at": ""
+    },
+    "feature:crescent": {
+      "winner": "みかづき",
+      "counts": {
+        "みかづき": 0
+      },
+      "updated_at": ""
+    },
+    "feature:rabbit": {
+      "winner": "うさぎ",
+      "counts": {
+        "うさぎ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:purple ribbon": {
+      "winner": "紫のリボン",
+      "counts": {
+        "紫のリボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:river": {
+      "winner": "川",
+      "counts": {
+        "川": 0
+      },
+      "updated_at": ""
+    },
+    "feature:on floor": {
+      "winner": "床に座る",
+      "counts": {
+        "床に座る": 0
+      },
+      "updated_at": ""
+    },
+    "feature:strapless": {
+      "winner": "ベアトップ",
+      "counts": {
+        "ベアトップ": 1265
+      },
+      "updated_at": "2026-05-14T18:53:17"
+    },
+    "feature:lake": {
+      "winner": "湖",
+      "counts": {
+        "湖": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wide shot": {
+      "winner": "wide_shot",
+      "counts": {
+        "wide_shot": 0
+      },
+      "updated_at": ""
+    },
+    "feature:reflective water": {
+      "winner": "反射する水",
+      "counts": {
+        "反射する水": 0
+      },
+      "updated_at": ""
+    },
+    "feature:house": {
+      "winner": "家",
+      "counts": {
+        "家": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bandaid on leg": {
+      "winner": "バンドエイド",
+      "counts": {
+        "バンドエイド": 229
+      },
+      "updated_at": "2026-05-12T18:38:55"
+    },
+    "feature:red collar": {
+      "winner": "赤い首輪",
+      "counts": {
+        "赤い首輪": 2
+      },
+      "updated_at": "2026-05-12T18:39:07"
+    },
+    "feature:ribs": {
+      "winner": "肋骨",
+      "counts": {
+        "肋骨": 1289
+      },
+      "updated_at": "2026-05-12T18:39:09"
+    },
+    "feature:loli": {
+      "winner": "ロリ",
+      "counts": {
+        "ロリ": 430128
+      },
+      "updated_at": "2026-05-12T18:39:11"
+    },
+    "feature:skinny": {
+      "winner": "痩せている",
+      "counts": {
+        "痩せている": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red choker": {
+      "winner": "赤いチョーカー",
+      "counts": {
+        "赤いチョーカー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:grey background": {
+      "winner": "灰色の背景",
+      "counts": {
+        "灰色の背景": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sports bra": {
+      "winner": "スポーツブラ",
+      "counts": {
+        "スポーツブラ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:belly": {
+      "winner": "イカ腹",
+      "counts": {
+        "イカ腹": 0
+      },
+      "updated_at": ""
+    },
+    "feature:nose blush": {
+      "winner": "赤面",
+      "counts": {
+        "赤面": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black sports bra": {
+      "winner": "黒のスポーツブラ",
+      "counts": {
+        "黒のスポーツブラ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:naughty face": {
+      "winner": "いたずら顔",
+      "counts": {
+        "いたずら顔": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pulling own clothes": {
+      "winner": "自分の服を引っ張る",
+      "counts": {
+        "自分の服を引っ張る": 0
+      },
+      "updated_at": ""
+    },
+    "feature:undressing": {
+      "winner": "脱ぐ",
+      "counts": {
+        "脱ぐ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:skirt pull": {
+      "winner": "スカートおろし",
+      "counts": {
+        "スカートおろし": 0
+      },
+      "updated_at": ""
+    },
+    "feature:aged down": {
+      "winner": "幼児化",
+      "counts": {
+        "幼児化": 0
+      },
+      "updated_at": ""
+    },
+    "feature:lace trim": {
+      "winner": "蕾丝边",
+      "counts": {
+        "蕾丝边": 190
+      },
+      "updated_at": "2026-05-12T18:45:11"
+    },
+    "feature:quill": {
+      "winner": "羽ペン",
+      "counts": {
+        "羽ペン": 153
+      },
+      "updated_at": "2026-05-12T18:45:12"
+    },
+    "feature:full moon": {
+      "winner": "満月",
+      "counts": {
+        "満月": 6704
+      },
+      "updated_at": "2026-05-12T18:45:20"
+    },
+    "feature:desk": {
+      "winner": "机",
+      "counts": {
+        "机": 1466
+      },
+      "updated_at": "2026-05-12T18:45:23"
+    },
+    "feature:white eyes": {
+      "winner": "白眼",
+      "counts": {
+        "白眼": 179
+      },
+      "updated_at": "2026-05-12T18:45:25"
+    },
+    "feature:on chair": {
+      "winner": "椅子の上",
+      "counts": {
+        "椅子の上": 0
+      },
+      "updated_at": ""
+    },
+    "feature:see-through sleeves": {
+      "winner": "透け袖",
+      "counts": {
+        "透け袖": 0
+      },
+      "updated_at": ""
+    },
+    "feature:demon girl": {
+      "winner": "悪魔っ娘",
+      "counts": {
+        "悪魔っ娘": 0
+      },
+      "updated_at": ""
+    },
+    "feature:inkwell": {
+      "winner": "インク壺",
+      "counts": {
+        "インク壺": 0
+      },
+      "updated_at": ""
+    },
+    "feature:paper": {
+      "winner": "紙",
+      "counts": {
+        "紙": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cone hair bun": {
+      "winner": "猫耳发角",
+      "counts": {
+        "猫耳发角": 0
+      },
+      "updated_at": ""
+    },
+    "feature:moonlight": {
+      "winner": "月明かり",
+      "counts": {
+        "月明かり": 0
+      },
+      "updated_at": ""
+    },
+    "feature:curled horns": {
+      "winner": "巻き角",
+      "counts": {
+        "巻き角": 0
+      },
+      "updated_at": ""
+    },
+    "feature:frilled sleeves": {
+      "winner": "フリル袖",
+      "counts": {
+        "フリル袖": 0
+      },
+      "updated_at": ""
+    },
+    "feature:candlestand": {
+      "winner": "燭台",
+      "counts": {
+        "燭台": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hair over one eye": {
+      "winner": "片目隠れ",
+      "counts": {
+        "片目隠れ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:desk lamp": {
+      "winner": "デスクライト",
+      "counts": {
+        "デスクライト": 5
+      },
+      "updated_at": "2026-05-12T19:17:21"
+    },
+    "feature:lace": {
+      "winner": "レース",
+      "counts": {
+        "レース": 0
+      },
+      "updated_at": ""
+    },
+    "feature:arm rest": {
+      "winner": "腕置き",
+      "counts": {
+        "腕置き": 0
+      },
+      "updated_at": ""
+    },
+    "feature:three-quarter sleeves": {
+      "winner": "three-quarter_sleeves",
+      "counts": {
+        "three-quarter_sleeves": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bottle": {
+      "winner": "ペットボトル",
+      "counts": {
+        "ペットボトル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:see-through silhouette": {
+      "winner": "透けシルエット",
+      "counts": {
+        "透けシルエット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:feather hair ornament": {
+      "winner": "羽髪飾り",
+      "counts": {
+        "羽髪飾り": 0
+      },
+      "updated_at": ""
+    },
+    "feature:absurdly long hair": {
+      "winner": "头发拖地",
+      "counts": {
+        "头发拖地": 0
+      },
+      "updated_at": ""
+    },
+    "feature:looking at object": {
+      "winner": "物体を見る",
+      "counts": {
+        "物体を見る": 0
+      },
+      "updated_at": ""
+    },
+    "feature:fishnet pantyhose": {
+      "winner": "網タイツ",
+      "counts": {
+        "網タイツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:writing": {
+      "winner": "書く",
+      "counts": {
+        "書く": 121
+      },
+      "updated_at": "2026-05-12T19:17:17"
+    },
+    "feature:white bikini": {
+      "winner": "白ビキニ",
+      "counts": {
+        "白ビキニ": 14674
+      },
+      "updated_at": "2026-05-12T18:46:59"
+    },
+    "feature:bikini skirt": {
+      "winner": "ビキニスカート",
+      "counts": {
+        "ビキニスカート": 4
+      },
+      "updated_at": "2026-05-12T18:47:01"
+    },
+    "feature:eyewear on head": {
+      "winner": "頭にかけた眼鏡",
+      "counts": {
+        "頭にかけた眼鏡": 2
+      },
+      "updated_at": "2026-05-12T18:47:03"
+    },
+    "feature:heart-shaped eyewear": {
+      "winner": "ハート型眼鏡",
+      "counts": {
+        "ハート型眼鏡": 0
+      },
+      "updated_at": "2026-05-12T18:47:05"
+    },
+    "feature:tinted eyewear": {
+      "winner": "色付き眼鏡",
+      "counts": {
+        "色付き眼鏡": 1
+      },
+      "updated_at": "2026-05-12T18:47:07"
+    },
+    "feature:pearl necklace": {
+      "winner": "珍珠项链",
+      "counts": {
+        "珍珠项链": 0
+      },
+      "updated_at": "2026-05-12T18:47:09"
+    },
+    "feature:salute": {
+      "winner": "敬礼",
+      "counts": {
+        "敬礼": 2147
+      },
+      "updated_at": "2026-05-12T18:47:11"
+    },
+    "feature:sunglasses": {
+      "winner": "サングラス",
+      "counts": {
+        "サングラス": 25041
+      },
+      "updated_at": "2026-05-12T18:47:17"
+    },
+    "feature:shell": {
+      "winner": "殻",
+      "counts": {
+        "殻": 0
+      },
+      "updated_at": ""
+    },
+    "feature:frilled thigh strap": {
+      "winner": "frilled_thigh_strap",
+      "counts": {
+        "frilled_thigh_strap": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red-tinted eyewear": {
+      "winner": "赤色のグラサン",
+      "counts": {
+        "赤色のグラサン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:official alternate costume": {
+      "winner": "セカコス",
+      "counts": {
+        "セカコス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sand": {
+      "winner": "砂",
+      "counts": {
+        "砂": 613
+      },
+      "updated_at": "2026-05-13T15:49:28"
+    },
+    "feature:wading": {
+      "winner": "水遊び",
+      "counts": {
+        "水遊び": 0
+      },
+      "updated_at": ""
+    },
+    "feature:summer": {
+      "winner": "夏休み",
+      "counts": {
+        "夏休み": 7498
+      },
+      "updated_at": "2026-05-13T15:49:24"
+    },
+    "feature:layered bikini": {
+      "winner": "レイヤードビキニ",
+      "counts": {
+        "レイヤードビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:orange-tinted eyewear": {
+      "winner": "オレンジ色のサングラス",
+      "counts": {
+        "オレンジ色のサングラス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:puffy detached sleeves": {
+      "winner": "ふわふわした取り外し可能な袖",
+      "counts": {
+        "ふわふわした取り外し可能な袖": 0
+      },
+      "updated_at": ""
+    },
+    "feature:rock": {
+      "winner": "岩",
+      "counts": {
+        "岩": 0
+      },
+      "updated_at": ""
+    },
+    "feature:frilled collar": {
+      "winner": "フリル襟",
+      "counts": {
+        "フリル襟": 2
+      },
+      "updated_at": "2026-05-12T18:51:07"
+    },
+    "feature:brown skirt": {
+      "winner": "茶色のスカート",
+      "counts": {
+        "茶色のスカート": 0
+      },
+      "updated_at": "2026-05-12T18:51:10"
+    },
+    "feature:steampunk": {
+      "winner": "スチームパンク",
+      "counts": {
+        "スチームパンク": 11898
+      },
+      "updated_at": "2026-05-12T18:51:16"
+    },
+    "feature:monocle": {
+      "winner": "モノクル",
+      "counts": {
+        "モノクル": 1068
+      },
+      "updated_at": "2026-05-12T18:51:17"
+    },
+    "feature:buttons": {
+      "winner": "ボタン",
+      "counts": {
+        "ボタン": 1871
+      },
+      "updated_at": "2026-05-12T18:51:23"
+    },
+    "feature:holding book": {
+      "winner": "本の保持",
+      "counts": {
+        "本の保持": 0
+      },
+      "updated_at": "2026-05-12T18:51:25"
+    },
+    "feature:frilled shirt collar": {
+      "winner": "フリル襟",
+      "counts": {
+        "フリル襟": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hands on own face": {
+      "winner": "顔に手",
+      "counts": {
+        "顔に手": 0
+      },
+      "updated_at": ""
+    },
+    "feature:vest": {
+      "winner": "ベスト",
+      "counts": {
+        "ベスト": 0
+      },
+      "updated_at": ""
+    },
+    "feature:corset": {
+      "winner": "コルセット",
+      "counts": {
+        "コルセット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hands on own cheeks": {
+      "winner": "頬に手を添える",
+      "counts": {
+        "頬に手を添える": 0
+      },
+      "updated_at": ""
+    },
+    "feature:frilled shirt": {
+      "winner": "フリルシャツ",
+      "counts": {
+        "フリルシャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hands up": {
+      "winner": "両手を上げる",
+      "counts": {
+        "両手を上げる": 1
+      },
+      "updated_at": "2026-05-13T16:31:15"
+    },
+    "feature:crystal": {
+      "winner": "鉱物",
+      "counts": {
+        "鉱物": 0
+      },
+      "updated_at": ""
+    },
+    "feature:brown dress": {
+      "winner": "茶色のドレス",
+      "counts": {
+        "茶色のドレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:brown pants": {
+      "winner": "茶色のパンツ",
+      "counts": {
+        "茶色のパンツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white wrist cuffs": {
+      "winner": "白い手首カフス",
+      "counts": {
+        "白い手首カフス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:on stomach": {
+      "winner": "うつぶせ",
+      "counts": {
+        "うつぶせ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:brown vest": {
+      "winner": "茶色いベスト",
+      "counts": {
+        "茶色いベスト": 0
+      },
+      "updated_at": ""
+    },
+    "feature:glass": {
+      "winner": "ガラス",
+      "counts": {
+        "ガラス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:open shirt": {
+      "winner": "開いたシャツ",
+      "counts": {
+        "開いたシャツ": 5
+      },
+      "updated_at": "2026-05-12T18:53:12"
+    },
+    "feature:skirt around one leg": {
+      "winner": "片足スカート",
+      "counts": {
+        "片足スカート": 1
+      },
+      "updated_at": "2026-05-12T18:53:14"
+    },
+    "feature:black thighhighs": {
+      "winner": "黒ニーソックス",
+      "counts": {
+        "黒ニーソックス": 1020
+      },
+      "updated_at": "2026-05-12T18:53:15"
+    },
+    "feature:randoseru": {
+      "winner": "ランドセル",
+      "counts": {
+        "ランドセル": 10746
+      },
+      "updated_at": "2026-05-12T18:53:21"
+    },
+    "feature:red bag": {
+      "winner": "赤いバッグ",
+      "counts": {
+        "赤いバッグ": 0
+      },
+      "updated_at": "2026-05-13T22:55:13"
+    },
+    "feature:backpack": {
+      "winner": "バックパック",
+      "counts": {
+        "バックパック": 730
+      },
+      "updated_at": "2026-05-12T18:53:25"
+    },
+    "feature:name tag": {
+      "winner": "名札",
+      "counts": {
+        "名札": 258
+      },
+      "updated_at": "2026-05-12T18:53:27"
+    },
+    "feature:bag": {
+      "winner": "かばん",
+      "counts": {
+        "かばん": 1288
+      },
+      "updated_at": "2026-05-12T18:53:30"
+    },
+    "feature:sleeves past wrists": {
+      "winner": "萌え袖",
+      "counts": {
+        "萌え袖": 9083
+      },
+      "updated_at": "2026-05-12T19:17:14"
+    },
+    "feature:black hat": {
+      "winner": "黒い帽子",
+      "counts": {
+        "黒い帽子": 0
+      },
+      "updated_at": ""
+    },
+    "feature:knee up": {
+      "winner": "坐立腿",
+      "counts": {
+        "坐立腿": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black sailor collar": {
+      "winner": "黒セーラーカラー",
+      "counts": {
+        "黒セーラーカラー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:grey shirt": {
+      "winner": "灰色シャツ",
+      "counts": {
+        "灰色シャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cardigan": {
+      "winner": "カーディガン",
+      "counts": {
+        "カーディガン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:unworn skirt": {
+      "winner": "没穿的裙子",
+      "counts": {
+        "没穿的裙子": 0
+      },
+      "updated_at": ""
+    },
+    "feature:naked shirt": {
+      "winner": "裸シャツ",
+      "counts": {
+        "裸シャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:red-framed eyewear": {
+      "winner": "赤縁メガネ",
+      "counts": {
+        "赤縁メガネ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black headwear": {
+      "winner": "黒い頭飾り",
+      "counts": {
+        "黒い頭飾り": 0
+      },
+      "updated_at": ""
+    },
+    "feature:school bag": {
+      "winner": "スクールバッグ",
+      "counts": {
+        "スクールバッグ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:drooling": {
+      "winner": "よだれ",
+      "counts": {
+        "よだれ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue sailor collar": {
+      "winner": "青いセーラーカラー",
+      "counts": {
+        "青いセーラーカラー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:grass": {
+      "winner": "草原",
+      "counts": {
+        "草原": 4687
+      },
+      "updated_at": "2026-05-12T18:54:46"
+    },
+    "feature:rubbing eyes": {
+      "winner": "目を擦る",
+      "counts": {
+        "目を擦る": 1
+      },
+      "updated_at": "2026-05-12T18:54:52"
+    },
+    "feature:staff": {
+      "winner": "杖",
+      "counts": {
+        "杖": 2931
+      },
+      "updated_at": "2026-05-12T18:54:54"
+    },
+    "feature:yawning": {
+      "winner": "あくび",
+      "counts": {
+        "あくび": 2546
+      },
+      "updated_at": "2026-05-12T18:54:58"
+    },
+    "feature:holding staff": {
+      "winner": "杖を持つ",
+      "counts": {
+        "杖を持つ": 0
+      },
+      "updated_at": "2026-05-12T18:55:00"
+    },
+    "feature:field": {
+      "winner": "畑",
+      "counts": {
+        "畑": 539
+      },
+      "updated_at": "2026-05-12T18:55:02"
+    },
+    "feature:flower field": {
+      "winner": "花畑",
+      "counts": {
+        "花畑": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bush": {
+      "winner": "低木",
+      "counts": {
+        "低木": 0
+      },
+      "updated_at": ""
+    },
+    "feature:waking up": {
+      "winner": "寝起き",
+      "counts": {
+        "寝起き": 0
+      },
+      "updated_at": ""
+    },
+    "feature:;o": {
+      "winner": "片目閉じる",
+      "counts": {
+        "片目閉じる": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sleepy": {
+      "winner": "眠い",
+      "counts": {
+        "眠い": 0
+      },
+      "updated_at": ""
+    },
+    "feature:garden": {
+      "winner": "庭",
+      "counts": {
+        "庭": 0
+      },
+      "updated_at": ""
+    },
+    "feature:dappled sunlight": {
+      "winner": "木漏れ日",
+      "counts": {
+        "木漏れ日": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tears": {
+      "winner": "涙",
+      "counts": {
+        "涙": 0
+      },
+      "updated_at": ""
+    },
+    "feature:single earring": {
+      "winner": "片耳ピアス",
+      "counts": {
+        "片耳ピアス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:path": {
+      "winner": "道",
+      "counts": {
+        "道": 0
+      },
+      "updated_at": ""
+    },
+    "feature:halter dress": {
+      "winner": "ホルターネックワンピース",
+      "counts": {
+        "ホルターネックワンピース": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tearing up": {
+      "winner": "泣き顔",
+      "counts": {
+        "泣き顔": 0
+      },
+      "updated_at": ""
+    },
+    "character:izayoi sakuya": {
+      "winner": "十六夜咲夜",
+      "counts": {
+        "十六夜咲夜": 75563
+      },
+      "updated_at": "2026-05-12T18:56:39"
+    },
+    "franchise:touhou": {
+      "winner": "東方プロジェクト",
+      "counts": {
+        "東方プロジェクト": 12218
+      },
+      "updated_at": "2026-05-12T18:56:41"
+    },
+    "feature:wrist cuffs": {
+      "winner": "腕带袖口",
+      "counts": {
+        "腕带袖口": 0
+      },
+      "updated_at": "2026-05-12T18:56:46"
+    },
+    "feature:knife": {
+      "winner": "ナイフ",
+      "counts": {
+        "ナイフ": 6209
+      },
+      "updated_at": "2026-05-12T18:56:50"
+    },
+    "feature:card": {
+      "winner": "カード",
+      "counts": {
+        "カード": 4793
+      },
+      "updated_at": "2026-05-12T18:56:54"
+    },
+    "feature:crossover": {
+      "winner": "クロスオーバー",
+      "counts": {
+        "クロスオーバー": 89296
+      },
+      "updated_at": "2026-05-12T18:56:56"
+    },
+    "feature:copyright name": {
+      "winner": "タイトル回収",
+      "counts": {
+        "タイトル回収": 0
+      },
+      "updated_at": ""
+    },
+    "feature:petticoat": {
+      "winner": "ペチコート",
+      "counts": {
+        "ペチコート": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding knife": {
+      "winner": "ナイフを持つ",
+      "counts": {
+        "ナイフを持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:robot": {
+      "winner": "ロボット",
+      "counts": {
+        "ロボット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:coin": {
+      "winner": "コイン",
+      "counts": {
+        "コイン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:statue": {
+      "winner": "彫像",
+      "counts": {
+        "彫像": 0
+      },
+      "updated_at": ""
+    },
+    "feature:no pupils": {
+      "winner": "瞳孔なし",
+      "counts": {
+        "瞳孔なし": 0
+      },
+      "updated_at": ""
+    },
+    "feature:floating object": {
+      "winner": "浮遊物",
+      "counts": {
+        "浮遊物": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pillar": {
+      "winner": "柱",
+      "counts": {
+        "柱": 0
+      },
+      "updated_at": ""
+    },
+    "feature:1other": {
+      "winner": "性別不明キャラクター",
+      "counts": {
+        "性別不明キャラクター": 0
+      },
+      "updated_at": ""
+    },
+    "feature:from behind": {
+      "winner": "後ろ姿",
+      "counts": {
+        "後ろ姿": 6282
+      },
+      "updated_at": "2026-05-13T11:20:06"
+    },
+    "feature:blue dress": {
+      "winner": "青ドレス",
+      "counts": {
+        "青ドレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wristwatch": {
+      "winner": "腕時計",
+      "counts": {
+        "腕時計": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black bowtie": {
+      "winner": "黒の蝶ネクタイ",
+      "counts": {
+        "黒の蝶ネクタイ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:mechanical legs": {
+      "winner": "機械式脚",
+      "counts": {
+        "機械式脚": 0
+      },
+      "updated_at": ""
+    },
+    "feature:back bow": {
+      "winner": "バックボウ",
+      "counts": {
+        "バックボウ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:yellow bodysuit": {
+      "winner": "黄色のボディスーツ",
+      "counts": {
+        "黄色のボディスーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:roman numeral": {
+      "winner": "ローマ数字",
+      "counts": {
+        "ローマ数字": 0
+      },
+      "updated_at": ""
+    },
+    "feature:chromatic aberration": {
+      "winner": "色収差",
+      "counts": {
+        "色収差": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink lips": {
+      "winner": "ピンクの唇",
+      "counts": {
+        "ピンクの唇": 0
+      },
+      "updated_at": ""
+    },
+    "feature:green bow": {
+      "winner": "緑のリボン",
+      "counts": {
+        "緑のリボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:frilled hairband": {
+      "winner": "フリル付きヘアバンド",
+      "counts": {
+        "フリル付きヘアバンド": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding pen": {
+      "winner": "ペンを持つ",
+      "counts": {
+        "ペンを持つ": 2
+      },
+      "updated_at": "2026-05-12T19:17:15"
+    },
+    "feature:coffee mug": {
+      "winner": "コーヒーカップ",
+      "counts": {
+        "コーヒーカップ": 508
+      },
+      "updated_at": "2026-05-12T19:17:19"
+    },
+    "feature:pen": {
+      "winner": "ペン",
+      "counts": {
+        "ペン": 11566
+      },
+      "updated_at": "2026-05-12T19:17:23"
+    },
+    "feature:pencil": {
+      "winner": "ペンシル",
+      "counts": {
+        "ペンシル": 115
+      },
+      "updated_at": "2026-05-12T19:17:28"
+    },
+    "feature:mole on neck": {
+      "winner": "首のほくろ",
+      "counts": {
+        "首のほくろ": 0
+      },
+      "updated_at": "2026-05-12T19:17:32"
+    },
+    "feature:school desk": {
+      "winner": "学校机",
+      "counts": {
+        "学校机": 0
+      },
+      "updated_at": ""
+    },
+    "feature:mechanical pencil": {
+      "winner": "メカニカルペンシル",
+      "counts": {
+        "メカニカルペンシル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:reading": {
+      "winner": "読書",
+      "counts": {
+        "読書": 0
+      },
+      "updated_at": ""
+    },
+    "feature:notebook": {
+      "winner": "ノート",
+      "counts": {
+        "ノート": 0
+      },
+      "updated_at": ""
+    },
+    "feature:multiple moles": {
+      "winner": "複数ほくろ",
+      "counts": {
+        "複数ほくろ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:profile": {
+      "winner": "横顔",
+      "counts": {
+        "横顔": 21775
+      },
+      "updated_at": "2026-05-13T13:58:25"
+    },
+    "feature:fake tail": {
+      "winner": "偽の尾",
+      "counts": {
+        "偽の尾": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bags under eyes": {
+      "winner": "目の下のクマ",
+      "counts": {
+        "目の下のクマ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding pencil": {
+      "winner": "鉛筆を持つ",
+      "counts": {
+        "鉛筆を持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:index finger raised": {
+      "winner": "人差し指を立てる",
+      "counts": {
+        "人差し指を立てる": 0
+      },
+      "updated_at": ""
+    },
+    "feature:twitter username": {
+      "winner": "ツイッターアカウント",
+      "counts": {
+        "ツイッターアカウント": 0
+      },
+      "updated_at": ""
+    },
+    "feature:nervous sweating": {
+      "winner": "冷や汗",
+      "counts": {
+        "冷や汗": 0
+      },
+      "updated_at": ""
+    },
+    "feature:oversized clothes": {
+      "winner": "ぶかぶか",
+      "counts": {
+        "ぶかぶか": 0
+      },
+      "updated_at": ""
+    },
+    "feature:leotard under clothes": {
+      "winner": "レオタードアンダーパンツ",
+      "counts": {
+        "レオタードアンダーパンツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:film grain": {
+      "winner": "粒状フィルム",
+      "counts": {
+        "粒状フィルム": 0
+      },
+      "updated_at": ""
+    },
+    "feature:eyebrows hidden by hair": {
+      "winner": "髪で隠れた眉毛",
+      "counts": {
+        "髪で隠れた眉毛": 0
+      },
+      "updated_at": ""
+    },
+    "feature:grey sweater": {
+      "winner": "灰色セーター",
+      "counts": {
+        "灰色セーター": 0
+      },
+      "updated_at": ""
+    },
+    "feature:power lines": {
+      "winner": "送電線",
+      "counts": {
+        "送電線": 811
+      },
+      "updated_at": "2026-05-13T10:07:05"
+    },
+    "feature:hood": {
+      "winner": "フード",
+      "counts": {
+        "フード": 8465
+      },
+      "updated_at": "2026-05-13T10:07:06"
+    },
+    "feature:utility pole": {
+      "winner": "電柱",
+      "counts": {
+        "電柱": 2846
+      },
+      "updated_at": "2026-05-13T10:07:07"
+    },
+    "feature:hood down": {
+      "winner": "フードダウン",
+      "counts": {
+        "フードダウン": 0
+      },
+      "updated_at": "2026-05-13T10:07:10"
+    },
+    "feature:hooded jacket": {
+      "winner": "连帽夹克",
+      "counts": {
+        "连帽夹克": 0
+      },
+      "updated_at": "2026-05-13T10:07:14"
+    },
+    "feature:railroad tracks": {
+      "winner": "線路",
+      "counts": {
+        "線路": 1224
+      },
+      "updated_at": "2026-05-13T10:07:17"
+    },
+    "feature:tongue out": {
+      "winner": "舌出し",
+      "counts": {
+        "舌出し": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hoodie": {
+      "winner": "パーカー",
+      "counts": {
+        "パーカー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:grey sky": {
+      "winner": "灰色の空",
+      "counts": {
+        "灰色の空": 0
+      },
+      "updated_at": ""
+    },
+    "feature:mountain": {
+      "winner": "山",
+      "counts": {
+        "山": 0
+      },
+      "updated_at": ""
+    },
+    "feature:ruins": {
+      "winner": "廃墟",
+      "counts": {
+        "廃墟": 0
+      },
+      "updated_at": ""
+    },
+    "feature:fog": {
+      "winner": "霧",
+      "counts": {
+        "霧": 0
+      },
+      "updated_at": ""
+    },
+    "feature:mountainous horizon": {
+      "winner": "山々の遠景",
+      "counts": {
+        "山々の遠景": 0
+      },
+      "updated_at": ""
+    },
+    "feature:landscape": {
+      "winner": "自然风景",
+      "counts": {
+        "自然风景": 0
+      },
+      "updated_at": ""
+    },
+    "feature:fence": {
+      "winner": "围栏",
+      "counts": {
+        "围栏": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cross-laced dress": {
+      "winner": "クロスレースドレス",
+      "counts": {
+        "クロスレースドレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:foot focus": {
+      "winner": "足控",
+      "counts": {
+        "足控": 3256
+      },
+      "updated_at": "2026-05-13T10:33:27"
+    },
+    "feature:underwater": {
+      "winner": "水中",
+      "counts": {
+        "水中": 71730
+      },
+      "updated_at": "2026-05-13T10:33:29"
+    },
+    "feature:fish": {
+      "winner": "魚",
+      "counts": {
+        "魚": 32467
+      },
+      "updated_at": "2026-05-13T10:33:34"
+    },
+    "feature:submerged": {
+      "winner": "水中にいる",
+      "counts": {
+        "水中にいる": 2
+      },
+      "updated_at": "2026-05-13T10:33:37"
+    },
+    "feature:coral": {
+      "winner": "サンゴ",
+      "counts": {
+        "サンゴ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:swimming": {
+      "winner": "水泳",
+      "counts": {
+        "水泳": 0
+      },
+      "updated_at": ""
+    },
+    "feature:upskirt": {
+      "winner": "逆さ撮り",
+      "counts": {
+        "逆さ撮り": 0
+      },
+      "updated_at": ""
+    },
+    "feature:caustics": {
+      "winner": "コースティクス",
+      "counts": {
+        "コースティクス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:floating clothes": {
+      "winner": "浮いている服",
+      "counts": {
+        "浮いている服": 0
+      },
+      "updated_at": ""
+    },
+    "feature:ass focus": {
+      "winner": "尻アングル",
+      "counts": {
+        "尻アングル": 1667
+      },
+      "updated_at": "2026-05-13T11:20:02"
+    },
+    "feature:huge ass": {
+      "winner": "特盛り下半身",
+      "counts": {
+        "特盛り下半身": 4746
+      },
+      "updated_at": "2026-05-13T11:20:04"
+    },
+    "feature:grey panties": {
+      "winner": "灰色のパンティ",
+      "counts": {
+        "灰色のパンティ": 0
+      },
+      "updated_at": "2026-05-13T11:20:07"
+    },
+    "feature:wet panties": {
+      "winner": "濡れた下着",
+      "counts": {
+        "濡れた下着": 0
+      },
+      "updated_at": "2026-05-13T11:20:08"
+    },
+    "feature:shorts pull": {
+      "winner": "ショートパンツ引き上げ",
+      "counts": {
+        "ショートパンツ引き上げ": 0
+      },
+      "updated_at": "2026-05-13T11:20:09"
+    },
+    "feature:white panties": {
+      "winner": "白パンツ",
+      "counts": {
+        "白パンツ": 7751
+      },
+      "updated_at": "2026-05-13T11:20:13"
+    },
+    "feature:all fours": {
+      "winner": "四つん這い",
+      "counts": {
+        "四つん這い": 0
+      },
+      "updated_at": ""
+    },
+    "feature:butt crack": {
+      "winner": "半ケツ",
+      "counts": {
+        "半ケツ": 4161
+      },
+      "updated_at": "2026-05-14T18:53:13"
+    },
+    "feature:panty pull": {
+      "winner": "パンツ下ろし",
+      "counts": {
+        "パンツ下ろし": 0
+      },
+      "updated_at": ""
+    },
+    "feature:thong": {
+      "winner": "Tバック",
+      "counts": {
+        "Tバック": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sideways glance": {
+      "winner": "流し目",
+      "counts": {
+        "流し目": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pussy juice": {
+      "winner": "マン汁",
+      "counts": {
+        "マン汁": 7
+      },
+      "updated_at": "2026-05-13T16:07:37"
+    },
+    "feature:sports panties": {
+      "winner": "スポーツ下着",
+      "counts": {
+        "スポーツ下着": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sweaty clothes": {
+      "winner": "汗染み",
+      "counts": {
+        "汗染み": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pussy peek": {
+      "winner": "大陰唇",
+      "counts": {
+        "大陰唇": 0
+      },
+      "updated_at": ""
+    },
+    "feature:back": {
+      "winner": "背中",
+      "counts": {
+        "背中": 0
+      },
+      "updated_at": ""
+    },
+    "feature:brand name imitation": {
+      "winner": "ブランド名模倣",
+      "counts": {
+        "ブランド名模倣": 0
+      },
+      "updated_at": ""
+    },
+    "feature:multiple earrings": {
+      "winner": "複数ピアス",
+      "counts": {
+        "複数ピアス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:buruma pull": {
+      "winner": "ブルマ下ろし",
+      "counts": {
+        "ブルマ下ろし": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue background": {
+      "winner": "ブルーバック",
+      "counts": {
+        "ブルーバック": 33
+      },
+      "updated_at": "2026-05-13T11:47:40"
+    },
+    "feature:black shorts": {
+      "winner": "黒のショートパンツ",
+      "counts": {
+        "黒のショートパンツ": 2
+      },
+      "updated_at": "2026-05-13T11:47:42"
+    },
+    "feature:red background": {
+      "winner": "赤い背景",
+      "counts": {
+        "赤い背景": 267
+      },
+      "updated_at": "2026-05-13T11:47:43"
+    },
+    "feature:leather": {
+      "winner": "レザー",
+      "counts": {
+        "レザー": 2682
+      },
+      "updated_at": "2026-05-13T11:47:44"
+    },
+    "feature:two-tone background": {
+      "winner": "二色背景",
+      "counts": {
+        "二色背景": 9
+      },
+      "updated_at": "2026-05-13T11:47:47"
+    },
+    "feature:fishnets": {
+      "winner": "渔网服饰",
+      "counts": {
+        "渔网服饰": 16
+      },
+      "updated_at": "2026-05-13T11:47:50"
+    },
+    "feature:leather jacket": {
+      "winner": "ライダース",
+      "counts": {
+        "ライダース": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black boots": {
+      "winner": "black_boots",
+      "counts": {
+        "black_boots": 2
+      },
+      "updated_at": "2026-05-13T23:23:33"
+    },
+    "feature:bike shorts": {
+      "winner": "スパッツ",
+      "counts": {
+        "スパッツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:boots": {
+      "winner": "ブーツ",
+      "counts": {
+        "ブーツ": 32170
+      },
+      "updated_at": "2026-05-13T23:23:38"
+    },
+    "feature:on side": {
+      "winner": "松葉崩し",
+      "counts": {
+        "松葉崩し": 122
+      },
+      "updated_at": "2026-05-13T15:03:16"
+    },
+    "feature:crop top": {
+      "winner": "ハーフトップ",
+      "counts": {
+        "ハーフトップ": 197
+      },
+      "updated_at": "2026-05-14T18:50:04"
+    },
+    "feature:latex": {
+      "winner": "ラバー",
+      "counts": {
+        "ラバー": 7192
+      },
+      "updated_at": "2026-05-13T16:07:39"
+    },
+    "feature:zipper": {
+      "winner": "ジッパー",
+      "counts": {
+        "ジッパー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black one-piece swimsuit": {
+      "winner": "黒のワンピース水着",
+      "counts": {
+        "黒のワンピース水着": 1
+      },
+      "updated_at": "2026-05-13T13:05:02"
+    },
+    "feature:pink halo": {
+      "winner": "ピンクのリング",
+      "counts": {
+        "ピンクのリング": 0
+      },
+      "updated_at": "2026-05-13T13:05:05"
+    },
+    "character:mika (blue archive)": {
+      "winner": "聖園ミカ",
+      "counts": {
+        "聖園ミカ": 28361
+      },
+      "updated_at": "2026-05-13T13:05:07"
+    },
+    "feature:white ribbon": {
+      "winner": "白のリボン",
+      "counts": {
+        "白のリボン": 0
+      },
+      "updated_at": "2026-05-13T13:05:11"
+    },
+    "feature:competition school swimsuit": {
+      "winner": "競スク",
+      "counts": {
+        "競スク": 6781
+      },
+      "updated_at": "2026-05-13T13:05:12"
+    },
+    "feature:straight hair": {
+      "winner": "ストレートヘア",
+      "counts": {
+        "ストレートヘア": 0
+      },
+      "updated_at": ""
+    },
+    "feature:arm behind back": {
+      "winner": "腕を後ろに",
+      "counts": {
+        "腕を後ろに": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wet swimsuit": {
+      "winner": "濡れた水着",
+      "counts": {
+        "濡れた水着": 0
+      },
+      "updated_at": ""
+    },
+    "feature:highleg one-piece swimsuit": {
+      "winner": "スーパーハイレグ",
+      "counts": {
+        "スーパーハイレグ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:single side bun": {
+      "winner": "サイドポニーテール",
+      "counts": {
+        "サイドポニーテール": 735
+      },
+      "updated_at": "2026-05-13T13:58:12"
+    },
+    "feature:blue one-piece swimsuit": {
+      "winner": "青色のワンピース水着",
+      "counts": {
+        "青色のワンピース水着": 0
+      },
+      "updated_at": ""
+    },
+    "feature:raised eyebrows": {
+      "winner": "眉を上げる",
+      "counts": {
+        "眉を上げる": 0
+      },
+      "updated_at": ""
+    },
+    "feature:gradient background": {
+      "winner": "渐变色背景",
+      "counts": {
+        "渐变色背景": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wing ornament": {
+      "winner": "翼の装飾",
+      "counts": {
+        "翼の装飾": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wide hips": {
+      "winner": "デカ尻",
+      "counts": {
+        "デカ尻": 6224
+      },
+      "updated_at": "2026-05-14T15:39:51"
+    },
+    "feature:black scrunchie": {
+      "winner": "黒のスクリューチ",
+      "counts": {
+        "黒のスクリューチ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:two-tone swimsuit": {
+      "winner": "二色の水着",
+      "counts": {
+        "二色の水着": 0
+      },
+      "updated_at": ""
+    },
+    "feature:emblem": {
+      "winner": "エンブレム",
+      "counts": {
+        "エンブレム": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hand on own chest": {
+      "winner": "胸に手",
+      "counts": {
+        "胸に手": 1309
+      },
+      "updated_at": "2026-05-13T22:15:52"
+    },
+    "feature:undersized clothes": {
+      "winner": "ぱっつんぱっつん",
+      "counts": {
+        "ぱっつんぱっつん": 0
+      },
+      "updated_at": ""
+    },
+    "feature:arm at side": {
+      "winner": "腕を側面に置く",
+      "counts": {
+        "腕を側面に置く": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue halo": {
+      "winner": "青い光輪",
+      "counts": {
+        "青い光輪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink nails": {
+      "winner": "ピンクネイル",
+      "counts": {
+        "ピンクネイル": 1515
+      },
+      "updated_at": "2026-05-13T16:31:32"
+    },
+    "feature:plump": {
+      "winner": "むちむち",
+      "counts": {
+        "むちむち": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue footwear": {
+      "winner": "青い靴",
+      "counts": {
+        "青い靴": 0
+      },
+      "updated_at": ""
+    },
+    "feature:underbust": {
+      "winner": "コルセット",
+      "counts": {
+        "コルセット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:highleg swimsuit": {
+      "winner": "スーパーハイレグ",
+      "counts": {
+        "スーパーハイレグ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding own arm": {
+      "winner": "自分の腕を持つ",
+      "counts": {
+        "自分の腕を持つ": 0
+      },
+      "updated_at": ""
+    },
+    "character:photo (medium)": {
+      "winner": "照片(媒介)",
+      "counts": {
+        "照片(媒介)": 0
+      },
+      "updated_at": ""
+    },
+    "feature:comic": {
+      "winner": "マンガ",
+      "counts": {
+        "マンガ": 74590
+      },
+      "updated_at": "2026-05-13T13:58:17"
+    },
+    "feature:3koma": {
+      "winner": "3コマ",
+      "counts": {
+        "3コマ": 2011
+      },
+      "updated_at": "2026-05-13T13:58:18"
+    },
+    "feature:multiple views": {
+      "winner": "三面図",
+      "counts": {
+        "三面図": 1338
+      },
+      "updated_at": "2026-05-13T13:58:26"
+    },
+    "feature:single hair bun": {
+      "winner": "お団子頭",
+      "counts": {
+        "お団子頭": 3655
+      },
+      "updated_at": "2026-05-13T13:58:30"
+    },
+    "feature::t": {
+      "winner": "ふくれっ面",
+      "counts": {
+        "ふくれっ面": 0
+      },
+      "updated_at": ""
+    },
+    "feature:silent comic": {
+      "winner": "サイレント漫画",
+      "counts": {
+        "サイレント漫画": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pout": {
+      "winner": "ふくれっ面",
+      "counts": {
+        "ふくれっ面": 0
+      },
+      "updated_at": ""
+    },
+    "feature:yukata": {
+      "winner": "浴衣",
+      "counts": {
+        "浴衣": 0
+      },
+      "updated_at": ""
+    },
+    "feature:portrait": {
+      "winner": "ポートレート",
+      "counts": {
+        "ポートレート": 0
+      },
+      "updated_at": ""
+    },
+    "feature:^ ^": {
+      "winner": "ニコニコ笑顔",
+      "counts": {
+        "ニコニコ笑顔": 0
+      },
+      "updated_at": ""
+    },
+    "feature:close-up": {
+      "winner": "特写",
+      "counts": {
+        "特写": 168
+      },
+      "updated_at": "2026-05-14T17:36:49"
+    },
+    "feature:blue kimono": {
+      "winner": "青い着物",
+      "counts": {
+        "青い着物": 0
+      },
+      "updated_at": ""
+    },
+    "feature:snow": {
+      "winner": "雪",
+      "counts": {
+        "雪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue shirt": {
+      "winner": "青シャツ",
+      "counts": {
+        "青シャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:happy": {
+      "winner": "ハッピー",
+      "counts": {
+        "ハッピー": 0
+      },
+      "updated_at": ""
+    },
+    "franchise:zenless zone zero": {
+      "winner": "ゼンレスゾーンゼロ",
+      "counts": {
+        "ゼンレスゾーンゼロ": 81692
+      },
+      "updated_at": "2026-05-13T14:24:01"
+    },
+    "feature:animal ear hairband": {
+      "winner": "動物耳ヘアバンド",
+      "counts": {
+        "動物耳ヘアバンド": 0
+      },
+      "updated_at": "2026-05-13T14:24:02"
+    },
+    "feature:banknote": {
+      "winner": "紙幣",
+      "counts": {
+        "紙幣": 189
+      },
+      "updated_at": "2026-05-13T14:24:03"
+    },
+    "feature:brown pantyhose": {
+      "winner": "茶色のパンスト",
+      "counts": {
+        "茶色のパンスト": 0
+      },
+      "updated_at": "2026-05-13T14:24:06"
+    },
+    "feature:detached collar": {
+      "winner": "付け襟",
+      "counts": {
+        "付け襟": 18
+      },
+      "updated_at": "2026-05-13T14:24:07"
+    },
+    "feature:leotard": {
+      "winner": "レオタード",
+      "counts": {
+        "レオタード": 60052
+      },
+      "updated_at": "2026-05-13T14:24:15"
+    },
+    "feature:money": {
+      "winner": "お金",
+      "counts": {
+        "お金": 1285
+      },
+      "updated_at": "2026-05-13T14:24:16"
+    },
+    "feature:pink background": {
+      "winner": "ピンク背景",
+      "counts": {
+        "ピンク背景": 0
+      },
+      "updated_at": ""
+    },
+    "feature:playboy bunny": {
+      "winner": "バニーガール",
+      "counts": {
+        "バニーガール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pole": {
+      "winner": "ポールダンス",
+      "counts": {
+        "ポールダンス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:rabbit ear hairband": {
+      "winner": "うさ耳カチューシャ",
+      "counts": {
+        "うさ耳カチューシャ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:snake": {
+      "winner": "ヘビ",
+      "counts": {
+        "ヘビ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:stripper pole": {
+      "winner": "ストリップポール",
+      "counts": {
+        "ストリップポール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:areola slip": {
+      "winner": "輪チラ",
+      "counts": {
+        "輪チラ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:yellow bow": {
+      "winner": "黄色いリボン",
+      "counts": {
+        "黄色いリボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:between breasts": {
+      "winner": "おっぱいポケット",
+      "counts": {
+        "おっぱいポケット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tucked money": {
+      "winner": "詰め込まれたお金",
+      "counts": {
+        "詰め込まれたお金": 0
+      },
+      "updated_at": ""
+    },
+    "feature:standing on one leg": {
+      "winner": "片足立ち",
+      "counts": {
+        "片足立ち": 0
+      },
+      "updated_at": ""
+    },
+    "feature:prostitution": {
+      "winner": "売春",
+      "counts": {
+        "売春": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pole dancing": {
+      "winner": "ポールダンス",
+      "counts": {
+        "ポールダンス": 0
+      },
+      "updated_at": ""
+    },
+    "character:pom pom (clothes)": {
+      "winner": "ポンポン",
+      "counts": {
+        "ポンポン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bangboo (zenless zone zero)": {
+      "winner": "ボンプ",
+      "counts": {
+        "ボンプ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:rabbit tail": {
+      "winner": "ウサギの尾",
+      "counts": {
+        "ウサギの尾": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black leotard": {
+      "winner": "黒のレオタード",
+      "counts": {
+        "黒のレオタード": 0
+      },
+      "updated_at": ""
+    },
+    "feature:highleg leotard": {
+      "winner": "ハイレグレオタード",
+      "counts": {
+        "ハイレグレオタード": 0
+      },
+      "updated_at": ""
+    },
+    "feature:skin tight": {
+      "winner": "ぴっちりスーツ",
+      "counts": {
+        "ぴっちりスーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:lower teeth only": {
+      "winner": "下の歯だけ",
+      "counts": {
+        "下の歯だけ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:yellow nails": {
+      "winner": "黄色い爪",
+      "counts": {
+        "黄色い爪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding money": {
+      "winner": "お金を持つ",
+      "counts": {
+        "お金を持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:yellow bowtie": {
+      "winner": "黄色い蝶ネクタイ",
+      "counts": {
+        "黄色い蝶ネクタイ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:alternate breast size": {
+      "winner": "貧乳化",
+      "counts": {
+        "貧乳化": 0
+      },
+      "updated_at": ""
+    },
+    "feature:chinese zodiac": {
+      "winner": "十二支",
+      "counts": {
+        "十二支": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black cat": {
+      "winner": "黒猫",
+      "counts": {
+        "黒猫": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bestiality": {
+      "winner": "獣姦",
+      "counts": {
+        "獣姦": 0
+      },
+      "updated_at": ""
+    },
+    "feature:animal costume": {
+      "winner": "動物コスチューム",
+      "counts": {
+        "動物コスチューム": 0
+      },
+      "updated_at": ""
+    },
+    "franchise:clothes": {
+      "winner": "着られていない衣服",
+      "counts": {
+        "着られていない衣服": 0
+      },
+      "updated_at": ""
+    },
+    "character:cissia (zenless zone zero)": {
+      "winner": "シーシィア",
+      "counts": {
+        "シーシィア": 0
+      },
+      "updated_at": ""
+    },
+    "feature:ribbed sweater": {
+      "winner": "縦セーター",
+      "counts": {
+        "縦セーター": 1051
+      },
+      "updated_at": "2026-05-13T15:03:08"
+    },
+    "feature:toeless legwear": {
+      "winner": "露趾袜",
+      "counts": {
+        "露趾袜": 9
+      },
+      "updated_at": "2026-05-13T15:03:10"
+    },
+    "feature:fetal position": {
+      "winner": "胎児のポーズ",
+      "counts": {
+        "胎児のポーズ": 0
+      },
+      "updated_at": "2026-05-13T15:03:11"
+    },
+    "feature:game controller": {
+      "winner": "コントローラー",
+      "counts": {
+        "コントローラー": 522
+      },
+      "updated_at": "2026-05-13T15:03:13"
+    },
+    "feature:holding game controller": {
+      "winner": "ゲームコントローラーを持つ",
+      "counts": {
+        "ゲームコントローラーを持つ": 0
+      },
+      "updated_at": "2026-05-13T15:03:15"
+    },
+    "feature:couch": {
+      "winner": "ソファー",
+      "counts": {
+        "ソファー": 2451
+      },
+      "updated_at": "2026-05-13T15:03:22"
+    },
+    "feature:on couch": {
+      "winner": "ソファの上",
+      "counts": {
+        "ソファの上": 29
+      },
+      "updated_at": "2026-05-13T15:03:23"
+    },
+    "feature:no shoes": {
+      "winner": "ソックス足裏",
+      "counts": {
+        "ソックス足裏": 0
+      },
+      "updated_at": ""
+    },
+    "feature:controller": {
+      "winner": "コントローラー",
+      "counts": {
+        "コントローラー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding controller": {
+      "winner": "コントローラーを持つ",
+      "counts": {
+        "コントローラーを持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:grey thighhighs": {
+      "winner": "灰色膝上タイツ",
+      "counts": {
+        "灰色膝上タイツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:leash": {
+      "winner": "リード",
+      "counts": {
+        "リード": 0
+      },
+      "updated_at": ""
+    },
+    "feature:stirrup legwear": {
+      "winner": "トレンカ",
+      "counts": {
+        "トレンカ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cable knit": {
+      "winner": "ケーブルニット",
+      "counts": {
+        "ケーブルニット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:garter straps": {
+      "winner": "ガーターベルト",
+      "counts": {
+        "ガーターベルト": 19836
+      },
+      "updated_at": "2026-05-14T18:53:19"
+    },
+    "feature:ribbed thighhighs": {
+      "winner": "リブ生地",
+      "counts": {
+        "リブ生地": 0
+      },
+      "updated_at": ""
+    },
+    "feature:belt collar": {
+      "winner": "ベルトカラー",
+      "counts": {
+        "ベルトカラー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:aran sweater": {
+      "winner": "アランセーター",
+      "counts": {
+        "アランセーター": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white thighhighs": {
+      "winner": "白ニーソックス",
+      "counts": {
+        "白ニーソックス": 1123
+      },
+      "updated_at": "2026-05-13T22:15:54"
+    },
+    "feature:green sweater": {
+      "winner": "緑のセーター",
+      "counts": {
+        "緑のセーター": 0
+      },
+      "updated_at": ""
+    },
+    "feature:toenail polish": {
+      "winner": "ペディキュア",
+      "counts": {
+        "ペディキュア": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bdsm": {
+      "winner": "ボンデージ",
+      "counts": {
+        "ボンデージ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:shiny": {
+      "winner": "テカテカ",
+      "counts": {
+        "テカテカ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:no pants": {
+      "winner": "ノーパン",
+      "counts": {
+        "ノーパン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bound wrists": {
+      "winner": "手かせ",
+      "counts": {
+        "手かせ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:multicolored nails": {
+      "winner": "多色ネイル",
+      "counts": {
+        "多色ネイル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:squatting": {
+      "winner": "しゃがみ",
+      "counts": {
+        "しゃがみ": 4801
+      },
+      "updated_at": "2026-05-13T15:49:26"
+    },
+    "feature:sandals": {
+      "winner": "サンダル",
+      "counts": {
+        "サンダル": 10763
+      },
+      "updated_at": "2026-05-13T15:49:27"
+    },
+    "feature:shore": {
+      "winner": "きし",
+      "counts": {
+        "きし": 24
+      },
+      "updated_at": "2026-05-13T15:49:30"
+    },
+    "feature:adjusting eyewear": {
+      "winner": "眼鏡に手",
+      "counts": {
+        "眼鏡に手": 622
+      },
+      "updated_at": "2026-05-13T15:49:31"
+    },
+    "feature:flip-flops": {
+      "winner": "ビーチサンダル",
+      "counts": {
+        "ビーチサンダル": 1824
+      },
+      "updated_at": "2026-05-13T15:49:33"
+    },
+    "feature:hand on eyewear": {
+      "winner": "眼鏡調整",
+      "counts": {
+        "眼鏡調整": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black blindfold": {
+      "winner": "黒のアイマスク",
+      "counts": {
+        "黒のアイマスク": 0
+      },
+      "updated_at": "2026-05-13T16:07:27"
+    },
+    "feature:saliva": {
+      "winner": "唾液",
+      "counts": {
+        "唾液": 2530
+      },
+      "updated_at": "2026-05-13T16:07:28"
+    },
+    "feature:tentacles": {
+      "winner": "触手",
+      "counts": {
+        "触手": 29243
+      },
+      "updated_at": "2026-05-13T16:07:29"
+    },
+    "feature:blindfold": {
+      "winner": "目隠し",
+      "counts": {
+        "目隠し": 9877
+      },
+      "updated_at": "2026-05-13T16:07:31"
+    },
+    "feature:anal": {
+      "winner": "アナル",
+      "counts": {
+        "アナル": 683
+      },
+      "updated_at": "2026-05-13T16:07:33"
+    },
+    "feature:tentacle sex": {
+      "winner": "触手姦",
+      "counts": {
+        "触手姦": 102
+      },
+      "updated_at": "2026-05-13T16:07:34"
+    },
+    "feature:oral": {
+      "winner": "オーラルセックス",
+      "counts": {
+        "オーラルセックス": 0
+      },
+      "updated_at": "2026-05-13T16:07:35"
+    },
+    "feature:fellatio": {
+      "winner": "フェラ",
+      "counts": {
+        "フェラ": 880
+      },
+      "updated_at": "2026-05-13T16:07:38"
+    },
+    "feature:anus": {
+      "winner": "アヌス",
+      "counts": {
+        "アヌス": 13
+      },
+      "updated_at": "2026-05-13T16:07:40"
+    },
+    "feature:restrained": {
+      "winner": "拘束",
+      "counts": {
+        "拘束": 0
+      },
+      "updated_at": ""
+    },
+    "feature:consensual tentacles": {
+      "winner": "合意のテンタクル",
+      "counts": {
+        "合意のテンタクル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bound": {
+      "winner": "バインド",
+      "counts": {
+        "バインド": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum in ass": {
+      "winner": "アナル中出し",
+      "counts": {
+        "アナル中出し": 5
+      },
+      "updated_at": "2026-05-13T23:23:48"
+    },
+    "feature:mosaic censoring": {
+      "winner": "马赛克",
+      "counts": {
+        "马赛克": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bound arms": {
+      "winner": "拘束された腕",
+      "counts": {
+        "拘束された腕": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum on body": {
+      "winner": "体外射精",
+      "counts": {
+        "体外射精": 0
+      },
+      "updated_at": "2026-05-14T15:05:06"
+    },
+    "feature:rape": {
+      "winner": "レイプ",
+      "counts": {
+        "レイプ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum in pussy": {
+      "winner": "中出し",
+      "counts": {
+        "中出し": 1456
+      },
+      "updated_at": "2026-05-13T23:23:51"
+    },
+    "feature:vaginal": {
+      "winner": "膣の",
+      "counts": {
+        "膣の": 0
+      },
+      "updated_at": ""
+    },
+    "feature:shrug (clothing)": {
+      "winner": "无胸领衫",
+      "counts": {
+        "无胸领衫": 0
+      },
+      "updated_at": ""
+    },
+    "feature:covered eyes": {
+      "winner": "目隠し",
+      "counts": {
+        "目隠し": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum": {
+      "winner": "ザーメン",
+      "counts": {
+        "ザーメン": 81
+      },
+      "updated_at": "2026-05-13T23:23:45"
+    },
+    "feature:pussy juice trail": {
+      "winner": "膣分泌物の跡",
+      "counts": {
+        "膣分泌物の跡": 0
+      },
+      "updated_at": ""
+    },
+    "feature:latex bodysuit": {
+      "winner": "ラバースーツ",
+      "counts": {
+        "ラバースーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:eye mask": {
+      "winner": "アイマスク",
+      "counts": {
+        "アイマスク": 0
+      },
+      "updated_at": ""
+    },
+    "feature:gag": {
+      "winner": "猿轡",
+      "counts": {
+        "猿轡": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum in mouth": {
+      "winner": "口内射精",
+      "counts": {
+        "口内射精": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bodysuit": {
+      "winner": "ボディスーツ",
+      "counts": {
+        "ボディスーツ": 53884
+      },
+      "updated_at": "2026-05-13T22:55:18"
+    },
+    "feature:leg lift": {
+      "winner": "脚上げ",
+      "counts": {
+        "脚上げ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:slime (substance)": {
+      "winner": "スライム",
+      "counts": {
+        "スライム": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tentacles under clothes": {
+      "winner": "服の下の触手",
+      "counts": {
+        "服の下の触手": 0
+      },
+      "updated_at": ""
+    },
+    "feature:standing sex": {
+      "winner": "立ちバック",
+      "counts": {
+        "立ちバック": 0
+      },
+      "updated_at": ""
+    },
+    "feature:double penetration": {
+      "winner": "二穴責め",
+      "counts": {
+        "二穴責め": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cumdrip": {
+      "winner": "溢れ精液",
+      "counts": {
+        "溢れ精液": 236
+      },
+      "updated_at": "2026-05-13T23:23:54"
+    },
+    "feature:straitjacket": {
+      "winner": "拘束衣",
+      "counts": {
+        "拘束衣": 0
+      },
+      "updated_at": ""
+    },
+    "feature:saliva trail": {
+      "winner": "唾液ブリッジ",
+      "counts": {
+        "唾液ブリッジ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bar censor": {
+      "winner": "バー消し",
+      "counts": {
+        "バー消し": 0
+      },
+      "updated_at": "2026-05-14T15:05:00"
+    },
+    "feature:tentacle in mouth": {
+      "winner": "tentacle_in_mouth",
+      "counts": {
+        "tentacle_in_mouth": 0
+      },
+      "updated_at": ""
+    },
+    "feature:heart hands": {
+      "winner": "手でハート",
+      "counts": {
+        "手でハート": 9639
+      },
+      "updated_at": "2026-05-13T16:31:19"
+    },
+    "feature:heart earrings": {
+      "winner": "ハートのイヤリング",
+      "counts": {
+        "ハートのイヤリング": 5
+      },
+      "updated_at": "2026-05-13T16:31:29"
+    },
+    "feature:heart facial mark": {
+      "winner": "ハートタトゥー",
+      "counts": {
+        "ハートタトゥー": 0
+      },
+      "updated_at": "2026-05-13T16:31:31"
+    },
+    "feature:cross earrings": {
+      "winner": "十字架のイヤリング",
+      "counts": {
+        "十字架のイヤリング": 0
+      },
+      "updated_at": ""
+    },
+    "feature:four-finger heart hands": {
+      "winner": "指でハート",
+      "counts": {
+        "指でハート": 0
+      },
+      "updated_at": ""
+    },
+    "feature:belt": {
+      "winner": "ベルト",
+      "counts": {
+        "ベルト": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink theme": {
+      "winner": "ピンク",
+      "counts": {
+        "ピンク": 0
+      },
+      "updated_at": ""
+    },
+    "feature:symbol in eye": {
+      "winner": "目の中の記号",
+      "counts": {
+        "目の中の記号": 0
+      },
+      "updated_at": ""
+    },
+    "feature:short twintails": {
+      "winner": "ショートツインテール",
+      "counts": {
+        "ショートツインテール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:ringlets": {
+      "winner": "縦ロール",
+      "counts": {
+        "縦ロール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black belt": {
+      "winner": "黒帯",
+      "counts": {
+        "黒帯": 0
+      },
+      "updated_at": ""
+    },
+    "feature:heart tattoo": {
+      "winner": "ハートタトゥー",
+      "counts": {
+        "ハートタトゥー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bokeh": {
+      "winner": "ボケ表現",
+      "counts": {
+        "ボケ表現": 0
+      },
+      "updated_at": ""
+    },
+    "feature:rabbit hair ornament": {
+      "winner": "うさぎヘアピン",
+      "counts": {
+        "うさぎヘアピン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:eyes visible through hair": {
+      "winner": "髪越しに見える目",
+      "counts": {
+        "髪越しに見える目": 0
+      },
+      "updated_at": "2026-05-13T17:16:27"
+    },
+    "feature:jirai kei": {
+      "winner": "地雷系",
+      "counts": {
+        "地雷系": 18546
+      },
+      "updated_at": "2026-05-13T17:16:28"
+    },
+    "feature:heart cutout": {
+      "winner": "心窗",
+      "counts": {
+        "心窗": 0
+      },
+      "updated_at": "2026-05-13T17:16:29"
+    },
+    "feature:kneeling": {
+      "winner": "膝立ち",
+      "counts": {
+        "膝立ち": 1716
+      },
+      "updated_at": "2026-05-13T17:16:30"
+    },
+    "feature:computer keyboard": {
+      "winner": "キーボード",
+      "counts": {
+        "キーボード": 1038
+      },
+      "updated_at": "2026-05-13T17:16:33"
+    },
+    "feature:monitor": {
+      "winner": "モニター",
+      "counts": {
+        "モニター": 305
+      },
+      "updated_at": "2026-05-13T17:16:34"
+    },
+    "feature:seiza": {
+      "winner": "正座",
+      "counts": {
+        "正座": 2396
+      },
+      "updated_at": "2026-05-13T17:16:37"
+    },
+    "feature:grey skirt": {
+      "winner": "灰色スカート",
+      "counts": {
+        "灰色スカート": 0
+      },
+      "updated_at": "2026-05-13T17:16:40"
+    },
+    "feature:o-ring": {
+      "winner": "Oリング",
+      "counts": {
+        "Oリング": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pom pom (clothes)": {
+      "winner": "ポンポン",
+      "counts": {
+        "ポンポン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:character doll": {
+      "winner": "ぬいぐるみ化",
+      "counts": {
+        "ぬいぐるみ化": 0
+      },
+      "updated_at": ""
+    },
+    "feature:o-ring thigh strap": {
+      "winner": "リング付き太ももストラップ",
+      "counts": {
+        "リング付き太ももストラップ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:checkered clothes": {
+      "winner": "チェック柄",
+      "counts": {
+        "チェック柄": 0
+      },
+      "updated_at": ""
+    },
+    "feature:computer mouse": {
+      "winner": "マウス",
+      "counts": {
+        "マウス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wariza": {
+      "winner": "ぺたん座り",
+      "counts": {
+        "ぺたん座り": 0
+      },
+      "updated_at": ""
+    },
+    "feature:demon tail": {
+      "winner": "悪魔しっぽ",
+      "counts": {
+        "悪魔しっぽ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:swivel chair": {
+      "winner": "スィーベルチェア",
+      "counts": {
+        "スィーベルチェア": 0
+      },
+      "updated_at": ""
+    },
+    "feature:skirt lift": {
+      "winner": "スカートめくり",
+      "counts": {
+        "スカートめくり": 7133
+      },
+      "updated_at": "2026-05-13T22:15:49"
+    },
+    "feature:pink panties": {
+      "winner": "ピンクパンツ",
+      "counts": {
+        "ピンクパンツ": 3331
+      },
+      "updated_at": "2026-05-13T22:15:57"
+    },
+    "feature:white bra": {
+      "winner": "白ブラ",
+      "counts": {
+        "白ブラ": 60
+      },
+      "updated_at": "2026-05-13T22:15:59"
+    },
+    "feature:lace-trimmed bra": {
+      "winner": "レース縁取りのブラジャー",
+      "counts": {
+        "レース縁取りのブラジャー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tail raised": {
+      "winner": "尾を上げる",
+      "counts": {
+        "尾を上げる": 0
+      },
+      "updated_at": ""
+    },
+    "feature:zettai ryouiki": {
+      "winner": "絶対領域",
+      "counts": {
+        "絶対領域": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink bra": {
+      "winner": "ピンクブラ",
+      "counts": {
+        "ピンクブラ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:high ponytail": {
+      "winner": "ハイポニーテール",
+      "counts": {
+        "ハイポニーテール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink neckerchief": {
+      "winner": "ピンクのネッカチーフ",
+      "counts": {
+        "ピンクのネッカチーフ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink tail": {
+      "winner": "ピンクの尻尾",
+      "counts": {
+        "ピンクの尻尾": 0
+      },
+      "updated_at": "2026-05-13T22:35:53"
+    },
+    "feature:wavy hair": {
+      "winner": "ウェーブヘア",
+      "counts": {
+        "ウェーブヘア": 1663
+      },
+      "updated_at": "2026-05-13T22:35:56"
+    },
+    "feature:half updo": {
+      "winner": "ハーフアップ",
+      "counts": {
+        "ハーフアップ": 3586
+      },
+      "updated_at": "2026-05-13T22:35:59"
+    },
+    "feature:hammock": {
+      "winner": "ハンモック",
+      "counts": {
+        "ハンモック": 407
+      },
+      "updated_at": "2026-05-13T22:36:06"
+    },
+    "feature:beach umbrella": {
+      "winner": "ビーチパラソル",
+      "counts": {
+        "ビーチパラソル": 330
+      },
+      "updated_at": "2026-05-13T22:36:09"
+    },
+    "feature:drinking glass": {
+      "winner": "グラス",
+      "counts": {
+        "グラス": 1567
+      },
+      "updated_at": "2026-05-13T22:36:11"
+    },
+    "feature:drinking straw": {
+      "winner": "ストロー",
+      "counts": {
+        "ストロー": 350
+      },
+      "updated_at": "2026-05-13T22:36:14"
+    },
+    "feature:orange slice": {
+      "winner": "オレンジスライス",
+      "counts": {
+        "オレンジスライス": 0
+      },
+      "updated_at": "2026-05-13T22:36:16"
+    },
+    "feature:seagull": {
+      "winner": "かもめ",
+      "counts": {
+        "かもめ": 309
+      },
+      "updated_at": "2026-05-13T22:36:18"
+    },
+    "feature:drinking": {
+      "winner": "飲む",
+      "counts": {
+        "飲む": 0
+      },
+      "updated_at": ""
+    },
+    "character:hakui koyori": {
+      "winner": "博衣こより",
+      "counts": {
+        "博衣こより": 0
+      },
+      "updated_at": ""
+    },
+    "franchise:hololive": {
+      "winner": "ホロライブ",
+      "counts": {
+        "ホロライブ": 571665
+      },
+      "updated_at": "2026-05-14T15:39:43"
+    },
+    "feature:umbrella": {
+      "winner": "傘",
+      "counts": {
+        "傘": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wolf girl": {
+      "winner": "狼娘",
+      "counts": {
+        "狼娘": 0
+      },
+      "updated_at": ""
+    },
+    "feature:orange (fruit)": {
+      "winner": "オレンジ",
+      "counts": {
+        "オレンジ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:heart collar": {
+      "winner": "ハート型首輪",
+      "counts": {
+        "ハート型首輪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:beach chair": {
+      "winner": "ビーチチェア",
+      "counts": {
+        "ビーチチェア": 0
+      },
+      "updated_at": ""
+    },
+    "feature:braided bun": {
+      "winner": "編み込みお団子",
+      "counts": {
+        "編み込みお団子": 0
+      },
+      "updated_at": ""
+    },
+    "feature:crown braid": {
+      "winner": "クラウンブレイド",
+      "counts": {
+        "クラウンブレイド": 0
+      },
+      "updated_at": ""
+    },
+    "feature:fruit": {
+      "winner": "フルーツ",
+      "counts": {
+        "フルーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:string bikini": {
+      "winner": "紐ビキニ",
+      "counts": {
+        "紐ビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink choker": {
+      "winner": "ピンクのチョーカー",
+      "counts": {
+        "ピンクのチョーカー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:greaves": {
+      "winner": "グリーブ",
+      "counts": {
+        "グリーブ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:double bun": {
+      "winner": "お団子頭",
+      "counts": {
+        "お団子頭": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hair stick": {
+      "winner": "发簪",
+      "counts": {
+        "发簪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding drink": {
+      "winner": "飲み物を持つ",
+      "counts": {
+        "飲み物を持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:purple choker": {
+      "winner": "紫のチョーカー",
+      "counts": {
+        "紫のチョーカー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:faulds": {
+      "winner": "ファウルス",
+      "counts": {
+        "ファウルス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:potted plant": {
+      "winner": "鉢植え",
+      "counts": {
+        "鉢植え": 0
+      },
+      "updated_at": ""
+    },
+    "feature:parasol": {
+      "winner": "パラソル",
+      "counts": {
+        "パラソル": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cross-laced clothes": {
+      "winner": "クロスレース",
+      "counts": {
+        "クロスレース": 0
+      },
+      "updated_at": ""
+    },
+    "feature:beachball": {
+      "winner": "ビーチボール",
+      "counts": {
+        "ビーチボール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding can": {
+      "winner": "缶を持つ",
+      "counts": {
+        "缶を持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding food": {
+      "winner": "食べ物を持つ",
+      "counts": {
+        "食べ物を持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:orange flower": {
+      "winner": "オレンジの花",
+      "counts": {
+        "オレンジの花": 0
+      },
+      "updated_at": ""
+    },
+    "feature:soda can": {
+      "winner": "ソーダ缶",
+      "counts": {
+        "ソーダ缶": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sunflower": {
+      "winner": "ひまわり",
+      "counts": {
+        "ひまわり": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding bouquet": {
+      "winner": "花束を持つ",
+      "counts": {
+        "花束を持つ": 0
+      },
+      "updated_at": "2026-05-14T18:53:10"
+    },
+    "feature:bracelet": {
+      "winner": "ブレスレット",
+      "counts": {
+        "ブレスレット": 1501
+      },
+      "updated_at": "2026-05-14T15:05:02"
+    },
+    "feature:pink-tinted eyewear": {
+      "winner": "ピンク色のサングラス",
+      "counts": {
+        "ピンク色のサングラス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:rainbow": {
+      "winner": "rainbow",
+      "counts": {
+        "rainbow": 0
+      },
+      "updated_at": ""
+    },
+    "feature:ball": {
+      "winner": "ボール",
+      "counts": {
+        "ボール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pendant choker": {
+      "winner": "ペンダント付きチョーカー",
+      "counts": {
+        "ペンダント付きチョーカー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:heart choker": {
+      "winner": "ハートのチョーカー",
+      "counts": {
+        "ハートのチョーカー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bouquet": {
+      "winner": "ブーケ",
+      "counts": {
+        "ブーケ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hibiscus": {
+      "winner": "ハイビスカス",
+      "counts": {
+        "ハイビスカス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding bottle": {
+      "winner": "ボトルを持つ",
+      "counts": {
+        "ボトルを持つ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:fur-trimmed hood": {
+      "winner": "毛皮の縁取りフード",
+      "counts": {
+        "毛皮の縁取りフード": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white garter belt": {
+      "winner": "白のガードルベルト",
+      "counts": {
+        "白のガードルベルト": 0
+      },
+      "updated_at": ""
+    },
+    "feature:polka dot": {
+      "winner": "水玉",
+      "counts": {
+        "水玉": 0
+      },
+      "updated_at": ""
+    },
+    "feature:star choker": {
+      "winner": "星付きチョーカー",
+      "counts": {
+        "星付きチョーカー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:orange choker": {
+      "winner": "オレンジのチョーカー",
+      "counts": {
+        "オレンジのチョーカー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bodystocking": {
+      "winner": "全身タイツ",
+      "counts": {
+        "全身タイツ": 7301
+      },
+      "updated_at": "2026-05-13T22:54:52"
+    },
+    "feature:mouth hold": {
+      "winner": "咥える",
+      "counts": {
+        "咥える": 414
+      },
+      "updated_at": "2026-05-13T22:54:57"
+    },
+    "feature:condom": {
+      "winner": "コンドーム",
+      "counts": {
+        "コンドーム": 3231
+      },
+      "updated_at": "2026-05-13T22:55:00"
+    },
+    "feature:notice lines": {
+      "winner": "注意到",
+      "counts": {
+        "注意到": 1
+      },
+      "updated_at": "2026-05-13T22:55:02"
+    },
+    "feature:used condom": {
+      "winner": "使用済みコンドーム",
+      "counts": {
+        "使用済みコンドーム": 458
+      },
+      "updated_at": "2026-05-13T22:55:06"
+    },
+    "feature:uwabaki": {
+      "winner": "上履き",
+      "counts": {
+        "上履き": 2437
+      },
+      "updated_at": "2026-05-13T22:55:08"
+    },
+    "feature:condom in mouth": {
+      "winner": "咥えゴム",
+      "counts": {
+        "咥えゴム": 2148
+      },
+      "updated_at": "2026-05-13T22:55:11"
+    },
+    "feature:crime prevention buzzer": {
+      "winner": "防犯ブザー",
+      "counts": {
+        "防犯ブザー": 425
+      },
+      "updated_at": "2026-05-13T22:55:16"
+    },
+    "feature:black bodysuit": {
+      "winner": "黒のボディスーツ",
+      "counts": {
+        "黒のボディスーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bodysuit under clothes": {
+      "winner": "ボディスーツ",
+      "counts": {
+        "ボディスーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:torn bodysuit": {
+      "winner": "引き裂かれたボディスーツ",
+      "counts": {
+        "引き裂かれたボディスーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:holding condom": {
+      "winner": "コンドームを持っている",
+      "counts": {
+        "コンドームを持っている": 0
+      },
+      "updated_at": ""
+    },
+    "feature:zoom layer": {
+      "winner": "ズームレイヤー",
+      "counts": {
+        "ズームレイヤー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:condom belt": {
+      "winner": "コンドーム腰蓑",
+      "counts": {
+        "コンドーム腰蓑": 0
+      },
+      "updated_at": ""
+    },
+    "feature:^^^": {
+      "winner": "びっくりマーク",
+      "counts": {
+        "びっくりマーク": 0
+      },
+      "updated_at": ""
+    },
+    "feature:torn bodystocking": {
+      "winner": "破れたボディストッキング",
+      "counts": {
+        "破れたボディストッキング": 0
+      },
+      "updated_at": ""
+    },
+    "feature:multicolored bodysuit": {
+      "winner": "多色ボディアーマー",
+      "counts": {
+        "多色ボディアーマー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:narrowed eyes": {
+      "winner": "細めた目",
+      "counts": {
+        "細めた目": 0
+      },
+      "updated_at": ""
+    },
+    "feature:multiple condoms": {
+      "winner": "複数のコンドーム",
+      "counts": {
+        "複数のコンドーム": 0
+      },
+      "updated_at": ""
+    },
+    "feature:spoken heart": {
+      "winner": "ハートマーク",
+      "counts": {
+        "ハートマーク": 0
+      },
+      "updated_at": ""
+    },
+    "feature:facial": {
+      "winner": "顔射",
+      "counts": {
+        "顔射": 678
+      },
+      "updated_at": "2026-05-14T15:05:09"
+    },
+    "feature:see-through cleavage": {
+      "winner": "透け谷間",
+      "counts": {
+        "透け谷間": 0
+      },
+      "updated_at": ""
+    },
+    "feature:after sex": {
+      "winner": "事後",
+      "counts": {
+        "事後": 5125
+      },
+      "updated_at": "2026-05-13T23:23:28"
+    },
+    "feature:hand on own knee": {
+      "winner": "膝に手を置く",
+      "counts": {
+        "膝に手を置く": 0
+      },
+      "updated_at": ""
+    },
+    "feature:licking lips": {
+      "winner": "舌なめずり",
+      "counts": {
+        "舌なめずり": 0
+      },
+      "updated_at": ""
+    },
+    "feature:flame print": {
+      "winner": "炎プリント",
+      "counts": {
+        "炎プリント": 0
+      },
+      "updated_at": ""
+    },
+    "feature:black gloves": {
+      "winner": "黒手袋",
+      "counts": {
+        "黒手袋": 693
+      },
+      "updated_at": "2026-05-13T23:23:36"
+    },
+    "feature:female focus": {
+      "winner": "female_focus",
+      "counts": {
+        "female_focus": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hand on own thigh": {
+      "winner": "自分の太ももに手を置く",
+      "counts": {
+        "自分の太ももに手を置く": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hand on another's shoulder": {
+      "winner": "肩に手を置く",
+      "counts": {
+        "肩に手を置く": 0
+      },
+      "updated_at": ""
+    },
+    "feature:outline": {
+      "winner": "アウトライン",
+      "counts": {
+        "アウトライン": 0
+      },
+      "updated_at": ""
+    },
+    "franchise:wuthering waves": {
+      "winner": "鳴潮",
+      "counts": {
+        "鳴潮": 36350
+      },
+      "updated_at": "2026-05-13T23:23:24"
+    },
+    "feature:after anal": {
+      "winner": "アナル後",
+      "counts": {
+        "アナル後": 0
+      },
+      "updated_at": "2026-05-13T23:23:26"
+    },
+    "feature:after vaginal": {
+      "winner": "後背位",
+      "counts": {
+        "後背位": 429
+      },
+      "updated_at": "2026-05-13T23:23:31"
+    },
+    "feature:car interior": {
+      "winner": "在车里",
+      "counts": {
+        "在车里": 1
+      },
+      "updated_at": "2026-05-13T23:23:41"
+    },
+    "feature:female ejaculation": {
+      "winner": "潮吹き",
+      "counts": {
+        "潮吹き": 0
+      },
+      "updated_at": ""
+    },
+    "feature:full nelson": {
+      "winner": "フルネルソン",
+      "counts": {
+        "フルネルソン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:girl on top": {
+      "winner": "女の子が上に乗っている",
+      "counts": {
+        "女の子が上に乗っている": 0
+      },
+      "updated_at": ""
+    },
+    "feature:hetero": {
+      "winner": "男女カプ",
+      "counts": {
+        "男女カプ": 927
+      },
+      "updated_at": "2026-05-14T15:05:16"
+    },
+    "feature:male pubic hair": {
+      "winner": "男性の股毛",
+      "counts": {
+        "男性の股毛": 0
+      },
+      "updated_at": ""
+    },
+    "feature:penis": {
+      "winner": "ペニス",
+      "counts": {
+        "ペニス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pointless condom": {
+      "winner": "無意味なコンドーム",
+      "counts": {
+        "無意味なコンドーム": 0
+      },
+      "updated_at": ""
+    },
+    "feature:reverse suspended congress": {
+      "winner": "逆駅弁",
+      "counts": {
+        "逆駅弁": 0
+      },
+      "updated_at": ""
+    },
+    "feature:rolling eyes": {
+      "winner": "眼球上翻",
+      "counts": {
+        "眼球上翻": 0
+      },
+      "updated_at": ""
+    },
+    "feature:striped bow": {
+      "winner": "ストライプリボン",
+      "counts": {
+        "ストライプリボン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:testicles": {
+      "winner": "キンタマ",
+      "counts": {
+        "キンタマ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:thigh boots": {
+      "winner": "サイハイブーツ",
+      "counts": {
+        "サイハイブーツ": 0
+      },
+      "updated_at": ""
+    },
+    "character:carlotta (wuthering waves)": {
+      "winner": "カルロッタ(鳴潮)",
+      "counts": {
+        "カルロッタ(鳴潮)": 0
+      },
+      "updated_at": ""
+    },
+    "feature:folded": {
+      "winner": "まんぐり返し",
+      "counts": {
+        "まんぐり返し": 0
+      },
+      "updated_at": ""
+    },
+    "feature:motor vehicle": {
+      "winner": "自動車",
+      "counts": {
+        "自動車": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink thighhighs": {
+      "winner": "ピンクのサイハイソックス",
+      "counts": {
+        "ピンクのサイハイソックス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:jacket on shoulders": {
+      "winner": "肩に掛けたジャケット",
+      "counts": {
+        "肩に掛けたジャケット": 0
+      },
+      "updated_at": ""
+    },
+    "feature:lifting person": {
+      "winner": "持ち上げられる",
+      "counts": {
+        "持ち上げられる": 0
+      },
+      "updated_at": ""
+    },
+    "feature:trembling": {
+      "winner": "震える",
+      "counts": {
+        "震える": 0
+      },
+      "updated_at": ""
+    },
+    "feature:large penis": {
+      "winner": "巨根",
+      "counts": {
+        "巨根": 0
+      },
+      "updated_at": ""
+    },
+    "feature:gaping": {
+      "winner": "拡張済み",
+      "counts": {
+        "拡張済み": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pink hairband": {
+      "winner": "ピンクのヘアバンド",
+      "counts": {
+        "ピンクのヘアバンド": 0
+      },
+      "updated_at": ""
+    },
+    "feature:steering wheel": {
+      "winner": "ステアリング・ホイール",
+      "counts": {
+        "ステアリング・ホイール": 0
+      },
+      "updated_at": ""
+    },
+    "feature:race queen": {
+      "winner": "レースクイーン",
+      "counts": {
+        "レースクイーン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:knee boots": {
+      "winner": "ロングブーツ",
+      "counts": {
+        "ロングブーツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sex": {
+      "winner": "セックス",
+      "counts": {
+        "セックス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:female orgasm": {
+      "winner": "オーガズム",
+      "counts": {
+        "オーガズム": 0
+      },
+      "updated_at": ""
+    },
+    "feature:veiny penis": {
+      "winner": "静脈が浮き出たペニス",
+      "counts": {
+        "静脈が浮き出たペニス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:after ejaculation": {
+      "winner": "ズリ事後",
+      "counts": {
+        "ズリ事後": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tally": {
+      "winner": "正の字",
+      "counts": {
+        "正の字": 0
+      },
+      "updated_at": ""
+    },
+    "feature:ahegao": {
+      "winner": "アヘ顔",
+      "counts": {
+        "アヘ顔": 0
+      },
+      "updated_at": ""
+    },
+    "feature:flaccid": {
+      "winner": "弛緩したペニス",
+      "counts": {
+        "弛緩したペニス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:clitoris": {
+      "winner": "クリトリス",
+      "counts": {
+        "クリトリス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:torogao": {
+      "winner": "トロ顔",
+      "counts": {
+        "トロ顔": 0
+      },
+      "updated_at": ""
+    },
+    "feature:thighhighs under boots": {
+      "winner": "ブーツの下のストッキング",
+      "counts": {
+        "ブーツの下のストッキング": 0
+      },
+      "updated_at": ""
+    },
+    "feature:multi-strapped bikini bottom": {
+      "winner": "多ストラップビキニ",
+      "counts": {
+        "多ストラップビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "character:male rover (wuthering waves)": {
+      "winner": "漂泊者",
+      "counts": {
+        "漂泊者": 0
+      },
+      "updated_at": ""
+    },
+    "character:rover (wuthering waves)": {
+      "winner": "ローバー (ウザリング・ウェーブス)",
+      "counts": {
+        "ローバー (ウザリング・ウェーブス)": 0
+      },
+      "updated_at": ""
+    },
+    "franchise:arknights": {
+      "winner": "アークナイツ",
+      "counts": {
+        "アークナイツ": 309167
+      },
+      "updated_at": "2026-05-14T15:04:57"
+    },
+    "feature:breasts squeezed together": {
+      "winner": "寄せ乳",
+      "counts": {
+        "寄せ乳": 574
+      },
+      "updated_at": "2026-05-14T15:05:04"
+    },
+    "feature:cum on breasts": {
+      "winner": "胸に精液",
+      "counts": {
+        "胸に精液": 0
+      },
+      "updated_at": "2026-05-14T15:05:07"
+    },
+    "feature:front-tie bikini top": {
+      "winner": "フロントタイビキニトップ",
+      "counts": {
+        "フロントタイビキニトップ": 0
+      },
+      "updated_at": "2026-05-14T15:05:11"
+    },
+    "feature:front-tie top": {
+      "winner": "フロントタイトップ",
+      "counts": {
+        "フロントタイトップ": 0
+      },
+      "updated_at": "2026-05-14T15:05:12"
+    },
+    "feature:grey bikini": {
+      "winner": "灰色ビキニ",
+      "counts": {
+        "灰色ビキニ": 25
+      },
+      "updated_at": "2026-05-14T15:05:14"
+    },
+    "feature:paizuri": {
+      "winner": "パイズリ",
+      "counts": {
+        "パイズリ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:paizuri under clothes": {
+      "winner": "着衣パイズリ",
+      "counts": {
+        "着衣パイズリ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pov": {
+      "winner": "主観視点",
+      "counts": {
+        "主観視点": 0
+      },
+      "updated_at": ""
+    },
+    "feature:sound effects": {
+      "winner": "オノマトペ",
+      "counts": {
+        "オノマトペ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:striped bikini": {
+      "winner": "縞ビキニ",
+      "counts": {
+        "縞ビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:striped clothes": {
+      "winner": "ストライプ柄",
+      "counts": {
+        "ストライプ柄": 0
+      },
+      "updated_at": ""
+    },
+    "feature:vertical-striped clothes": {
+      "winner": "縦縞の服",
+      "counts": {
+        "縦縞の服": 0
+      },
+      "updated_at": ""
+    },
+    "feature:ejaculation": {
+      "winner": "射精",
+      "counts": {
+        "射精": 0
+      },
+      "updated_at": ""
+    },
+    "character:utage (arknights)": {
+      "winner": "ウタゲ",
+      "counts": {
+        "ウタゲ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:projectile cum": {
+      "winner": "projectile_cum",
+      "counts": {
+        "projectile_cum": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum on hair": {
+      "winner": "髪射",
+      "counts": {
+        "髪射": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum on clothes": {
+      "winner": "着衣ぶっかけ",
+      "counts": {
+        "着衣ぶっかけ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:light brown hair": {
+      "winner": "茶色髪",
+      "counts": {
+        "茶色髪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:pov crotch": {
+      "winner": "視点クロッチ",
+      "counts": {
+        "視点クロッチ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tied shirt": {
+      "winner": "裾結び",
+      "counts": {
+        "裾結び": 0
+      },
+      "updated_at": ""
+    },
+    "feature:motion lines": {
+      "winner": "動き線",
+      "counts": {
+        "動き線": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bath yukata": {
+      "winner": "温泉浴衣",
+      "counts": {
+        "温泉浴衣": 0
+      },
+      "updated_at": ""
+    },
+    "feature:clothed female nude male": {
+      "winner": "clothed_female_nude_male",
+      "counts": {
+        "clothed_female_nude_male": 0
+      },
+      "updated_at": ""
+    },
+    "feature:;d": {
+      "winner": "ウインク笑顔",
+      "counts": {
+        "ウインク笑顔": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue nails": {
+      "winner": "青い爪",
+      "counts": {
+        "青い爪": 0
+      },
+      "updated_at": ""
+    },
+    "feature:brown bikini": {
+      "winner": "茶色ビキニ",
+      "counts": {
+        "茶色ビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:straddling paizuri": {
+      "winner": "馬乗りパイズリ",
+      "counts": {
+        "馬乗りパイズリ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum pool": {
+      "winner": "精液溜まり",
+      "counts": {
+        "精液溜まり": 0
+      },
+      "updated_at": ""
+    },
+    "feature:purple bikini": {
+      "winner": "紫ビキニ",
+      "counts": {
+        "紫ビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bikini under clothes": {
+      "winner": "服の下に水着",
+      "counts": {
+        "服の下に水着": 0
+      },
+      "updated_at": ""
+    },
+    "feature:striped bra": {
+      "winner": "縞ブラ",
+      "counts": {
+        "縞ブラ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum inflation": {
+      "winner": "精液ボテ",
+      "counts": {
+        "精液ボテ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum on penis": {
+      "winner": "精液がペニスに",
+      "counts": {
+        "精液がペニスに": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum on eyewear": {
+      "winner": "眼鏡はかけるもの",
+      "counts": {
+        "眼鏡はかけるもの": 0
+      },
+      "updated_at": ""
+    },
+    "feature:untied bikini": {
+      "winner": "結び目なしビキニ",
+      "counts": {
+        "結び目なしビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:white robe": {
+      "winner": "白いローブ",
+      "counts": {
+        "白いローブ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cum on stomach": {
+      "winner": "腹部に射精",
+      "counts": {
+        "腹部に射精": 0
+      },
+      "updated_at": ""
+    },
+    "character:utage (summer flowers) (arknights)": {
+      "winner": "夏の花弁FA661",
+      "counts": {
+        "夏の花弁FA661": 0
+      },
+      "updated_at": ""
+    },
+    "character:hoshimachi suisei": {
+      "winner": "星街すいせい",
+      "counts": {
+        "星街すいせい": 37497
+      },
+      "updated_at": "2026-05-14T15:39:44"
+    },
+    "feature:tiles": {
+      "winner": "タイル",
+      "counts": {
+        "タイル": 536
+      },
+      "updated_at": "2026-05-14T15:39:52"
+    },
+    "feature:grey hat": {
+      "winner": "灰色の頭巾",
+      "counts": {
+        "灰色の頭巾": 0
+      },
+      "updated_at": "2026-05-14T15:39:54"
+    },
+    "feature:star in eye": {
+      "winner": "星の目",
+      "counts": {
+        "星の目": 18
+      },
+      "updated_at": "2026-05-14T15:39:56"
+    },
+    "feature:plaid hat": {
+      "winner": "チェック柄帽子",
+      "counts": {
+        "チェック柄帽子": 0
+      },
+      "updated_at": "2026-05-14T15:39:57"
+    },
+    "feature:tile floor": {
+      "winner": "瓷砖地板",
+      "counts": {
+        "瓷砖地板": 0
+      },
+      "updated_at": "2026-05-14T15:40:01"
+    },
+    "feature:averting eyes": {
+      "winner": "目光闪躲",
+      "counts": {
+        "目光闪躲": 0
+      },
+      "updated_at": ""
+    },
+    "feature:water drop": {
+      "winner": "水滴",
+      "counts": {
+        "水滴": 0
+      },
+      "updated_at": ""
+    },
+    "feature:fisheye": {
+      "winner": "魚眼レンズ",
+      "counts": {
+        "魚眼レンズ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:crown": {
+      "winner": "王冠",
+      "counts": {
+        "王冠": 0
+      },
+      "updated_at": ""
+    },
+    "feature:tile wall": {
+      "winner": "瓷砖墙",
+      "counts": {
+        "瓷砖墙": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bathroom": {
+      "winner": "洗面所",
+      "counts": {
+        "洗面所": 0
+      },
+      "updated_at": ""
+    },
+    "feature:partially fingerless gloves": {
+      "winner": "一部指なし手袋",
+      "counts": {
+        "一部指なし手袋": 0
+      },
+      "updated_at": ""
+    },
+    "feature::/": {
+      "winner": "困った顔",
+      "counts": {
+        "困った顔": 0
+      },
+      "updated_at": ""
+    },
+    "feature:otoko no ko": {
+      "winner": "男の娘",
+      "counts": {
+        "男の娘": 0
+      },
+      "updated_at": ""
+    },
+    "feature:beanie": {
+      "winner": "ビーニー帽",
+      "counts": {
+        "ビーニー帽": 0
+      },
+      "updated_at": ""
+    },
+    "feature:orange bikini": {
+      "winner": "オレンジビキニ",
+      "counts": {
+        "オレンジビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:lower body": {
+      "winner": "下半身",
+      "counts": {
+        "下半身": 477
+      },
+      "updated_at": "2026-05-14T17:36:30"
+    },
+    "character:tacet mark (wuthering waves)": {
+      "winner": "声痕",
+      "counts": {
+        "声痕": 0
+      },
+      "updated_at": "2026-05-14T17:36:33"
+    },
+    "feature:head out of frame": {
+      "winner": "目元より下で切り出すとエロいらしい",
+      "counts": {
+        "目元より下で切り出すとエロいらしい": 12
+      },
+      "updated_at": "2026-05-14T17:36:37"
+    },
+    "character:phoebe (wuthering waves)": {
+      "winner": "フィービー(鳴潮)",
+      "counts": {
+        "フィービー(鳴潮)": 2899
+      },
+      "updated_at": "2026-05-14T17:36:38"
+    },
+    "feature:hip focus": {
+      "winner": "ヒップフォーカス",
+      "counts": {
+        "ヒップフォーカス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue scarf": {
+      "winner": "青いスカーフ",
+      "counts": {
+        "青いスカーフ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:realistic": {
+      "winner": "リアル絵",
+      "counts": {
+        "リアル絵": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue necktie": {
+      "winner": "青いネクタイ",
+      "counts": {
+        "青いネクタイ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:out of frame": {
+      "winner": "フレーム外",
+      "counts": {
+        "フレーム外": 0
+      },
+      "updated_at": ""
+    },
+    "feature:blue sash": {
+      "winner": "青い帯",
+      "counts": {
+        "青い帯": 0
+      },
+      "updated_at": ""
+    },
+    "feature:half gloves": {
+      "winner": "半指手袋",
+      "counts": {
+        "半指手袋": 0
+      },
+      "updated_at": ""
+    },
+    "feature:scarf": {
+      "winner": "マフラー",
+      "counts": {
+        "マフラー": 0
+      },
+      "updated_at": ""
+    },
+    "feature:nurse": {
+      "winner": "ナース",
+      "counts": {
+        "ナース": 0
+      },
+      "updated_at": ""
+    },
+    "selling:魅惑のふともも": {
+      "winner": "魅惑のふともも",
+      "counts": {
+        "魅惑のふともも": 528263
+      },
+      "updated_at": "2026-05-14T17:36:51"
+    },
+    "feature:hand on own hip": {
+      "winner": "腰に手",
+      "counts": {
+        "腰に手": 4854
+      },
+      "updated_at": "2026-05-14T18:50:02"
+    },
+    "feature:contrapposto": {
+      "winner": "コントラポスト",
+      "counts": {
+        "コントラポスト": 140
+      },
+      "updated_at": "2026-05-14T18:50:03"
+    },
+    "feature:off-shoulder shirt": {
+      "winner": "オフショルダー",
+      "counts": {
+        "オフショルダー": 13194
+      },
+      "updated_at": "2026-05-14T18:50:05"
+    },
+    "feature:yellow shirt": {
+      "winner": "黄シャツ",
+      "counts": {
+        "黄シャツ": 2
+      },
+      "updated_at": "2026-05-14T18:50:06"
+    },
+    "feature:denim shorts": {
+      "winner": "牛仔短裤",
+      "counts": {
+        "牛仔短裤": 16
+      },
+      "updated_at": "2026-05-14T18:50:08"
+    },
+    "feature:cutoffs": {
+      "winner": "カットジーンズ",
+      "counts": {
+        "カットジーンズ": 513
+      },
+      "updated_at": "2026-05-14T18:50:09"
+    },
+    "feature:bra strap": {
+      "winner": "ブラ紐",
+      "counts": {
+        "ブラ紐": 146
+      },
+      "updated_at": "2026-05-14T18:50:14"
+    },
+    "feature:denim": {
+      "winner": "デニム",
+      "counts": {
+        "デニム": 5264
+      },
+      "updated_at": "2026-05-14T18:50:15"
+    },
+    "feature:torn shorts": {
+      "winner": "破れたショートパンツ",
+      "counts": {
+        "破れたショートパンツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cropped shirt": {
+      "winner": "クロップドシャツ",
+      "counts": {
+        "クロップドシャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:chain": {
+      "winner": "チェーン",
+      "counts": {
+        "チェーン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cropped jacket": {
+      "winner": "ボレロ",
+      "counts": {
+        "ボレロ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:chain necklace": {
+      "winner": "チェーンネックレス",
+      "counts": {
+        "チェーンネックレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:single bare shoulder": {
+      "winner": "片方肩出し",
+      "counts": {
+        "片方肩出し": 0
+      },
+      "updated_at": ""
+    },
+    "feature:undershirt": {
+      "winner": "アンダーシャツ",
+      "counts": {
+        "アンダーシャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:torn shirt": {
+      "winner": "破れたシャツ",
+      "counts": {
+        "破れたシャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:single off shoulder": {
+      "winner": "片方の肩出し",
+      "counts": {
+        "片方の肩出し": 0
+      },
+      "updated_at": ""
+    },
+    "feature:highleg bikini": {
+      "winner": "ハイレグビキニ",
+      "counts": {
+        "ハイレグビキニ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:orange shirt": {
+      "winner": "オレンジ色のシャツ",
+      "counts": {
+        "オレンジ色のシャツ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:beads": {
+      "winner": "ビーズ",
+      "counts": {
+        "ビーズ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:brazilian flag print": {
+      "winner": "ブラジル国旗プリント",
+      "counts": {
+        "ブラジル国旗プリント": 0
+      },
+      "updated_at": ""
+    },
+    "feature:cosplay": {
+      "winner": "コスプレ",
+      "counts": {
+        "コスプレ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bead necklace": {
+      "winner": "ビーズネックレス",
+      "counts": {
+        "ビーズネックレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:crop top overhang": {
+      "winner": "乳カーテン",
+      "counts": {
+        "乳カーテン": 0
+      },
+      "updated_at": ""
+    },
+    "feature:wedding dress": {
+      "winner": "ウェディングドレス",
+      "counts": {
+        "ウェディングドレス": 31721
+      },
+      "updated_at": "2026-05-14T18:53:06"
+    },
+    "feature:bridal veil": {
+      "winner": "ベール",
+      "counts": {
+        "ベール": 2575
+      },
+      "updated_at": "2026-05-14T18:53:08"
+    },
+    "feature:backless outfit": {
+      "winner": "ぱっくり背中",
+      "counts": {
+        "ぱっくり背中": 1999
+      },
+      "updated_at": "2026-05-14T18:53:11"
+    },
+    "feature:ass cutout": {
+      "winner": "尻カットアウト",
+      "counts": {
+        "尻カットアウト": 0
+      },
+      "updated_at": "2026-05-14T18:53:15"
+    },
+    "feature:bare back": {
+      "winner": "ベアバック",
+      "counts": {
+        "ベアバック": 424
+      },
+      "updated_at": "2026-05-14T18:53:16"
+    },
+    "feature:shoulder blades": {
+      "winner": "肩甲骨",
+      "counts": {
+        "肩甲骨": 1109
+      },
+      "updated_at": "2026-05-14T18:53:20"
+    },
+    "feature:veil": {
+      "winner": "面纱",
+      "counts": {
+        "面纱": 0
+      },
+      "updated_at": ""
+    },
+    "feature:backless dress": {
+      "winner": "ぱっくり背中",
+      "counts": {
+        "ぱっくり背中": 0
+      },
+      "updated_at": ""
+    },
+    "feature:garter belt": {
+      "winner": "ガーターベルト",
+      "counts": {
+        "ガーターベルト": 0
+      },
+      "updated_at": ""
+    },
+    "feature:bride": {
+      "winner": "はなよめ",
+      "counts": {
+        "はなよめ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:lace-trimmed thighhighs": {
+      "winner": "レース縁付き膝上ストッキング",
+      "counts": {
+        "レース縁付き膝上ストッキング": 0
+      },
+      "updated_at": ""
+    },
+    "feature:median furrow": {
+      "winner": "背中线",
+      "counts": {
+        "背中线": 0
+      },
+      "updated_at": ""
+    },
+    "feature:crotchless": {
+      "winner": "クロッチレス",
+      "counts": {
+        "クロッチレス": 0
+      },
+      "updated_at": ""
+    },
+    "feature:huge ahoge": {
+      "winner": "巨大アホ毛",
+      "counts": {
+        "巨大アホ毛": 0
+      },
+      "updated_at": ""
+    },
+    "feature:frilled gloves": {
+      "winner": "フリル手袋",
+      "counts": {
+        "フリル手袋": 0
+      },
+      "updated_at": ""
+    },
+    "feature:low-braided long hair": {
+      "winner": "低位置編み込み",
+      "counts": {
+        "低位置編み込み": 0
+      },
+      "updated_at": ""
+    },
+    "feature:watercraft": {
+      "winner": "水上交通",
+      "counts": {
+        "水上交通": 0
+      },
+      "updated_at": ""
+    },
+    "feature:lace panties": {
+      "winner": "レース下着",
+      "counts": {
+        "レース下着": 0
+      },
+      "updated_at": ""
+    },
+    "feature:strapless dress": {
+      "winner": "ベアトップワンピース",
+      "counts": {
+        "ベアトップワンピース": 0
+      },
+      "updated_at": ""
+    },
+    "feature:turning head": {
+      "winner": "横向き",
+      "counts": {
+        "横向き": 0
+      },
+      "updated_at": ""
+    },
+    "feature:own hands together": {
+      "winner": "手をつなぐ",
+      "counts": {
+        "手をつなぐ": 185
+      },
+      "updated_at": "2026-05-14T22:21:59"
+    },
+    "feature:own hands clasped": {
+      "winner": "手を組む",
+      "counts": {
+        "手を組む": 453
+      },
+      "updated_at": "2026-05-14T22:22:00"
+    },
+    "feature:purple theme": {
+      "winner": "紫",
+      "counts": {
+        "紫": 23234
+      },
+      "updated_at": "2026-05-14T22:22:01"
+    },
+    "feature:juliet sleeves": {
+      "winner": "ジュリエットスリーブ",
+      "counts": {
+        "ジュリエットスリーブ": 17
+      },
+      "updated_at": "2026-05-14T22:22:02"
+    },
+    "feature:skull hair ornament": {
+      "winner": "髑髏ヘアピン",
+      "counts": {
+        "髑髏ヘアピン": 0
+      },
+      "updated_at": "2026-05-14T22:22:06"
+    },
+    "feature:dog girl": {
+      "winner": "いぬ娘",
+      "counts": {
+        "いぬ娘": 0
+      },
+      "updated_at": ""
+    },
+    "feature:v arms": {
+      "winner": "V字ポーズ",
+      "counts": {
+        "V字ポーズ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:colored skin": {
+      "winner": "異色肌",
+      "counts": {
+        "異色肌": 0
+      },
+      "updated_at": ""
+    },
+    "feature:furry female": {
+      "winner": "メスケモ",
+      "counts": {
+        "メスケモ": 0
+      },
+      "updated_at": ""
+    },
+    "feature:dog ears": {
+      "winner": "犬耳",
+      "counts": {
+        "犬耳": 0
+      },
+      "updated_at": ""
+    },
+    "feature:raccoon tail": {
+      "winner": "キツネの尾",
+      "counts": {
+        "キツネの尾": 0
       },
       "updated_at": ""
     }

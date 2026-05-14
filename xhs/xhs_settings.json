@@ -1,0 +1,18 @@
+{
+  "title_max_chars": 20,
+  "caption_max_chars": 1000,
+  "tag_limit": 5,
+  "image_long_side_max": 2160,
+  "image_count_max": 18,
+  "publish_timeout_sec": 120,
+  "post_delay_sec": 8,
+  "min_interval_seconds": 1800,
+  "auto_append_ai_tag": true,
+  "ai_declaration_tag": "#AI创作",
+  "auto_check_ai_declaration": true,
+  "topic_dropdown_wait_sec": 3,
+  "default_template": "default",
+  "jpg_quality": 90,
+  "png_size_threshold_mb": 8
+}
+

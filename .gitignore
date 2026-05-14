@@ -21,6 +21,25 @@ pixiv_validation_cases.json
 config.json
 pixiv_censor.json
 
+# X / xhs credentials — NEVER commit. auth_token + ct0 == full account access.
+x/cookies*.json
+xhs/cookies*.json
+# Persistent browser profiles (if they land inside the repo)
+.civitai_splitter_x_chrome/
+.civitai_splitter_xhs_chrome/
+
+# Anything that looks like a credential dump
+*.cookie
+*.cookies
+*.token
+.env
+.env.*
+secrets.json
+credentials.json
+
+# Big Danbooru dictionary (~150MB, fetched via setup script — too big for GitHub)
+pixiv/danbooru_jp.json
+
 # Model files (50+ MB, fetched via setup_censor.py)
 models/
 
@@ -34,3 +53,4 @@ models/
 
 # Update check timestamp (per-machine)
 .last_update_check
+.gstack/

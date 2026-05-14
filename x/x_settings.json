@@ -1,0 +1,11 @@
+{
+  "tag_limit": 2,
+  "text_max_chars": 280,
+  "alt_text_max_chars": 1000,
+  "image_long_side_max": 2048,
+  "png_size_threshold_mb": 5,
+  "jpg_quality": 90,
+  "default_template": "en_sfw",
+  "publish_timeout_sec": 90,
+  "post_delay_sec": 4
+}

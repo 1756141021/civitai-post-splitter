@@ -127,6 +127,18 @@ def _clean_sample(sample: dict[str, Any], platform_id: str) -> dict[str, Any]:
     }
 
 
+_NSFW_TIER = {"all_ages": 0, "sfw": 0, "r18": 1, "r18g": 2}
+
+
+def _normalize_max_nsfw_level(value: Any) -> str:
+    raw = str(value or "").strip().lower()
+    if raw in {"r18g", "r-18g", "r18_g"}:
+        return "r18g"
+    if raw in {"r18", "r-18"}:
+        return "r18"
+    return "sfw"
+
+
 def _clean_account(account: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(account.get("id") or "").strip(),
@@ -135,8 +147,39 @@ def _clean_account(account: dict[str, Any]) -> dict[str, Any]:
         "persona_id": str(account.get("persona_id") or "").strip(),
         "default_content_mode": _normalize_content_mode(account.get("default_content_mode", "sfw")),
         "allowed_content_modes": _normalize_allowed_modes(account.get("allowed_content_modes")),
+        "max_nsfw_level": _normalize_max_nsfw_level(account.get("max_nsfw_level", "sfw")),
         "notes": str(account.get("notes") or ""),
     }
+
+
+def account_can_handle_age(account: dict[str, Any] | None, image_age: str) -> bool:
+    """Check if an account's max_nsfw_level can ingest an image at image_age.
+
+    Tiers: all_ages/sfw = 0, r18 = 1, r18g = 2. Account must have a tier >=
+    the image's tier. Used to skip LLM reverse when a SFW-only provider
+    would otherwise be asked to look at NSFW content (usually refuses or hallucinates).
+    """
+    if not account:
+        return True
+    image_tier = _NSFW_TIER.get(image_age, 0)
+    account_tier = _NSFW_TIER.get(account.get("max_nsfw_level", "sfw"), 0)
+    return account_tier >= image_tier
+
+
+def resolve_account(
+    config: dict[str, Any] | None,
+    account_id: str = "",
+) -> dict[str, Any]:
+    """Resolve which account dict to use, falling back to default_account_id
+    then to the first account. Returns empty dict if no accounts configured.
+    """
+    cfg = normalize_llm_reverse_config(config)
+    accounts = {str(item.get("id", "")): item for item in cfg.get("accounts", []) if item.get("id")}
+    return (
+        accounts.get(account_id)
+        or accounts.get(str(cfg.get("default_account_id", "")))
+        or next(iter(accounts.values()), {})
+    )
 
 
 def mask_llm_config(config: dict[str, Any] | None) -> dict[str, Any]:
@@ -277,6 +320,89 @@ def apply_llm_result_to_pixiv_payload(payload: dict[str, Any], result: dict[str,
         value = str(fields.get(key, "") or "").strip()
         if value:
             payload[key] = value
+
+
+def empty_copy_block() -> dict[str, Any]:
+    """Empty `manifest.copy` block — the universal cross-platform copy area.
+
+    Fields:
+      - title.{ja,en,zh}   localized title strings
+      - caption.{ja,en,zh} localized caption/body strings
+      - llm_reverse        status/persona/account/platform metadata
+    """
+    return {
+        "title": {"ja": "", "en": "", "zh": ""},
+        "caption": {"ja": "", "en": "", "zh": ""},
+        "llm_reverse": {
+            "status": "",
+            "persona_id": "",
+            "account_id": "",
+            "platform": "",
+            "content_mode": "",
+            "error": "",
+        },
+    }
+
+
+def apply_llm_result_to_copy_block(
+    copy: dict[str, Any],
+    result: dict[str, Any],
+    platform: str = "",
+    account_id: str = "",
+) -> None:
+    """In-place merge of LLM reverse result into a copy block (see empty_copy_block).
+
+    Use this when you already have a copy block to populate (e.g. before the
+    full manifest is assembled). For convenience, `apply_llm_result_to_manifest_copy`
+    wraps this for the manifest case.
+    """
+    copy["llm_reverse"] = {
+        "status": str(result.get("status", "") or ""),
+        "persona_id": str(result.get("persona_id", "") or ""),
+        "account_id": str(account_id or ""),
+        "platform": str(platform or result.get("platform", "") or ""),
+        "content_mode": str(result.get("content_mode", "") or ""),
+        "error": str(result.get("error", "") or ""),
+    }
+    if result.get("status") != "ok":
+        return
+
+    fields = result.get("fields") or {}
+    platform_id = (platform or result.get("platform", "") or "").strip().lower()
+
+    def _set(bucket: str, lang: str, value: Any) -> None:
+        v = str(value or "").strip()
+        if v:
+            copy[bucket][lang] = v
+
+    if platform_id == "pixiv":
+        _set("title",   "ja", fields.get("title_ja"))
+        _set("title",   "zh", fields.get("title_zh"))
+        _set("caption", "ja", fields.get("caption_ja"))
+        _set("caption", "zh", fields.get("caption_zh"))
+    elif platform_id == "x":
+        _set("caption", "en", fields.get("tweet"))
+    elif platform_id == "xhs":
+        _set("title",   "zh", fields.get("xhs_title"))
+        _set("caption", "zh", fields.get("xhs_body"))
+    else:
+        for k in ("title_ja", "title_zh", "title_en"):
+            if k in fields:
+                _set("title", k.rsplit("_", 1)[-1], fields[k])
+        for k in ("caption_ja", "caption_zh", "caption_en"):
+            if k in fields:
+                _set("caption", k.rsplit("_", 1)[-1], fields[k])
+
+
+def apply_llm_result_to_manifest_copy(
+    manifest: dict[str, Any],
+    result: dict[str, Any],
+    platform: str = "",
+    account_id: str = "",
+) -> None:
+    """Project a LLM reverse result onto the universal `manifest.copy` area."""
+    copy = manifest.setdefault("copy", empty_copy_block())
+    apply_llm_result_to_copy_block(copy, result, platform, account_id)
 
 
 def _base_result(cfg: dict[str, Any], persona: dict[str, Any], mode: str, spec: dict[str, Any]) -> dict[str, Any]:

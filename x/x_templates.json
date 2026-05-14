@@ -1,0 +1,32 @@
+{
+  "jp_sfw": {
+    "core": "#AIイラスト",
+    "lang": "ja",
+    "social": "#AIイラスト好きさんと繋がりたい"
+  },
+  "en_sfw": {
+    "core": "#AIart",
+    "lang": "en",
+    "social": "#AIArtCommunity"
+  },
+  "zh_sfw": {
+    "core": "#AI绘画",
+    "lang": "zh",
+    "social": "#AI插画"
+  },
+  "jp_nsfw": {
+    "core": "#AIイラスト",
+    "lang": "ja",
+    "social": "#NSFW"
+  },
+  "en_nsfw": {
+    "core": "#AIart",
+    "lang": "en",
+    "social": "#NSFW"
+  },
+  "zh_nsfw": {
+    "core": "#AI绘画",
+    "lang": "zh",
+    "social": "#NSFW"
+  }
+}
