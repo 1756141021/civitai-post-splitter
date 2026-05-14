@@ -48,7 +48,6 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   const [orderedFiles, setOrderedFiles] = React.useState([]);
   const [llmReverse,     setLlmReverse]     = React.useState(false);
   const [llmPersona,     setLlmPersona]     = React.useState('');
-  const [llmAccount,     setLlmAccount]     = React.useState('');
   const [llmContentMode, setLlmContentMode] = React.useState('sfw');
   const [pickN,        setPickN]        = React.useState('');
   const fileInputRef   = React.useRef(null);
@@ -58,9 +57,6 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
 
   const label = cmd === 2 ? 'Dual upload (Civitai + Pixiv)' : 'Pixiv only';
   const personas = (llmConfig && llmConfig.personas) || [];
-  const accounts = (llmConfig && llmConfig.accounts) || [];
-  const selectedAccount = accounts.find(a => a.id === llmAccount) || accounts[0] || {};
-  const allowedModes = selectedAccount.allowed_content_modes || ['sfw', 'nsfw'];
 
   const applySortToImages = (imgs, mode) => {
     if (mode === 'name_asc')  return [...imgs].sort((a, b) => a.name.localeCompare(b.name));
@@ -93,16 +89,10 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
 
   React.useEffect(() => {
     if (!llmConfig) return;
-    const account = (llmConfig.accounts || []).find(a => a.id === llmConfig.default_account_id) || (llmConfig.accounts || [])[0] || {};
-    const persona = (llmConfig.personas || []).find(p => p.id === (account.persona_id || llmConfig.default_persona_id)) || (llmConfig.personas || [])[0] || {};
-    setLlmAccount(account.id || '');
+    const persona = (llmConfig.personas || []).find(p => p.id === llmConfig.default_persona_id) || (llmConfig.personas || [])[0] || {};
     setLlmPersona(persona.id || '');
-    setLlmContentMode(account.default_content_mode || persona.default_content_mode || llmConfig.default_content_mode || 'sfw');
+    setLlmContentMode(persona.default_content_mode || llmConfig.default_content_mode || 'sfw');
   }, [llmConfig]);
-
-  React.useEffect(() => {
-    if (!allowedModes.includes(llmContentMode)) setLlmContentMode(allowedModes[0] || 'sfw');
-  }, [llmAccount]);
 
   const toggle = name => setSelected(prev => {
     const next = new Set(prev);
@@ -145,7 +135,7 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   };
 
   const go = () => {
-    const llmOpts = { llm_reverse: llmReverse, llm_persona: llmPersona, llm_account: llmAccount, llm_content_mode: llmContentMode };
+    const llmOpts = { llm_reverse: llmReverse, llm_persona: llmPersona, llm_content_mode: llmContentMode };
     if (sortMode === 'manual') {
       onConfirm(cmd, orderedFiles.map(f => f.name), { sort: 'manual', ...llmOpts });
       return;
@@ -267,21 +257,12 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
           )}
         </div>
 
-        <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 130px', gap: 8, alignItems: 'center' }}>
+        <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'grid', gridTemplateColumns: 'auto 1fr 130px', gap: 8, alignItems: 'center' }}>
           <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
             <input type="checkbox" checked={llmReverse} disabled={!llmConfig || !llmConfig.enabled}
                    onChange={e => setLlmReverse(e.target.checked)} />
             LLM 标题/简介
           </label>
-          <select className="mn-input" value={llmAccount} disabled={!llmReverse}
-                  onChange={e => {
-                    const account = accounts.find(a => a.id === e.target.value) || {};
-                    setLlmAccount(e.target.value);
-                    if (account.persona_id) setLlmPersona(account.persona_id);
-                    setLlmContentMode(account.default_content_mode || llmConfig.default_content_mode || 'sfw');
-                  }} style={{ fontSize: 12 }}>
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.label || a.id}</option>)}
-          </select>
           <select className="mn-input" value={llmPersona} disabled={!llmReverse}
                   onChange={e => setLlmPersona(e.target.value)} style={{ fontSize: 12 }}>
             {personas.map(p => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
@@ -289,7 +270,7 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
           <select className="mn-input" value={llmContentMode} disabled={!llmReverse}
                   onChange={e => setLlmContentMode(e.target.value)} style={{ fontSize: 12 }}>
             <option value="sfw">SFW</option>
-            <option value="nsfw" disabled={!allowedModes.includes('nsfw')}>NSFW</option>
+            <option value="nsfw">NSFW</option>
           </select>
         </div>
 
@@ -299,7 +280,7 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
                     onClick={() => onConfirm(cmd, [], {
                       sort: sortMode,
                       llm_reverse: llmReverse, llm_persona: llmPersona,
-                      llm_account: llmAccount, llm_content_mode: llmContentMode,
+                      llm_content_mode: llmContentMode,
                     })} title="随机从 upload/ 选 1-5 张，排序方式遵循当前选项">
               随机 1-5
             </button>
@@ -422,36 +403,208 @@ function TaggerSetupDialog({ onClose }) {
   );
 }
 
+// ─── LLM 反推：人设可视化编辑器 ────────────────────────────────
+// 后端用 PLATFORM_SPECS 决定每个平台的输出字段（pixiv/x/xhs）。前端 fetch 一次
+// 把 specs 拿过来，按 spec 动态渲染范文卡片的字段表单。前端不再有 JSON 文本框。
+
+function genPersonaId() {
+  const stamp = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `persona_${stamp}_${rand}`;
+}
+
+function emptySampleFields(spec) {
+  const out = {};
+  (spec?.fields || []).forEach(f => {
+    out[f.key] = f.kind === 'tags' ? [] : '';
+  });
+  return out;
+}
+
+function newPersona(platformId, spec) {
+  return {
+    id: genPersonaId(),
+    label: '新人设',
+    platform: platformId,
+    default_content_mode: 'sfw',
+    voice: '',
+    sfw_prompt: '',
+    nsfw_prompt: '',
+    extra_prompt: '',
+    avoid: [],
+    samples: [],
+  };
+}
+
+function FieldHelp({ text }) {
+  return <span title={text} style={{ marginLeft: 6, fontSize: 10, color: M.inkFaint, cursor: 'help' }}>?</span>;
+}
+
+function TagChips({ value, onChange, placeholder }) {
+  const [draft, setDraft] = React.useState('');
+  const items = Array.isArray(value) ? value : [];
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    if (items.includes(v)) { setDraft(''); return; }
+    onChange([...items, v]);
+    setDraft('');
+  };
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center', padding: 4, border: `1px solid ${M.line}`, borderRadius: 6, background: M.panel, minHeight: 32 }}>
+      {items.map((t, i) => (
+        <span key={i} className="mn-chip">
+          {t}
+          <span onClick={() => onChange(items.filter((_, j) => j !== i))} style={{ cursor: 'pointer', color: M.inkFaint }}>✕</span>
+        </span>
+      ))}
+      <input value={draft} onChange={e => setDraft(e.target.value)}
+             onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); } }}
+             onBlur={add}
+             placeholder={placeholder || '回车添加'}
+             style={{ flex: 1, minWidth: 80, border: 'none', outline: 'none', background: 'transparent',
+                      fontFamily: M.mono, fontSize: 11, color: M.ink, padding: '2px 4px' }} />
+    </div>
+  );
+}
+
+function SampleFieldEditor({ field, value, onChange }) {
+  const label = field.label || field.key;
+  const counter = (field.kind === 'tags')
+    ? `${(value || []).length}/${field.max_count || 10}`
+    : `${(value || '').length}/${field.max || 0}`;
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 2 }}>
+        <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{label}</span>
+        <span className="mn-mono" style={{ fontSize: 10, color: M.inkFaint }}>{counter}</span>
+      </div>
+      {field.kind === 'tags'
+        ? <TagChips value={value || []} onChange={onChange} placeholder={`回车添加 ${label}`} />
+        : field.kind === 'multiline'
+          ? <textarea className="mn-input" value={value || ''} maxLength={field.max}
+                       onChange={e => onChange(e.target.value)}
+                       style={{ width: '100%', fontSize: 12, minHeight: 50, fontFamily: M.mono }} />
+          : <input className="mn-input" value={value || ''} maxLength={field.max}
+                    onChange={e => onChange(e.target.value)}
+                    style={{ width: '100%', fontSize: 12 }} />}
+    </div>
+  );
+}
+
+function SampleCard({ sample, idx, spec, onChange, onRemove }) {
+  return (
+    <div style={{ border: `1px solid ${M.line}`, borderRadius: 6, padding: 10, background: M.bg, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>#{idx + 1}</span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+          <input type="radio" checked={sample.mode === 'sfw'}
+                 onChange={() => onChange({ ...sample, mode: 'sfw' })} /> SFW
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+          <input type="radio" checked={sample.mode === 'nsfw'}
+                 onChange={() => onChange({ ...sample, mode: 'nsfw' })} /> NSFW
+        </label>
+        <input className="mn-input" value={sample.note || ''}
+               onChange={e => onChange({ ...sample, note: e.target.value })}
+               placeholder="备注（可空）"
+               style={{ fontSize: 11, flex: 1, marginLeft: 6 }} />
+        <button className="mn-btn mn-btn-ghost" onClick={onRemove} style={{ fontSize: 11, padding: '2px 6px' }}>✕</button>
+      </div>
+      {(spec?.fields || []).map(field => (
+        <SampleFieldEditor key={field.key} field={field}
+                           value={(sample.fields || {})[field.key]}
+                           onChange={v => onChange({ ...sample, fields: { ...(sample.fields || {}), [field.key]: v } })} />
+      ))}
+    </div>
+  );
+}
+
 function LlmReverseDialog({ onClose }) {
   const [cfg, setCfg] = React.useState(null);
-  const [personasText, setPersonasText] = React.useState('[]');
-  const [accountsText, setAccountsText] = React.useState('[]');
+  const [specs, setSpecs] = React.useState(null);
+  const [activeId, setActiveId] = React.useState('');
   const [apiKey, setApiKey] = React.useState('');
+  const [clearKey, setClearKey] = React.useState(false);
+  const [modelOpen, setModelOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [msg, setMsg] = React.useState('');
 
   React.useEffect(() => {
-    fetch('/api/llm-reverse-config').then(r => r.json()).then(d => {
-      setCfg(d);
-      setPersonasText(JSON.stringify(d.personas || [], null, 2));
-      setAccountsText(JSON.stringify(d.accounts || [], null, 2));
+    Promise.all([
+      fetch('/api/llm-reverse-config').then(r => r.json()),
+      fetch('/api/llm-reverse-platforms').then(r => r.json()),
+    ]).then(([c, s]) => {
+      setCfg(c);
+      setSpecs(s);
+      const personas = c.personas || [];
+      setActiveId(personas[0]?.id || '');
+      if (!c.has_api_key || !c.base_url || !c.model) setModelOpen(true);
     }).catch(() => setMsg('加载失败'));
   }, []);
+
+  if (!cfg || !specs) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+        <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 520, padding: 24 }}>{msg || '加载中…'}</div>
+      </div>
+    );
+  }
+
+  const personas = cfg.personas || [];
+  const active = personas.find(p => p.id === activeId) || personas[0] || null;
+  const activeSpec = active ? specs[active.platform] : null;
+  const platformIds = Object.keys(specs);
+
+  const updatePersona = patch => {
+    setCfg({
+      ...cfg,
+      personas: personas.map(p => p.id === active.id ? { ...p, ...patch } : p),
+    });
+  };
+
+  const replacePersonas = next => {
+    let nextActive = activeId;
+    if (!next.find(p => p.id === activeId)) nextActive = next[0]?.id || '';
+    setCfg({
+      ...cfg,
+      personas: next,
+      default_persona_id: next.find(p => p.id === cfg.default_persona_id) ? cfg.default_persona_id : (next[0]?.id || ''),
+    });
+    setActiveId(nextActive);
+  };
+
+  const addPersona = () => {
+    const p = newPersona('pixiv', specs.pixiv);
+    p.label = `新人设 ${personas.length + 1}`;
+    replacePersonas([...personas, p]);
+    setActiveId(p.id);
+  };
+
+  const dupPersona = () => {
+    if (!active) return;
+    const copy = { ...JSON.parse(JSON.stringify(active)), id: genPersonaId(), label: `${active.label} 副本` };
+    replacePersonas([...personas, copy]);
+    setActiveId(copy.id);
+  };
+
+  const delPersona = () => {
+    if (!active || personas.length <= 1) return;
+    replacePersonas(personas.filter(p => p.id !== active.id));
+  };
+
+  const addSample = () => {
+    if (!active) return;
+    const s = { mode: active.default_content_mode || 'sfw', note: '', fields: emptySampleFields(activeSpec) };
+    updatePersona({ samples: [...(active.samples || []), s] });
+  };
 
   const save = () => {
     setSaving(true);
     setMsg('');
-    let personas, accounts;
-    try {
-      personas = JSON.parse(personasText || '[]');
-      accounts = JSON.parse(accountsText || '[]');
-    } catch (err) {
-      setSaving(false);
-      setMsg('personas/accounts JSON 格式错误');
-      return;
-    }
-    const payload = { ...cfg, personas, accounts };
-    if (apiKey.trim()) payload.api_key = apiKey.trim();
+    const payload = { ...cfg };
+    if (clearKey) payload.clear_api_key = true;
+    else if (apiKey.trim()) payload.api_key = apiKey.trim();
     delete payload.has_api_key;
     delete payload.api_key_masked;
     fetch('/api/llm-reverse-config', {
@@ -465,56 +618,246 @@ function LlmReverseDialog({ onClose }) {
         if (!ok) { setMsg(d.error || '保存失败'); return; }
         setCfg(d);
         setApiKey('');
+        setClearKey(false);
         setMsg('已保存');
         setTimeout(() => onClose(true), 700);
       })
       .catch(() => { setSaving(false); setMsg('请求失败'); });
   };
 
-  if (!cfg) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-        <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 520, padding: 24 }}>加载中…</div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 720, maxHeight: '88vh', overflow: 'auto', padding: '20px 24px' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>LLM reverse</div>
-        <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 16 }}>OpenAI-compatible vision API. API key is stored locally in config.json.</div>
-
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, fontSize: 12.5 }}>
-          <input type="checkbox" checked={!!cfg.enabled} onChange={e => setCfg({ ...cfg, enabled: e.target.checked })} /> Enable
-        </label>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-          <input className="mn-input" value={cfg.base_url || ''} onChange={e => setCfg({ ...cfg, base_url: e.target.value })} placeholder="base URL, e.g. https://api.example.com/v1" style={{ fontSize: 12 }} />
-          <input className="mn-input" value={cfg.model || ''} onChange={e => setCfg({ ...cfg, model: e.target.value })} placeholder="model" style={{ fontSize: 12 }} />
-          <input className="mn-input" value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder={cfg.has_api_key ? `API key (${cfg.api_key_masked})` : 'API key'} type="password" style={{ fontSize: 12 }} />
-          <input className="mn-input" value={cfg.timeout_seconds || 45} onChange={e => setCfg({ ...cfg, timeout_seconds: Number(e.target.value) || 45 })} placeholder="timeout seconds" style={{ fontSize: 12 }} />
-          <input className="mn-input" value={cfg.default_persona_id || ''} onChange={e => setCfg({ ...cfg, default_persona_id: e.target.value })} placeholder="default persona id" style={{ fontSize: 12 }} />
-          <input className="mn-input" value={cfg.default_account_id || ''} onChange={e => setCfg({ ...cfg, default_account_id: e.target.value })} placeholder="default account id" style={{ fontSize: 12 }} />
-        </div>
-        <select className="mn-input" value={cfg.default_content_mode || 'sfw'} onChange={e => setCfg({ ...cfg, default_content_mode: e.target.value })} style={{ fontSize: 12, marginBottom: 12 }}>
-          <option value="sfw">Default SFW</option>
-          <option value="nsfw">Default NSFW</option>
-        </select>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 880, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ padding: '16px 20px 12px', borderBottom: `1px solid ${M.line}`, display: 'flex', alignItems: 'center', gap: 12 }}>
           <div>
-            <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 4 }}>personas</div>
-            <textarea className="mn-input" value={personasText} onChange={e => setPersonasText(e.target.value)} style={{ width: '100%', minHeight: 190, fontSize: 11, fontFamily: M.mono }} />
+            <div style={{ fontSize: 14, fontWeight: 600 }}>LLM 反推 · 人设</div>
+            <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, marginTop: 2 }}>
+              图片 → 标题/简介。所有字段都是普通文本，前端不再让你写 JSON。
+            </div>
           </div>
-          <div>
-            <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 4 }}>accounts</div>
-            <textarea className="mn-input" value={accountsText} onChange={e => setAccountsText(e.target.value)} style={{ width: '100%', minHeight: 190, fontSize: 11, fontFamily: M.mono }} />
+          <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
+            <input type="checkbox" checked={!!cfg.enabled} onChange={e => setCfg({ ...cfg, enabled: e.target.checked })} />
+            启用
+          </label>
+        </div>
+
+        {/* Model connection (collapsible) */}
+        <div style={{ borderBottom: `1px solid ${M.lineSoft}` }}>
+          {(() => {
+            const missing = [];
+            if (!cfg.has_api_key) missing.push('API key');
+            if (!cfg.base_url) missing.push('base URL');
+            if (!cfg.model) missing.push('model');
+            const incomplete = missing.length > 0;
+            return (
+              <div onClick={() => setModelOpen(!modelOpen)}
+                   style={{ padding: '8px 20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: M.inkDim, userSelect: 'none' }}>
+                <span style={{ fontSize: 10 }}>{modelOpen ? '▾' : '▸'}</span>
+                模型连接
+                <span className="mn-mono" style={{ marginLeft: 'auto', fontSize: 10.5, color: incomplete ? M.red : M.inkFaint }}>
+                  {incomplete
+                    ? `缺：${missing.join(' · ')}`
+                    : `${cfg.model} · key ${cfg.api_key_masked}`}
+                </span>
+                {incomplete && (
+                  <button className="mn-btn mn-btn-accent"
+                          onClick={e => { e.stopPropagation(); setModelOpen(true); }}
+                          style={{ fontSize: 11, padding: '2px 10px' }}>
+                    去填 →
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+          {modelOpen && (
+            <div style={{ padding: '0 20px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <input className="mn-input" value={cfg.base_url || ''} onChange={e => setCfg({ ...cfg, base_url: e.target.value })}
+                     placeholder="base URL, e.g. https://api.example.com/v1" style={{ fontSize: 12 }} />
+              <input className="mn-input" value={cfg.model || ''} onChange={e => setCfg({ ...cfg, model: e.target.value })}
+                     placeholder="model" style={{ fontSize: 12 }} />
+              {clearKey ? (
+                <div className="mn-input" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, color: M.red }}>
+                  <span>API key 已标记清空（保存生效）</span>
+                  <button className="mn-btn mn-btn-ghost" onClick={() => setClearKey(false)}
+                          style={{ marginLeft: 'auto', fontSize: 10.5, padding: '1px 8px' }}>撤销</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <input className="mn-input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
+                         placeholder={cfg.has_api_key ? `API key (${cfg.api_key_masked})` : 'API key'}
+                         style={{ fontSize: 12, flex: 1 }} />
+                  {cfg.has_api_key && !apiKey && (
+                    <button className="mn-btn mn-btn-ghost" onClick={() => setClearKey(true)}
+                            title="把已保存的 API key 清空"
+                            style={{ fontSize: 10.5, padding: '4px 8px', flexShrink: 0 }}>清空</button>
+                  )}
+                </div>
+              )}
+              <input className="mn-input" value={cfg.timeout_seconds || 45}
+                     onChange={e => setCfg({ ...cfg, timeout_seconds: Number(e.target.value) || 45 })}
+                     placeholder="超时 (秒)" style={{ fontSize: 12 }} />
+            </div>
+          )}
+        </div>
+
+        {/* Body: master / detail */}
+        <div style={{ flex: 1, overflow: 'hidden', display: 'grid', gridTemplateColumns: '180px 1fr' }}>
+          {/* Persona list */}
+          <div style={{ borderRight: `1px solid ${M.line}`, overflow: 'auto', padding: '10px 8px' }}>
+            {personas.map(p => (
+              <div key={p.id} onClick={() => setActiveId(p.id)}
+                   style={{ padding: '6px 10px', borderRadius: 4, cursor: 'pointer', marginBottom: 2,
+                            background: p.id === activeId ? M.accentSoft : 'transparent',
+                            color: p.id === activeId ? M.accent : M.ink, fontSize: 12.5 }}>
+                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.label || p.id}</div>
+                <div className="mn-mono" style={{ fontSize: 9.5, color: M.inkFaint }}>
+                  {specs[p.platform]?.label || p.platform}
+                </div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8, paddingTop: 8, borderTop: `1px solid ${M.lineSoft}` }}>
+              <button className="mn-btn mn-btn-ghost" onClick={addPersona} style={{ fontSize: 11 }}>+ 新建</button>
+              <button className="mn-btn mn-btn-ghost" onClick={dupPersona} disabled={!active} style={{ fontSize: 11 }}>⧉ 复制</button>
+              <button className="mn-btn mn-btn-ghost" onClick={delPersona} disabled={!active || personas.length <= 1} style={{ fontSize: 11 }}>🗑 删除</button>
+            </div>
+          </div>
+
+          {/* Active persona form */}
+          <div style={{ overflow: 'auto', padding: '14px 18px' }}>
+            {!active ? (
+              <div style={{ color: M.inkFaint, fontSize: 12, textAlign: 'center', padding: 40 }}>
+                还没有人设。点左下「+ 新建」加一个。
+              </div>
+            ) : <>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>名字</div>
+                  <input className="mn-input" value={active.label || ''}
+                         onChange={e => updatePersona({ label: e.target.value })}
+                         style={{ width: '100%', fontSize: 12.5 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>
+                    默认模式
+                    <FieldHelp text="生成时默认走哪个模式；上传时仍可临时切换" />
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, paddingTop: 6 }}>
+                    {['sfw', 'nsfw'].map(m => (
+                      <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                        <input type="radio" checked={active.default_content_mode === m}
+                               onChange={() => updatePersona({ default_content_mode: m })} /> {m.toUpperCase()}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>
+                  平台
+                  <FieldHelp text="决定模型输出哪些字段。范文表单也跟着切换" />
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {platformIds.map(pid => (
+                    <label key={pid} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                      <input type="radio" checked={active.platform === pid}
+                             onChange={() => updatePersona({ platform: pid })} />
+                      {specs[pid].label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>
+                  语气描述
+                  <FieldHelp text="自由文本，告诉 AI 你想要的语气。例：『短诗体，少用感叹号，避免堆砌形容词』" />
+                </div>
+                <textarea className="mn-input" value={active.voice || ''}
+                          onChange={e => updatePersona({ voice: e.target.value })}
+                          placeholder="例：短诗体标题，简介轻描淡写。语气克制，避免感叹号堆叠。"
+                          style={{ width: '100%', fontSize: 12, minHeight: 50, fontFamily: M.mono }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>SFW 提示词</div>
+                  <textarea className="mn-input" value={active.sfw_prompt || ''}
+                            onChange={e => updatePersona({ sfw_prompt: e.target.value })}
+                            placeholder="生成 SFW 文案时注入的额外指令"
+                            style={{ width: '100%', fontSize: 11.5, minHeight: 60, fontFamily: M.mono }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>NSFW 提示词</div>
+                  <textarea className="mn-input" value={active.nsfw_prompt || ''}
+                            onChange={e => updatePersona({ nsfw_prompt: e.target.value })}
+                            placeholder="生成 NSFW 文案时注入的额外指令"
+                            style={{ width: '100%', fontSize: 11.5, minHeight: 60, fontFamily: M.mono }} />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>
+                  额外指令
+                  <FieldHelp text="不分模式都会注入。常用于硬性约束（不要谈政治、不要识别真人）" />
+                </div>
+                <textarea className="mn-input" value={active.extra_prompt || ''}
+                          onChange={e => updatePersona({ extra_prompt: e.target.value })}
+                          style={{ width: '100%', fontSize: 11.5, minHeight: 50, fontFamily: M.mono }} />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>
+                  屏蔽话题
+                  <FieldHelp text="作为「不要谈这些」注入提示词。回车或逗号添加" />
+                </div>
+                <TagChips value={active.avoid || []} onChange={v => updatePersona({ avoid: v })} placeholder="回车添加屏蔽词" />
+              </div>
+
+              <div style={{ marginBottom: 12, paddingTop: 12, borderTop: `1px solid ${M.lineSoft}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>
+                    范文 ({(active.samples || []).length})
+                    <FieldHelp text="贴几条理想输出当样例，AI 会按对应模式拿来 few-shot 模仿。SFW 范文只在 SFW 时用，反之亦然。" />
+                  </div>
+                  <button className="mn-btn mn-btn-ghost" onClick={addSample} style={{ fontSize: 11, marginLeft: 'auto' }}>+ 加一例</button>
+                </div>
+                {(active.samples || []).length === 0 && (
+                  <div style={{ color: M.inkFaint, fontSize: 11.5, textAlign: 'center', padding: 16, border: `1px dashed ${M.line}`, borderRadius: 6 }}>
+                    还没有范文。贴几条理想标题/简介让 AI 模仿。
+                  </div>
+                )}
+                {(active.samples || []).map((s, i) => (
+                  <SampleCard key={i} sample={s} idx={i} spec={activeSpec}
+                              onChange={ns => {
+                                const arr = [...(active.samples || [])];
+                                arr[i] = ns;
+                                updatePersona({ samples: arr });
+                              }}
+                              onRemove={() => {
+                                const arr = (active.samples || []).filter((_, j) => j !== i);
+                                updatePersona({ samples: arr });
+                              }} />
+                ))}
+              </div>
+            </>}
           </div>
         </div>
-        {msg && <div className="mn-mono" style={{ color: msg.includes('失败') || msg.includes('错误') ? M.red : M.ok, fontSize: 11, marginTop: 10 }}>{msg}</div>}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-          <button className="mn-btn" onClick={() => onClose(false)}>取消</button>
-          <button className="mn-btn mn-btn-accent" onClick={save} disabled={saving}>{saving ? '…' : 'Save'}</button>
+
+        {/* Footer */}
+        <div style={{ padding: '10px 20px', borderTop: `1px solid ${M.line}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 11, color: M.inkDim }}>默认人设：</span>
+          <select className="mn-input" value={cfg.default_persona_id || ''}
+                  onChange={e => setCfg({ ...cfg, default_persona_id: e.target.value })}
+                  style={{ fontSize: 12, minWidth: 180 }}>
+            {personas.map(p => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
+          </select>
+          {msg && <span className="mn-mono" style={{ fontSize: 11, color: msg.includes('失败') || msg.includes('错误') ? M.red : M.ok }}>{msg}</span>}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <button className="mn-btn" onClick={() => onClose(false)}>取消</button>
+            <button className="mn-btn mn-btn-accent" onClick={save} disabled={saving}>{saving ? '…' : '保存'}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -523,8 +866,8 @@ function LlmReverseDialog({ onClose }) {
 
 function SchedulerDialog({ current, onClose, onSave }) {
   const sched = current || {};
-  const [minHours, setMinHours] = React.useState(String(sched.min_hours ?? 1));
-  const [maxHours, setMaxHours] = React.useState(String(sched.max_hours ?? 3));
+  const [minHours, setMinHours] = React.useState(String(sched.min_hours ?? 0.4));
+  const [maxHours, setMaxHours] = React.useState(String(sched.max_hours ?? 0.8));
   const [count,    setCount]    = React.useState(String(sched.count ?? 1));
   const [sortMode, setSortMode] = React.useState(sched.sort || 'random');
   const [civitai,  setCivitai]  = React.useState((sched.targets || 'civitai,pixiv').includes('civitai'));
@@ -613,7 +956,7 @@ function MonoSingleApp() {
   const [schedulerDialog, setSchedulerDialog] = React.useState(false);
   const [llmReverseDialog, setLlmReverseDialog] = React.useState(false);
   const [llmReverseConfig, setLlmReverseConfig] = React.useState(null);
-  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
+  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 0.4, max_hours: 0.8, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
   const [pageDragging, setPageDragging] = React.useState(false);
   const [dropToast,    setDropToast]    = React.useState('');

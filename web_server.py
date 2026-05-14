@@ -20,6 +20,7 @@ from io import TextIOBase
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_from_directory, stream_with_context
+from pixiv.llm_platforms import PLATFORM_SPECS
 from pixiv.llm_reverse import (
     default_llm_reverse_config,
     infer_image_copy,
@@ -510,6 +511,11 @@ def api_settings():
     return jsonify({"ok": True})
 
 
+@app.route("/api/llm-reverse-platforms", methods=["GET"])
+def api_llm_reverse_platforms():
+    return jsonify({pid: dict(spec, id=pid) for pid, spec in PLATFORM_SPECS.items()})
+
+
 @app.route("/api/llm-reverse-config", methods=["GET"])
 def api_llm_reverse_config_get():
     cfg = _load_config()
@@ -521,11 +527,14 @@ def api_llm_reverse_config_post():
     body = request.get_json(silent=True) or {}
     cfg = _load_config()
     current = normalize_llm_reverse_config(cfg.get("llm_reverse"))
-    api_key = body.get("api_key", None)
-    if api_key == "":
-        body.pop("api_key", None)
-    elif api_key is None:
-        body["api_key"] = current.get("api_key", "")
+    if body.pop("clear_api_key", False):
+        body["api_key"] = ""
+    else:
+        api_key = body.get("api_key", None)
+        if api_key == "":
+            body.pop("api_key", None)
+        elif api_key is None:
+            body["api_key"] = current.get("api_key", "")
     next_cfg = normalize_llm_reverse_config({**current, **body})
     errors = validate_llm_reverse_config(next_cfg)
     if errors:
@@ -729,7 +738,7 @@ def api_civitai_logout():
 
 def _sched_default() -> dict:
     return {"enabled": False, "targets": "civitai,pixiv", "count": 1, "sort": "random",
-            "min_hours": 1.0, "max_hours": 3.0, "next_fire_at": None}
+            "min_hours": 0.4, "max_hours": 0.8, "next_fire_at": None}
 
 
 def _broadcast_scheduler(sched: dict) -> None:
