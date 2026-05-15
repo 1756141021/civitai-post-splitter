@@ -546,13 +546,12 @@ def create_civitai_post(page, image_path: Path, delay: float, cancel_event=None)
     log.info("    已点击 Publish，等待跳转...")
 
     for _ in range(30):
-        time.sleep(2)
+        _sleep_with_cancel(2, cancel_event)
         current_url = page.url
         if "/posts/create" not in current_url and "/posts/" in current_url:
             post_url = re.sub(r"/edit$", "", current_url)
             wait = delay + random.uniform(1, 3)
-            if cancel_event is None or not cancel_event.is_set():
-                time.sleep(wait)
+            _sleep_with_cancel(wait, cancel_event)
             return post_url
     log.error("    发布超时（60 秒内未跳转），跳过")
     return None
@@ -649,6 +648,8 @@ def create_upload_manifest(
     llm_persona_id: str = "",
     llm_account_id: str = "",
     llm_content_mode: str = "",
+    llm_personas_by_platform: dict | None = None,
+    llm_content_modes_by_platform: dict | None = None,
     x_dir: Path | None = None,
     x_settings: dict | None = None,
     x_templates: dict | None = None,
@@ -743,6 +744,7 @@ def create_upload_manifest(
         )
 
     llm_reverse_result = {"enabled": False, "status": "disabled", "error": ""}
+    copy_block = empty_copy_block()
     if pixiv_payload is not None:
         pixiv_payload["privacy"] = pixiv_privacy
         pixiv_payload["allow_tag_edits"] = pixiv_allow_tag_edits
@@ -764,8 +766,44 @@ def create_upload_manifest(
                     "error": "no target requires copy (civitai-only or similar)",
                 }
                 log.info("    LLM 反推: 跳过（当前 targets 都不需要文案）")
+            elif llm_personas_by_platform:
+                # Per-platform mode: independent LLM call per copy platform
+                image_path_for_llm = Path(pixiv_clean.output_path) if pixiv_clean else image_path
+                image_age = (pixiv_payload or {}).get("age_restriction", "all_ages")
+                copy_targets = [t for t in targets if PLATFORM_RULES.get(t, {}).get("needs_copy")]
+                for plat in copy_targets:
+                    per_persona_id = llm_personas_by_platform.get(plat, "")
+                    if not per_persona_id:
+                        log.info(f"    LLM 反推 [{plat}]: 未指定人设，跳过")
+                        continue
+                    per_content_mode = (llm_content_modes_by_platform or {}).get(plat, "sfw")
+                    _raise_if_canceled(cancel_event)
+                    per_result = infer_image_copy(
+                        image_path=image_path_for_llm,
+                        config=llm_reverse_config,
+                        persona_id=per_persona_id,
+                        account_id=llm_account_id,
+                        content_mode=per_content_mode,
+                        cancel_event=cancel_event,
+                    )
+                    if per_result.get("status") == "ok":
+                        if plat == "pixiv":
+                            apply_llm_result_to_pixiv_payload(pixiv_payload, per_result)
+                        apply_llm_result_to_copy_block(
+                            copy_block,
+                            per_result,
+                            platform=plat,
+                            account_id=llm_account_id,
+                        )
+                        log.info(f"    LLM 反推 [{plat}]: 生成文案 ({per_content_mode})")
+                    else:
+                        log.warning(
+                            f"    LLM 反推 [{plat}]: {per_result.get('status')} — {per_result.get('error', '')}"
+                        )
+                llm_reverse_result["enabled"] = True
+                llm_reverse_result["status"] = "per_platform"
             else:
-                # Check account NSFW capability vs image age
+                # Unified mode
                 account = resolve_account(llm_reverse_config, llm_account_id)
                 image_age = (pixiv_payload or {}).get("age_restriction", "all_ages")
                 if account and not account_can_handle_age(account, image_age):
@@ -808,10 +846,8 @@ def create_upload_manifest(
                         )
             _raise_if_canceled(cancel_event)
 
-    # Build the universal copy block from this run's LLM reverse result so X
-    # (and future xhs) can read title/caption without diving into pixiv block.
-    copy_block = empty_copy_block()
-    if llm_reverse_result.get("enabled") or llm_reverse_result.get("status"):
+    # Apply unified-mode LLM result to copy_block (per-platform mode writes directly).
+    if llm_reverse_result.get("status") != "per_platform":
         apply_llm_result_to_copy_block(
             copy_block,
             llm_reverse_result,
@@ -1227,6 +1263,8 @@ def cmd_upload(args):
                 llm_persona_id=getattr(args, "llm_persona", ""),
                 llm_account_id=getattr(args, "llm_account", ""),
                 llm_content_mode=getattr(args, "llm_content_mode", ""),
+                llm_personas_by_platform=getattr(args, "llm_personas_by_platform", None),
+                llm_content_modes_by_platform=getattr(args, "llm_content_modes_by_platform", None),
                 x_dir=x_dir if "x" in targets else None,
                 x_settings=x_settings,
                 x_templates=x_templates,

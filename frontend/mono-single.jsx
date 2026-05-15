@@ -71,6 +71,12 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   const [llmReverse,     setLlmReverse]     = React.useState(false);
   const [llmPersona,     setLlmPersona]     = React.useState('');
   const [llmContentMode, setLlmContentMode] = React.useState('sfw');
+  const [llmMode,               setLlmMode]               = React.useState('unified');
+  const [llmPersonasByPlatform, setLlmPersonasByPlatform] = React.useState({ pixiv: '', x: '', xhs: '' });
+  const [llmContentByPlatform,  setLlmContentByPlatform]  = React.useState({ pixiv: 'sfw', x: 'sfw', xhs: 'sfw' });
+  const [xTemplate,    setXTemplate]    = React.useState(() => localStorage.getItem('civitai-splitter:x-template')   || '');
+  const [xhsTemplate,  setXhsTemplate]  = React.useState(() => localStorage.getItem('civitai-splitter:xhs-template') || '');
+  const [templateOpts, setTemplateOpts] = React.useState({ x: [], x_default: 'en_sfw', xhs: [], xhs_default: 'default' });
   const [pickN,        setPickN]        = React.useState('');
   const fileInputRef   = React.useRef(null);
   const dragItem       = React.useRef(null);
@@ -119,10 +125,20 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   React.useEffect(() => { loadImages(); }, []);
 
   React.useEffect(() => {
+    fetch('/api/templates').then(r => r.json()).then(data => {
+      setTemplateOpts(data);
+    }).catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
     if (!llmConfig) return;
     const persona = (llmConfig.personas || []).find(p => p.id === llmConfig.default_persona_id) || (llmConfig.personas || [])[0] || {};
-    setLlmPersona(persona.id || '');
-    setLlmContentMode(persona.default_content_mode || llmConfig.default_content_mode || 'sfw');
+    const defaultId   = persona.id || '';
+    const defaultMode = persona.default_content_mode || llmConfig.default_content_mode || 'sfw';
+    setLlmPersona(defaultId);
+    setLlmContentMode(defaultMode);
+    setLlmPersonasByPlatform({ pixiv: defaultId, x: defaultId, xhs: defaultId });
+    setLlmContentByPlatform({ pixiv: defaultMode, x: defaultMode, xhs: defaultMode });
   }, [llmConfig]);
 
   const toggle = name => setSelected(prev => {
@@ -165,6 +181,21 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
     dragOverItem.current = null;
   };
 
+  const buildLlmOpts = () => {
+    const templateFields = {
+      ...(targetX   ? { x_template:   xTemplate   || templateOpts.x_default   || '' } : {}),
+      ...(targetXhs ? { xhs_template: xhsTemplate || templateOpts.xhs_default || '' } : {}),
+    };
+    if (llmMode === 'per_platform') {
+      const platMap = { civitai: targetCivitai, pixiv: targetPixiv, x: targetX, xhs: targetXhs };
+      const needsCopy = ['pixiv', 'x', 'xhs'].filter(p => platMap[p]);
+      const pbp = {}, cbp = {};
+      needsCopy.forEach(p => { pbp[p] = llmPersonasByPlatform[p] || ''; cbp[p] = llmContentByPlatform[p] || 'sfw'; });
+      return { llm_reverse: llmReverse, llm_mode: 'per_platform', llm_personas_by_platform: pbp, llm_content_modes_by_platform: cbp, ...templateFields };
+    }
+    return { llm_reverse: llmReverse, llm_mode: 'unified', llm_persona: llmPersona, llm_content_mode: llmContentMode, ...templateFields };
+  };
+
   const go = () => {
     const targetsList = [
       targetCivitai && 'civitai',
@@ -175,7 +206,7 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
     if (targetsList.length === 0) return;
     _savePersistedTargets(targetsList);
     const targets = targetsList.join(',');
-    const llmOpts = { llm_reverse: llmReverse, llm_persona: llmPersona, llm_content_mode: llmContentMode };
+    const llmOpts = buildLlmOpts();
     if (sortMode === 'manual') {
       onConfirm(cmd, orderedFiles.map(f => f.name), { sort: 'manual', targets, ...llmOpts });
       return;
@@ -300,37 +331,84 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
         <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginRight: 4 }}>发布到</span>
           <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
-            <input type="checkbox" checked={targetCivitai} onChange={e => setTargetCivitai(e.target.checked)} /> Civitai
+            <input type="checkbox" checked={targetCivitai} onChange={e => { const v = e.target.checked; setTargetCivitai(v); _savePersistedTargets([v&&'civitai', targetPixiv&&'pixiv', targetX&&'x', targetXhs&&'xhs'].filter(Boolean)); }} /> Civitai
           </label>
           <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
-            <input type="checkbox" checked={targetPixiv} onChange={e => setTargetPixiv(e.target.checked)} /> Pixiv
+            <input type="checkbox" checked={targetPixiv} onChange={e => { const v = e.target.checked; setTargetPixiv(v); _savePersistedTargets([targetCivitai&&'civitai', v&&'pixiv', targetX&&'x', targetXhs&&'xhs'].filter(Boolean)); }} /> Pixiv
           </label>
           <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
-            <input type="checkbox" checked={targetX} onChange={e => setTargetX(e.target.checked)} /> X
+            <input type="checkbox" checked={targetX} onChange={e => { const v = e.target.checked; setTargetX(v); _savePersistedTargets([targetCivitai&&'civitai', targetPixiv&&'pixiv', v&&'x', targetXhs&&'xhs'].filter(Boolean)); }} /> X
           </label>
+          {targetX && templateOpts.x.length > 1 && (
+            <select className="mn-input" value={xTemplate || templateOpts.x_default}
+                    onChange={e => { setXTemplate(e.target.value); localStorage.setItem('civitai-splitter:x-template', e.target.value); }}
+                    style={{ fontSize: 11, padding: '2px 4px' }}>
+              {templateOpts.x.map(k => <option key={k} value={k}>{k}</option>)}
+            </select>
+          )}
           <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}
                  title="NSFW 图自动跳过（小红书禁 R18）">
-            <input type="checkbox" checked={targetXhs} onChange={e => setTargetXhs(e.target.checked)} /> 小红书
+            <input type="checkbox" checked={targetXhs} onChange={e => { const v = e.target.checked; setTargetXhs(v); _savePersistedTargets([targetCivitai&&'civitai', targetPixiv&&'pixiv', targetX&&'x', v&&'xhs'].filter(Boolean)); }} /> 小红书
             <span className="mn-mono" style={{ fontSize: 10, color: M.inkDim, marginLeft: 2 }}>(NSFW 跳过)</span>
           </label>
         </div>
 
-        <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'grid', gridTemplateColumns: 'auto 1fr 130px', gap: 8, alignItems: 'center' }}>
-          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
-            <input type="checkbox" checked={llmReverse} disabled={!llmConfig || !llmConfig.enabled}
-                   onChange={e => setLlmReverse(e.target.checked)} />
-            LLM 标题/简介
-          </label>
-          <select className="mn-input" value={llmPersona} disabled={!llmReverse}
-                  onChange={e => setLlmPersona(e.target.value)} style={{ fontSize: 12 }}>
-            {personas.map(p => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
-          </select>
-          <select className="mn-input" value={llmContentMode} disabled={!llmReverse}
-                  onChange={e => setLlmContentMode(e.target.value)} style={{ fontSize: 12 }}>
-            <option value="sfw">SFW</option>
-            <option value="nsfw">NSFW</option>
-          </select>
-        </div>
+        {llmConfig && llmConfig.enabled && (
+          <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}` }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, whiteSpace: 'nowrap' }}>
+                <input type="checkbox" checked={llmReverse} onChange={e => setLlmReverse(e.target.checked)} />
+                LLM 标题/简介
+              </label>
+              {llmReverse && (
+                <button className="mn-btn mn-btn-ghost"
+                        style={{ fontSize: 11, padding: '2px 8px', flexShrink: 0 }}
+                        title={llmMode === 'unified' ? '切换为各平台分别设置' : '切换为统一人设'}
+                        onClick={() => setLlmMode(m => m === 'unified' ? 'per_platform' : 'unified')}>
+                  {llmMode === 'unified' ? '统一' : '各自'}
+                </button>
+              )}
+              {llmReverse && llmMode === 'unified' && <>
+                <select className="mn-input" value={llmPersona}
+                        onChange={e => setLlmPersona(e.target.value)} style={{ fontSize: 12, flex: 1 }}>
+                  {personas.map(p => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
+                </select>
+                <select className="mn-input" value={llmContentMode}
+                        onChange={e => setLlmContentMode(e.target.value)} style={{ fontSize: 12, width: 76 }}>
+                  <option value="sfw">SFW</option>
+                  <option value="nsfw">NSFW</option>
+                </select>
+              </>}
+            </div>
+            {llmReverse && llmMode === 'per_platform' && (
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 4 }}>
+                {[
+                  targetPixiv && { key: 'pixiv', name: 'Pixiv' },
+                  targetX     && { key: 'x',     name: 'X' },
+                  targetXhs   && { key: 'xhs',   name: '小红书' },
+                ].filter(Boolean).map(({ key, name }) => (
+                  <div key={key} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 76px', gap: 6, alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: M.inkDim }}>{name}</span>
+                    <select className="mn-input" value={llmPersonasByPlatform[key] || ''}
+                            onChange={e => setLlmPersonasByPlatform(prev => ({ ...prev, [key]: e.target.value }))}
+                            style={{ fontSize: 12 }}>
+                      {personas.map(p => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
+                    </select>
+                    <select className="mn-input" value={llmContentByPlatform[key] || 'sfw'}
+                            onChange={e => setLlmContentByPlatform(prev => ({ ...prev, [key]: e.target.value }))}
+                            style={{ fontSize: 12 }}>
+                      <option value="sfw">SFW</option>
+                      <option value="nsfw">NSFW</option>
+                    </select>
+                  </div>
+                ))}
+                {!targetPixiv && !targetX && !targetXhs && (
+                  <span style={{ fontSize: 11, color: M.inkDim }}>没有需要文案的平台</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div style={{ padding: '10px 18px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', gap: 8, alignItems: 'center' }}>
           {!isManual && (
@@ -344,12 +422,7 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
                       ].filter(Boolean);
                       if (targetsList.length === 0) return;
                       _savePersistedTargets(targetsList);
-                      onConfirm(cmd, [], {
-                        sort: sortMode,
-                        targets: targetsList.join(','),
-                        llm_reverse: llmReverse, llm_persona: llmPersona,
-                        llm_content_mode: llmContentMode,
-                      });
+                      onConfirm(cmd, [], { sort: sortMode, targets: targetsList.join(','), ...buildLlmOpts() });
                     }} title="随机从 upload/ 选 1-5 张，排序方式遵循当前选项">
               随机 1-5
             </button>
@@ -414,57 +487,57 @@ function TaggerSetupDialog({ onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 540, padding: '20px 24px' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Tagger setup (WD14)</div>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>WD14 图像标注器 配置</div>
         <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 18 }}>
-          Both fields are optional — uploads still work without them.
+          两个字段均可选填，不填也能正常上传。
         </div>
 
         {/* haintag root */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
-            <span style={{ fontSize: 12.5 }}>haintag root</span>
-            <span className="mn-mono" style={{ marginLeft: 6, fontSize: 10.5, color: M.inkFaint }}>optional</span>
+            <span style={{ fontSize: 12.5 }}>haintag 根目录</span>
+            <span className="mn-mono" style={{ marginLeft: 6, fontSize: 10.5, color: M.inkFaint }}>可选</span>
             {haintagOk !== null && (
               <span style={{ marginLeft: 'auto', fontSize: 11, color: haintagOk ? M.ok : M.red }}>
-                {haintagOk ? '✓ native_app/tagger.py found' : '✗ native_app/tagger.py not found'}
+                {haintagOk ? '✓ HainTag 已找到' : '✗ HainTag 未找到'}
               </span>
             )}
           </div>
           <input className="mn-input" value={haintag} onChange={e => setHaintag(e.target.value)}
-                 placeholder="e.g. E:\projects\haintag" style={{ width: '100%', fontSize: 12 }} />
+                 placeholder="如 E:\projects\haintag\dist\HainTag" style={{ width: '100%', fontSize: 12 }} />
           <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
-            The folder that contains <span style={{ color: M.ink2 }}>native_app/tagger.py</span> (haintag repo root).<br />
-            Uses TaggerEngine subprocess mode — haintag's own venv handles onnxruntime.<br />
-            Leave empty → standalone mode (needs onnxruntime in current env).
+            填 HainTag 发布版目录（含 <span style={{ color: M.ink2 }}>HainTag.exe</span>）或源码根目录。<br />
+            发布版模式通过 <span style={{ color: M.ink2 }}>_internal/native_app/tagger_subprocess.py</span> 调用。<br />
+            留空 → 独立模式（需在当前环境安装 onnxruntime）。
           </div>
         </div>
 
         {/* model directory */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
-            <span style={{ fontSize: 12.5 }}>model directory</span>
+            <span style={{ fontSize: 12.5 }}>模型目录</span>
             {modelOk !== null && (
               <span style={{ marginLeft: 'auto', fontSize: 11, color: modelOk ? M.ok : M.red }}>
-                {modelOk ? '✓ .onnx + mapping found' : modelDir ? '✗ .onnx or mapping not found' : '—'}
+                {modelOk ? '✓ .onnx + 映射文件已找到' : modelDir ? '✗ 缺少 .onnx 或映射文件' : '—'}
               </span>
             )}
           </div>
           <input className="mn-input" value={modelDir} onChange={e => setModelDir(e.target.value)}
-                 placeholder="e.g. E:\ComfyUI\models\onnx\cl_tagger" style={{ width: '100%', fontSize: 12 }} />
+                 placeholder="如 E:\ComfyUI\models\onnx\cl_tagger" style={{ width: '100%', fontSize: 12 }} />
           <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
-            Must contain: <span style={{ color: M.ink2 }}>*.onnx</span> (model file, e.g. <span style={{ color: M.ink2 }}>cl_tagger_1_02.onnx</span>)<br />
-            + <span style={{ color: M.ink2 }}>*tag*mapping*.json</span> or <span style={{ color: M.ink2 }}>*label*.json</span> or <span style={{ color: M.ink2 }}>*tag*.csv</span> (tag list).<br />
-            ComfyUI default: <span style={{ color: M.ink2 }}>ComfyUI\models\onnx\cl_tagger\</span>
+            目录须包含：<span style={{ color: M.ink2 }}>*.onnx</span> 模型文件（如 <span style={{ color: M.ink2 }}>cl_tagger_1_02.onnx</span>）<br />
+            + <span style={{ color: M.ink2 }}>*tag*mapping*.json</span> 或 <span style={{ color: M.ink2 }}>*label*.json</span> 或 <span style={{ color: M.ink2 }}>*tag*.csv</span>（标签列表）。<br />
+            ComfyUI 默认路径：<span style={{ color: M.ink2 }}>ComfyUI\models\onnx\cl_tagger\</span>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button className="mn-btn mn-btn-ghost" onClick={dismiss} style={{ fontSize: 12 }}>Skip</button>
+          <button className="mn-btn mn-btn-ghost" onClick={dismiss} style={{ fontSize: 12 }}>跳过</button>
           <button className="mn-btn" onClick={() => postAndVerify(false)} disabled={saving} style={{ fontSize: 12 }}>
-            {saving ? '…' : 'Verify'}
+            {saving ? '…' : '验证'}
           </button>
           <button className="mn-btn mn-btn-accent" onClick={() => postAndVerify(true)} disabled={saving} style={{ fontSize: 12 }}>
-            {saved ? '✓ Saved' : saving ? '…' : 'Save'}
+            {saved ? '✓ 已保存' : saving ? '…' : '保存'}
           </button>
         </div>
       </div>
@@ -589,40 +662,56 @@ function SampleCard({ sample, idx, spec, onChange, onRemove }) {
   );
 }
 
-function LlmReverseDialog({ onClose }) {
-  const [cfg, setCfg] = React.useState(null);
-  const [specs, setSpecs] = React.useState(null);
-  const [activeId, setActiveId] = React.useState('');
+function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
+  const [cfg, setCfg] = React.useState(initialCfg);
+  const specs = initialSpecs;
+  const [activeId, setActiveId] = React.useState((initialCfg?.personas || [])[0]?.id || '');
   const [apiKey, setApiKey] = React.useState('');
   const [clearKey, setClearKey] = React.useState(false);
-  const [modelOpen, setModelOpen] = React.useState(false);
+  const [modelOpen, setModelOpen] = React.useState(
+    !initialCfg?.has_api_key || !initialCfg?.base_url || !initialCfg?.model
+  );
   const [saving, setSaving] = React.useState(false);
   const [msg, setMsg] = React.useState('');
+  const [modelList,    setModelList]    = React.useState([]);
+  const [fetchingMods, setFetchingMods] = React.useState(false);
+  const [modFetchErr,  setModFetchErr]  = React.useState('');
+  const [modelCustom,  setModelCustom]  = React.useState(false);
 
-  React.useEffect(() => {
-    Promise.all([
-      fetch('/api/llm-reverse-config').then(r => r.json()),
-      fetch('/api/llm-reverse-platforms').then(r => r.json()),
-    ]).then(([c, s]) => {
-      setCfg(c);
-      setSpecs(s);
-      const personas = c.personas || [];
-      setActiveId(personas[0]?.id || '');
-      if (!c.has_api_key || !c.base_url || !c.model) setModelOpen(true);
-    }).catch(() => setMsg('加载失败'));
-  }, []);
-
-  if (!cfg || !specs) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-        <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 520, padding: 24 }}>{msg || '加载中…'}</div>
-      </div>
-    );
-  }
+  const fetchModels = () => {
+    setFetchingMods(true);
+    setModFetchErr('');
+    const qs = new URLSearchParams({
+      provider: cfg.provider || '',
+      api_key:  apiKey || '',
+      base_url: cfg.base_url || '',
+    });
+    fetch(`/api/llm-reverse-models?${qs}`)
+      .then(r => r.json())
+      .then(d => {
+        setFetchingMods(false);
+        if (d.error) { setModFetchErr(d.error); return; }
+        setModelList(d.models || []);
+        setModelCustom(false);
+      })
+      .catch(() => { setFetchingMods(false); setModFetchErr('请求失败'); });
+  };
 
   const personas = cfg.personas || [];
   const active = personas.find(p => p.id === activeId) || personas[0] || null;
-  const activeSpec = active ? specs[active.platform] : null;
+  const activeSpec = React.useMemo(() => {
+    if (!active || !specs) return null;
+    const plats = Array.isArray(active.platform) ? active.platform : [active.platform].filter(Boolean);
+    if (plats.length === 0) return null;
+    if (plats.length === 1) return specs[plats[0]] || null;
+    const seen = new Set(), fields = [], extra = [];
+    for (const pid of plats) {
+      const s = specs[pid]; if (!s) continue;
+      for (const f of (s.fields || [])) { if (!seen.has(f.key)) { seen.add(f.key); fields.push(f); } }
+      for (const f of (s.extra_fields || [])) { if (!seen.has(f.key)) { seen.add(f.key); extra.push(f); } }
+    }
+    return fields.length ? { fields, extra_fields: extra } : specs[plats[0]] || null;
+  }, [active, specs]);
   const platformIds = Object.keys(specs);
 
   const updatePersona = patch => {
@@ -741,10 +830,40 @@ function LlmReverseDialog({ onClose }) {
           })()}
           {modelOpen && (
             <div style={{ padding: '0 20px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <select className="mn-input" value={cfg.provider || 'openai_compatible'}
+                      onChange={e => {
+                        const p = e.target.value;
+                        const patch = { provider: p };
+                        if (p === 'anthropic' && !cfg.base_url) patch.base_url = 'https://api.anthropic.com';
+                        setCfg({ ...cfg, ...patch });
+                      }} style={{ fontSize: 12 }}>
+                <option value="openai_compatible">OpenAI 兼容</option>
+                <option value="google_gemini">Google Gemini</option>
+                <option value="anthropic">Anthropic (Claude)</option>
+              </select>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                {modelList.length > 0 && !modelCustom ? (
+                  <select className="mn-input" value={cfg.model || ''} onChange={e => {
+                    if (e.target.value === '__custom__') { setModelCustom(true); } else { setCfg({ ...cfg, model: e.target.value }); }
+                  }} style={{ fontSize: 12, flex: 1 }}>
+                    {!cfg.model && <option value="">选择模型…</option>}
+                    {modelList.map(m => <option key={m} value={m}>{m}</option>)}
+                    <option value="__custom__">自定义…</option>
+                  </select>
+                ) : (
+                  <input className="mn-input" value={cfg.model || ''} onChange={e => setCfg({ ...cfg, model: e.target.value })}
+                         placeholder={cfg.provider === 'google_gemini' ? 'gemini-2.5-flash' : cfg.provider === 'anthropic' ? 'claude-sonnet-4-6' : '模型名'}
+                         style={{ fontSize: 12, flex: 1 }} />
+                )}
+                <button className="mn-btn mn-btn-ghost" onClick={fetchModels} disabled={fetchingMods}
+                        title="从 API 获取可用模型列表"
+                        style={{ fontSize: 11, padding: '3px 8px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {fetchingMods ? '…' : '获取'}
+                </button>
+                {modFetchErr && <span style={{ fontSize: 10.5, color: M.red, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={modFetchErr}>{modFetchErr}</span>}
+              </div>
               <input className="mn-input" value={cfg.base_url || ''} onChange={e => setCfg({ ...cfg, base_url: e.target.value })}
-                     placeholder="base URL, e.g. https://api.example.com/v1" style={{ fontSize: 12 }} />
-              <input className="mn-input" value={cfg.model || ''} onChange={e => setCfg({ ...cfg, model: e.target.value })}
-                     placeholder="model" style={{ fontSize: 12 }} />
+                     placeholder={cfg.provider === 'anthropic' ? 'https://api.anthropic.com (留空用默认)' : cfg.provider === 'google_gemini' ? 'http://your-gemini-proxy' : 'base URL, e.g. https://api.example.com/v1'} style={{ fontSize: 12 }} />
               {clearKey ? (
                 <div className="mn-input" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, color: M.red }}>
                   <span>API key 已标记清空（保存生效）</span>
@@ -781,7 +900,7 @@ function LlmReverseDialog({ onClose }) {
                             color: p.id === activeId ? M.accent : M.ink, fontSize: 12.5 }}>
                 <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.label || p.id}</div>
                 <div className="mn-mono" style={{ fontSize: 9.5, color: M.inkFaint }}>
-                  {specs[p.platform]?.label || p.platform}
+                  {(Array.isArray(p.platform) ? p.platform : [p.platform]).map(pid => specs[pid]?.label || pid).join(' / ')}
                 </div>
               </div>
             ))}
@@ -1046,6 +1165,7 @@ function MonoSingleApp() {
   const [schedulerDialog, setSchedulerDialog] = React.useState(false);
   const [llmReverseDialog, setLlmReverseDialog] = React.useState(false);
   const [llmReverseConfig, setLlmReverseConfig] = React.useState(null);
+  const [llmSpecs, setLlmSpecs] = React.useState(null);
   const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 0.4, max_hours: 0.8, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
   const [pageDragging, setPageDragging] = React.useState(false);
@@ -1059,6 +1179,7 @@ function MonoSingleApp() {
   React.useEffect(() => {
     fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
     fetch('/api/llm-reverse-config').then(r => r.json()).then(setLlmReverseConfig).catch(() => {});
+    fetch('/api/llm-reverse-platforms').then(r => r.json()).then(setLlmSpecs).catch(() => {});
   }, []);
 
   React.useEffect(() => {
@@ -1217,13 +1338,20 @@ function MonoSingleApp() {
         />
       )}
       {llmReverseDialog && (
-        <LlmReverseDialog onClose={saved => {
-          setLlmReverseDialog(false);
-          if (saved) {
-            fetch('/api/llm-reverse-config').then(r => r.json()).then(setLlmReverseConfig).catch(() => {});
-            fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
-          }
-        }} />
+        llmReverseConfig && llmSpecs
+          ? <LlmReverseDialog initialCfg={llmReverseConfig} initialSpecs={llmSpecs} onClose={saved => {
+              setLlmReverseDialog(false);
+              if (saved) {
+                fetch('/api/llm-reverse-config').then(r => r.json()).then(setLlmReverseConfig).catch(() => {});
+                fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
+              }
+            }} />
+          : <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
+                 onClick={() => setLlmReverseDialog(false)}>
+              <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, padding: '32px 48px', color: M.inkDim, fontSize: 13, fontFamily: M.mono }}>
+                加载中…
+              </div>
+            </div>
       )}
 
       {pageDragging && (
@@ -1279,7 +1407,15 @@ function MonoSingleApp() {
                        onTaggerSetup={() => setTaggerSetup(true)}
                        tick={tick}
                        onSchedulerConfigure={() => setSchedulerDialog(true)}
-                       onLlmReverseConfigure={() => setLlmReverseDialog(true)} />
+                       onLlmReverseConfigure={() => {
+                         setLlmReverseDialog(true);
+                         if (!llmReverseConfig) {
+                           fetch('/api/llm-reverse-config').then(r => r.json()).then(setLlmReverseConfig).catch(() => {});
+                         }
+                         if (!llmSpecs) {
+                           fetch('/api/llm-reverse-platforms').then(r => r.json()).then(setLlmSpecs).catch(() => {});
+                         }
+                       }} />
         </div>
       </div>
 
@@ -1518,6 +1654,20 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
   const [pixivMsg,         setPixivMsg]         = React.useState('');
   const [civitaiSwitching, setCivitaiSwitching] = React.useState(false);
   const [civitaiMsg,       setCivitaiMsg]       = React.useState('');
+  const [pixivOpening,     setPixivOpening]     = React.useState(false);
+  const [pixivGuideOpen,   setPixivGuideOpen]   = React.useState(false);
+  const [civitaiOpening,   setCivitaiOpening]   = React.useState(false);
+  const [civitaiGuideOpen, setCivitaiGuideOpen] = React.useState(false);
+  const [xCookies,   setXCookies]   = React.useState('');
+  const [xSaving,    setXSaving]    = React.useState(false);
+  const [xMsg,       setXMsg]       = React.useState('');
+  const [xGuideOpen,  setXGuideOpen]  = React.useState(false);
+  const [xTabMethod, setXTabMethod] = React.useState('full');
+  const [xAuthToken, setXAuthToken] = React.useState('');
+  const [xCt0,       setXCt0]       = React.useState('');
+  const [xhsMsg,     setXhsMsg]     = React.useState('');
+  const [xhsOpening, setXhsOpening] = React.useState(false);
+  const [xhsGuideOpen, setXhsGuideOpen] = React.useState(false);
 
   const fmtNextFire = iso => {
     if (!iso) return '—';
@@ -1552,8 +1702,8 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
 
   return (
     <div style={{ background: M.panel, padding: '12px 18px 14px', flexShrink: 0 }}>
-      <div className="ms-section-label" style={{ marginBottom: 8 }}>settings</div>
-      <SetCompactRow label="Mosaic model" value={status.mosaic_installed ? 'installed' : 'not installed'} ok={status.mosaic_installed} />
+      <div className="ms-section-label" style={{ marginBottom: 8 }}>设置</div>
+      <SetCompactRow label="马赛克模型" value={status.mosaic_installed ? '已安装' : '未安装'} ok={status.mosaic_installed} />
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
         <div style={{ fontSize: 12.5 }}>打码档位</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1578,8 +1728,8 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
         <div style={{ fontSize: 12.5 }}>WD14 tagger</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: taggerConfigured ? M.ok : M.red }} />
-          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{taggerConfigured ? 'configured' : 'not set'}</span>
-          <button className="mn-btn mn-btn-ghost" onClick={onTaggerSetup} style={{ padding: '2px 8px', fontSize: 11 }}>Configure</button>
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{taggerConfigured ? '已配置' : '未设置'}</span>
+          <button className="mn-btn mn-btn-ghost" onClick={onTaggerSetup} style={{ padding: '2px 8px', fontSize: 11 }}>配置</button>
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
@@ -1587,77 +1737,278 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.llm_reverse_enabled && status.llm_reverse_configured ? M.ok : M.inkFaint }} />
           <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>
-            {status.llm_reverse_enabled ? (status.llm_reverse_configured ? (status.llm_reverse_model || 'configured') : 'not set') : 'off'}
+            {status.llm_reverse_enabled ? (status.llm_reverse_configured ? (status.llm_reverse_model || '已配置') : '未设置') : '关闭'}
           </span>
-          <button className="mn-btn mn-btn-ghost" onClick={onLlmReverseConfigure} style={{ padding: '2px 8px', fontSize: 11 }}>Configure</button>
+          <button className="mn-btn mn-btn-ghost" onClick={onLlmReverseConfigure} style={{ padding: '2px 8px', fontSize: 11 }}>配置</button>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
-        <div style={{ fontSize: 12.5 }}>Pixiv account</div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {pixivMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{pixivMsg}</span>}
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.pixiv_logged_in ? M.ok : M.inkFaint }} />
-          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.pixiv_logged_in ? 'logged in' : 'not set'}</span>
-          <button className="mn-btn mn-btn-ghost"
-                  disabled={pixivSwitching}
-                  onClick={() => {
-                    setPixivSwitching(true);
-                    setPixivMsg('');
-                    fetch('/api/pixiv-logout', { method: 'POST' })
-                      .then(r => r.json().then(d => ({ ok: r.ok, d })))
-                      .then(({ ok, d }) => {
-                        setPixivSwitching(false);
-                        if (ok) { onStatusReload && onStatusReload(); }
-                        else { setPixivMsg(d.error === 'pixiv task is running' ? '停止当前任务后再切换' : d.error); }
-                      })
-                      .catch(() => { setPixivSwitching(false); setPixivMsg('请求失败'); });
-                  }}
-                  style={{ padding: '2px 8px', fontSize: 11 }}>
-            {pixivSwitching ? '…' : 'Switch account'}
-          </button>
+      <div style={{ padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ fontSize: 12.5 }}>Pixiv 账号</div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            {pixivMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{pixivMsg}</span>}
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.pixiv_logged_in ? M.ok : M.inkFaint }} />
+            <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.pixiv_logged_in ? '已登录' : '未设置'}</span>
+            {status.pixiv_logged_in ? (
+              <button className="mn-btn mn-btn-ghost" disabled={pixivSwitching}
+                      onClick={() => {
+                        setPixivSwitching(true); setPixivMsg('');
+                        fetch('/api/pixiv-logout', { method: 'POST' })
+                          .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                          .then(({ ok, d }) => { setPixivSwitching(false); if (ok) { onStatusReload && onStatusReload(); } else setPixivMsg(d.error === 'pixiv task is running' ? '停止当前任务后再切换' : d.error); })
+                          .catch(() => { setPixivSwitching(false); setPixivMsg('请求失败'); });
+                      }}
+                      style={{ padding: '2px 8px', fontSize: 11 }}>
+                {pixivSwitching ? '…' : '切换账号'}
+              </button>
+            ) : (
+              <button className="mn-btn mn-btn-ghost" onClick={() => setPixivGuideOpen(v => !v)}
+                      style={{ padding: '2px 8px', fontSize: 11 }}>
+                {pixivGuideOpen ? '设置 ▴' : '设置 ▾'}
+              </button>
+            )}
+          </div>
         </div>
+        {!status.pixiv_logged_in && pixivGuideOpen && (
+          <div style={{ marginTop: 8, fontSize: 11.5, color: M.inkDim, lineHeight: 1.7 }}>
+            <div>1. 点击「打开登录窗口」，Chrome 窗口会弹出</div>
+            <div>2. 在窗口里完成 Pixiv 登录</div>
+            <div>3. 登录成功后关闭浏览器窗口，状态自动更新</div>
+            <div style={{ marginTop: 8 }}>
+              <button className="mn-btn mn-btn-accent" disabled={pixivOpening}
+                      onClick={() => {
+                        setPixivOpening(true); setPixivMsg('');
+                        fetch('/api/pixiv-open-login', { method: 'POST' })
+                          .then(() => {
+                            const poll = setInterval(() => {
+                              fetch('/api/status').then(r => r.json()).then(s => {
+                                if (s.pixiv_logged_in) { clearInterval(poll); setPixivOpening(false); onStatusReload && onStatusReload(); }
+                              }).catch(() => {});
+                            }, 3000);
+                            setTimeout(() => { clearInterval(poll); setPixivOpening(false); }, 600000);
+                          })
+                          .catch(() => { setPixivOpening(false); setPixivMsg('请求失败'); });
+                      }}
+                      style={{ padding: '4px 12px', fontSize: 11 }}>
+                {pixivOpening ? '正在打开…' : '打开登录窗口'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
-        <div style={{ fontSize: 12.5 }}>Civitai account</div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {civitaiMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{civitaiMsg}</span>}
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.civitai_logged_in ? M.ok : M.inkFaint }} />
-          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.civitai_logged_in ? 'logged in' : 'not set'}</span>
-          <button className="mn-btn mn-btn-ghost"
-                  disabled={civitaiSwitching}
-                  onClick={() => {
-                    setCivitaiSwitching(true);
-                    setCivitaiMsg('');
-                    fetch('/api/civitai-logout', { method: 'POST' })
-                      .then(r => r.json().then(d => ({ ok: r.ok, d })))
-                      .then(({ ok, d }) => {
-                        setCivitaiSwitching(false);
-                        if (ok) { onStatusReload && onStatusReload(); }
-                        else { setCivitaiMsg(d.error === 'civitai task is running' ? '停止当前任务后再切换' : d.error); }
-                      })
-                      .catch(() => { setCivitaiSwitching(false); setCivitaiMsg('请求失败'); });
-                  }}
-                  style={{ padding: '2px 8px', fontSize: 11 }}>
-            {civitaiSwitching ? '…' : 'Switch account'}
-          </button>
+      <div style={{ padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ fontSize: 12.5 }}>Civitai 账号</div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            {civitaiMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{civitaiMsg}</span>}
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.civitai_logged_in ? M.ok : M.inkFaint }} />
+            <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.civitai_logged_in ? '已登录' : '未设置'}</span>
+            {status.civitai_logged_in ? (
+              <button className="mn-btn mn-btn-ghost" disabled={civitaiSwitching}
+                      onClick={() => {
+                        setCivitaiSwitching(true); setCivitaiMsg('');
+                        fetch('/api/civitai-logout', { method: 'POST' })
+                          .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                          .then(({ ok, d }) => { setCivitaiSwitching(false); if (ok) { onStatusReload && onStatusReload(); } else setCivitaiMsg(d.error === 'civitai task is running' ? '停止当前任务后再切换' : d.error); })
+                          .catch(() => { setCivitaiSwitching(false); setCivitaiMsg('请求失败'); });
+                      }}
+                      style={{ padding: '2px 8px', fontSize: 11 }}>
+                {civitaiSwitching ? '…' : '切换账号'}
+              </button>
+            ) : (
+              <button className="mn-btn mn-btn-ghost" onClick={() => setCivitaiGuideOpen(v => !v)}
+                      style={{ padding: '2px 8px', fontSize: 11 }}>
+                {civitaiGuideOpen ? '设置 ▴' : '设置 ▾'}
+              </button>
+            )}
+          </div>
         </div>
+        {!status.civitai_logged_in && civitaiGuideOpen && (
+          <div style={{ marginTop: 8, fontSize: 11.5, color: M.inkDim, lineHeight: 1.7 }}>
+            <div>1. 点击「打开登录窗口」，Chrome 窗口会弹出</div>
+            <div>2. 在窗口里完成 Civitai 登录</div>
+            <div>3. 登录成功后关闭浏览器窗口，状态自动更新</div>
+            <div style={{ marginTop: 8 }}>
+              <button className="mn-btn mn-btn-accent" disabled={civitaiOpening}
+                      onClick={() => {
+                        setCivitaiOpening(true); setCivitaiMsg('');
+                        fetch('/api/civitai-open-login', { method: 'POST' })
+                          .then(() => {
+                            const poll = setInterval(() => {
+                              fetch('/api/status').then(r => r.json()).then(s => {
+                                if (s.civitai_logged_in) { clearInterval(poll); setCivitaiOpening(false); onStatusReload && onStatusReload(); }
+                              }).catch(() => {});
+                            }, 3000);
+                            setTimeout(() => { clearInterval(poll); setCivitaiOpening(false); }, 600000);
+                          })
+                          .catch(() => { setCivitaiOpening(false); setCivitaiMsg('请求失败'); });
+                      }}
+                      style={{ padding: '4px 12px', fontSize: 11 }}>
+                {civitaiOpening ? '正在打开…' : '打开登录窗口'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-      <SetCompactRow label="Upload queue" value={`${status.upload_count} imgs`} />
+      {/* X account */}
+      <div style={{ padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ fontSize: 12.5 }}>X 账号</div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            {xMsg && !status.x_logged_in && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{xMsg}</span>}
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.x_logged_in ? M.ok : M.inkFaint }} />
+            <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.x_logged_in ? '已登录' : '未设置'}</span>
+            {status.x_logged_in ? (
+              <button className="mn-btn mn-btn-ghost"
+                      onClick={() => { setXMsg(''); fetch('/api/x-logout', { method: 'POST' }).then(() => onStatusReload && onStatusReload()).catch(() => setXMsg('请求失败')); }}
+                      style={{ padding: '2px 8px', fontSize: 11 }}>切换账号</button>
+            ) : (
+              <button className="mn-btn mn-btn-ghost" onClick={() => setXGuideOpen(v => !v)}
+                      style={{ padding: '2px 8px', fontSize: 11 }}>
+                {xGuideOpen ? '设置 ▴' : '设置 ▾'}
+              </button>
+            )}
+          </div>
+        </div>
+        {!status.x_logged_in && xGuideOpen && (
+          <div style={{ marginTop: 8, fontSize: 11.5, color: M.inkDim, lineHeight: 1.7 }}>
+            <div style={{ display: 'flex', gap: 0, marginBottom: 8, borderBottom: `1px solid ${M.lineSoft}` }}>
+              {[['full', '扩展导出'], ['manual', 'F12 截取']].map(([key, label]) => (
+                <button key={key} className="mn-btn mn-btn-ghost"
+                        onClick={() => setXTabMethod(key)}
+                        style={{ padding: '3px 10px', fontSize: 11, borderBottom: xTabMethod === key ? `2px solid ${M.accent}` : '2px solid transparent', borderRadius: 0, color: xTabMethod === key ? M.ink : M.inkDim }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {xTabMethod === 'full' ? (
+              <>
+                <div>1. 在浏览器登录 <span className="mn-mono" style={{ color: M.ink2 }}>x.com</span></div>
+                <div>2. 安装 <span className="mn-mono" style={{ color: M.ink2 }}>Cookie-Editor</span> 或 <span className="mn-mono" style={{ color: M.ink2 }}>EditThisCookie</span>（Chrome / Edge）</div>
+                <div>3. 点扩展图标 → Export → Export as JSON → 复制</div>
+                <div>4. 粘贴完整 JSON 数组到下方，点保存</div>
+                <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                  <textarea className="mn-input" rows={3} value={xCookies} onChange={e => setXCookies(e.target.value)}
+                            placeholder="粘贴 cookies JSON…"
+                            style={{ flex: 1, fontSize: 11, fontFamily: M.mono, resize: 'vertical', minHeight: 54 }} />
+                  <button className="mn-btn mn-btn-accent" disabled={xSaving || !xCookies.trim()}
+                          onClick={() => {
+                            setXSaving(true); setXMsg('');
+                            fetch('/api/x-save-cookies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookies: xCookies }) })
+                              .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                              .then(({ ok, d }) => { setXSaving(false); if (ok) { setXCookies(''); onStatusReload && onStatusReload(); } else setXMsg(d.error || '保存失败'); })
+                              .catch(() => { setXSaving(false); setXMsg('请求失败'); });
+                          }}
+                          style={{ padding: '4px 10px', fontSize: 11 }}>
+                    {xSaving ? '…' : '保存'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>1. 在浏览器登录 <span className="mn-mono" style={{ color: M.ink2 }}>x.com</span></div>
+                <div>2. F12 → 应用 → Storage → Cookies → <span className="mn-mono" style={{ color: M.ink2 }}>https://x.com</span></div>
+                <div>3. 找到 <span className="mn-mono" style={{ color: M.ink2 }}>auth_token</span> 和 <span className="mn-mono" style={{ color: M.ink2 }}>ct0</span>，复制 Value 列的值</div>
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="mn-mono" style={{ fontSize: 11, width: 75, flexShrink: 0, color: M.ink2 }}>auth_token</span>
+                    <input className="mn-input" value={xAuthToken} onChange={e => setXAuthToken(e.target.value)}
+                           placeholder="粘贴 auth_token 值"
+                           style={{ flex: 1, fontSize: 11, fontFamily: M.mono, padding: '3px 6px' }} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="mn-mono" style={{ fontSize: 11, width: 75, flexShrink: 0, color: M.ink2 }}>ct0</span>
+                    <input className="mn-input" value={xCt0} onChange={e => setXCt0(e.target.value)}
+                           placeholder="粘贴 ct0 值"
+                           style={{ flex: 1, fontSize: 11, fontFamily: M.mono, padding: '3px 6px' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button className="mn-btn mn-btn-accent" disabled={xSaving || !xAuthToken.trim() || !xCt0.trim()}
+                            onClick={() => {
+                              setXSaving(true); setXMsg('');
+                              const cookies = JSON.stringify([
+                                { name: 'auth_token', value: xAuthToken.trim(), domain: '.x.com', path: '/', httpOnly: true,  secure: true, sameSite: 'None' },
+                                { name: 'ct0',        value: xCt0.trim(),       domain: '.x.com', path: '/', httpOnly: false, secure: true, sameSite: 'Lax'  },
+                              ]);
+                              fetch('/api/x-save-cookies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookies }) })
+                                .then(r => r.json().then(d => ({ ok: r.ok, d })))
+                                .then(({ ok, d }) => { setXSaving(false); if (ok) { setXAuthToken(''); setXCt0(''); onStatusReload && onStatusReload(); } else setXMsg(d.error || '保存失败'); })
+                                .catch(() => { setXSaving(false); setXMsg('请求失败'); });
+                            }}
+                            style={{ padding: '4px 10px', fontSize: 11 }}>
+                      {xSaving ? '…' : '保存'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+            {xMsg && <div style={{ marginTop: 4, fontSize: 11, color: M.red }}>{xMsg}</div>}
+          </div>
+        )}
+      </div>
+      {/* 小红书 account */}
+      <div style={{ padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ fontSize: 12.5 }}>小红书账号</div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            {xhsMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{xhsMsg}</span>}
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.xhs_logged_in ? M.ok : M.inkFaint }} />
+            <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.xhs_logged_in ? '已登录' : '未设置'}</span>
+            {status.xhs_logged_in ? (
+              <button className="mn-btn mn-btn-ghost"
+                      onClick={() => { setXhsMsg(''); fetch('/api/xhs-logout', { method: 'POST' }).then(() => onStatusReload && onStatusReload()).catch(() => setXhsMsg('请求失败')); }}
+                      style={{ padding: '2px 8px', fontSize: 11 }}>切换账号</button>
+            ) : (
+              <button className="mn-btn mn-btn-ghost" onClick={() => setXhsGuideOpen(v => !v)}
+                      style={{ padding: '2px 8px', fontSize: 11 }}>
+                {xhsGuideOpen ? '设置 ▴' : '设置 ▾'}
+              </button>
+            )}
+          </div>
+        </div>
+        {!status.xhs_logged_in && xhsGuideOpen && (
+          <div style={{ marginTop: 8, fontSize: 11.5, color: M.inkDim, lineHeight: 1.7 }}>
+            <div>1. 点击「打开登录窗口」，Chrome 窗口会弹出</div>
+            <div>2. 在窗口里完成小红书登录（账号 / 手机 / 二维码均可）</div>
+            <div>3. 登录成功后关闭浏览器窗口，状态自动更新</div>
+            <div style={{ marginTop: 8 }}>
+              <button className="mn-btn mn-btn-accent" disabled={xhsOpening}
+                      onClick={() => {
+                        setXhsOpening(true); setXhsMsg('');
+                        fetch('/api/xhs-open-login', { method: 'POST' })
+                          .then(() => {
+                            const poll = setInterval(() => {
+                              fetch('/api/status').then(r => r.json()).then(s => {
+                                if (s.xhs_logged_in) { clearInterval(poll); setXhsOpening(false); onStatusReload && onStatusReload(); }
+                              }).catch(() => {});
+                            }, 3000);
+                            setTimeout(() => { clearInterval(poll); setXhsOpening(false); }, 600000);
+                          })
+                          .catch(() => { setXhsOpening(false); setXhsMsg('请求失败'); });
+                      }}
+                      style={{ padding: '4px 12px', fontSize: 11 }}>
+                {xhsOpening ? '正在打开…' : '打开登录窗口'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <SetCompactRow label="上传队列" value={`${status.upload_count} 张`} />
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
-        <div style={{ fontSize: 12.5 }}>Auto schedule</div>
+        <div style={{ fontSize: 12.5 }}>自动调度</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <span className="mn-mono" style={{ fontSize: 11.5, color: sched.enabled ? M.ok : M.inkDim }}>
-            {sched.enabled ? `Next: in ${fmtNextFire(sched.next_fire_at)}` : 'off'}
+            {sched.enabled ? `下次：${fmtNextFire(sched.next_fire_at)} 后` : '关闭'}
           </span>
           {sched.enabled && (
             <button className="mn-btn mn-btn-ghost"
                     onClick={() => fetch('/api/scheduler', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: false }) })
                       .then(() => onStatusReload && onStatusReload())}
                     style={{ padding: '2px 8px', fontSize: 11 }}>
-              Disable
+              停用
             </button>
           )}
-          <button className="mn-btn mn-btn-ghost" onClick={onSchedulerConfigure} style={{ padding: '2px 8px', fontSize: 11 }}>Configure</button>
+          <button className="mn-btn mn-btn-ghost" onClick={onSchedulerConfigure} style={{ padding: '2px 8px', fontSize: 11 }}>配置</button>
         </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
@@ -1665,19 +2016,19 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.has_api_key ? M.ok : M.red }} />
           <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>
-            {status.has_api_key ? (status.api_key_masked || 'set') : 'not set'}
+            {status.has_api_key ? (status.api_key_masked || '已设置') : '未设置'}
           </span>
         </div>
       </div>
       <div style={{ paddingTop: 8, display: 'flex', gap: 6 }}>
-        <input className="mn-input" placeholder="paste Civitai API key…" type="password"
+        <input className="mn-input" placeholder="粘贴 Civitai API key…" type="password"
                value={apiKey} onChange={e => setApiKey(e.target.value)}
                onKeyDown={e => e.key === 'Enter' && saveKey()}
                style={{ flex: 1, fontSize: 12 }} />
         <button className="mn-btn mn-btn-accent"
                 onClick={saveKey} disabled={!apiKey.trim()}
                 style={{ padding: '6px 12px', fontSize: 12, opacity: apiKey.trim() ? 1 : 0.5 }}>
-          {saved ? '✓' : 'Save'}
+          {saved ? '✓' : '保存'}
         </button>
       </div>
     </div>

@@ -222,7 +222,10 @@ def validate_llm_reverse_config(config: dict[str, Any]) -> list[str]:
         if default_mode not in modes:
             errors.append(f"account {account.get('id', '')} default_content_mode not allowed")
     if cfg.get("enabled"):
-        for key in ("base_url", "api_key", "model"):
+        provider = str(cfg.get("provider") or "openai_compatible").strip().lower()
+        # anthropic/gemini allow empty base_url (each has its own official endpoint fallback)
+        required_keys = ("api_key", "model") if provider in ("anthropic", "google_gemini") else ("base_url", "api_key", "model")
+        for key in required_keys:
             if not str(cfg.get(key, "")).strip():
                 errors.append(f"{key} is required when enabled")
     return errors
@@ -273,7 +276,9 @@ def infer_image_copy(
         result["status"] = "disabled"
         result["error"] = "llm reverse disabled"
         return result
-    missing = [key for key in ("base_url", "api_key", "model") if not str(cfg.get(key, "")).strip()]
+    provider = str(cfg.get("provider") or "openai_compatible").strip().lower()
+    _required = ("api_key", "model") if provider == "anthropic" else ("base_url", "api_key", "model")
+    missing = [key for key in _required if not str(cfg.get(key, "")).strip()]
     if missing:
         result["status"] = "failed"
         result["error"] = f"missing config: {', '.join(missing)}"
@@ -285,16 +290,29 @@ def infer_image_copy(
     _raise_if_canceled(cancel_event)
     try:
         image_ref = image_url or _image_to_data_url(Path(image_path))
-        payload = _build_request_payload(cfg, persona, mode, spec, image_ref)
-        endpoint = _chat_completions_url(str(cfg.get("base_url", "")))
         timeout = float(cfg.get("timeout_seconds", 45) or 45)
-        headers = {"Authorization": f"Bearer {cfg['api_key']}", "Content-Type": "application/json"}
+
+        if provider == "google_gemini":
+            payload, endpoint, headers = _build_gemini_request(cfg, persona, mode, spec, image_ref)
+        elif provider == "anthropic":
+            payload, endpoint, headers = _build_anthropic_request(cfg, persona, mode, spec, image_ref)
+        else:
+            payload = _build_request_payload(cfg, persona, mode, spec, image_ref)
+            endpoint = _chat_completions_url(str(cfg.get("base_url", "")))
+            headers = {"Authorization": f"Bearer {cfg['api_key']}", "Content-Type": "application/json"}
+
         with httpx.Client(timeout=timeout, follow_redirects=True) as client:
             response = client.post(endpoint, headers=headers, json=payload)
             response.raise_for_status()
             data = response.json()
         _raise_if_canceled(cancel_event)
-        content = _extract_message_content(data)
+
+        if provider == "google_gemini":
+            content = _extract_gemini_content(data)
+        elif provider == "anthropic":
+            content = _extract_anthropic_content(data)
+        else:
+            content = _extract_message_content(data)
         parsed = _parse_json_object(content)
         normalized = _normalize_output(parsed, spec)
         combined = "\n".join(_stringify_for_check(v) for v in normalized.values())
@@ -562,6 +580,104 @@ def _chat_completions_url(base_url: str) -> str:
     if base.lower().endswith("v1/"):
         return urljoin(base, "chat/completions")
     return urljoin(base, "v1/chat/completions")
+
+
+def _parse_data_url(data_url: str) -> tuple[str, str]:
+    """Return (mime_type, base64_data) from a data URL."""
+    if not data_url.startswith("data:"):
+        raise ValueError("not a data URL")
+    header, data = data_url.split(",", 1)
+    mime = header.split(";")[0][5:]  # strip "data:"
+    return mime or "image/jpeg", data
+
+
+def _build_gemini_request(
+    cfg: dict[str, Any],
+    persona: dict[str, Any],
+    mode: str,
+    spec: dict[str, Any],
+    image_ref: str,
+) -> tuple[dict[str, Any], str, dict[str, str]]:
+    """Return (payload, endpoint, headers) for Gemini native API."""
+    oai_payload = _build_request_payload(cfg, persona, mode, spec, image_ref)
+    content_parts = oai_payload["messages"][0]["content"]
+    prompt_text = next((p["text"] for p in content_parts if p.get("type") == "text"), "")
+
+    parts: list[dict[str, Any]] = [{"text": prompt_text}]
+    if image_ref.startswith("data:"):
+        mime_type, b64_data = _parse_data_url(image_ref)
+        parts.append({"inline_data": {"mime_type": mime_type, "data": b64_data}})
+    else:
+        parts.append({"file_data": {"file_uri": image_ref, "mime_type": "image/jpeg"}})
+
+    model = str(cfg.get("model", "gemini-2.5-flash"))
+    base = str(cfg.get("base_url", "")).rstrip("/") or "https://generativelanguage.googleapis.com"
+    endpoint = f"{base}/v1beta/models/{model}:generateContent"
+    headers = {"x-goog-api-key": str(cfg["api_key"]), "Content-Type": "application/json"}
+    payload = {
+        "contents": [{"role": "user", "parts": parts}],
+        "generationConfig": {"temperature": 0.7, "responseMimeType": "application/json"},
+    }
+    return payload, endpoint, headers
+
+
+def _extract_gemini_content(data: dict[str, Any]) -> str:
+    candidates = data.get("candidates") or []
+    if not candidates:
+        raise ValueError("empty candidates in Gemini response")
+    content = candidates[0].get("content") or {}
+    parts = content.get("parts") or []
+    texts = [p.get("text", "") for p in parts if p.get("text")]
+    if not texts:
+        raise ValueError("no text in Gemini candidate parts")
+    return "\n".join(texts)
+
+
+def _build_anthropic_request(
+    cfg: dict[str, Any],
+    persona: dict[str, Any],
+    mode: str,
+    spec: dict[str, Any],
+    image_ref: str,
+) -> tuple[dict[str, Any], str, dict[str, str]]:
+    """Return (payload, endpoint, headers) for Anthropic Messages API."""
+    oai_payload = _build_request_payload(cfg, persona, mode, spec, image_ref)
+    content_parts = oai_payload["messages"][0]["content"]
+    prompt_text = next((p["text"] for p in content_parts if p.get("type") == "text"), "")
+
+    anthropic_content: list[dict[str, Any]] = []
+    if image_ref.startswith("data:"):
+        mime_type, b64_data = _parse_data_url(image_ref)
+        anthropic_content.append(
+            {"type": "image", "source": {"type": "base64", "media_type": mime_type, "data": b64_data}}
+        )
+    else:
+        anthropic_content.append(
+            {"type": "image", "source": {"type": "url", "url": image_ref}}
+        )
+    anthropic_content.append({"type": "text", "text": prompt_text})
+
+    base = str(cfg.get("base_url") or "").rstrip("/")
+    endpoint = f"{base}/v1/messages" if base else "https://api.anthropic.com/v1/messages"
+    headers = {
+        "x-api-key": str(cfg["api_key"]),
+        "Content-Type": "application/json",
+        "anthropic-version": "2023-06-01",
+    }
+    payload = {
+        "model": str(cfg.get("model", "")),
+        "max_tokens": 2048,
+        "messages": [{"role": "user", "content": anthropic_content}],
+    }
+    return payload, endpoint, headers
+
+
+def _extract_anthropic_content(data: dict[str, Any]) -> str:
+    content = data.get("content") or []
+    texts = [block.get("text", "") for block in content if block.get("type") == "text"]
+    if not texts:
+        raise ValueError("no text content in Anthropic response")
+    return "\n".join(texts)
 
 
 def _image_to_data_url(path: Path) -> str:

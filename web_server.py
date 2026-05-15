@@ -29,6 +29,8 @@ from pixiv.llm_reverse import (
     validate_llm_reverse_config,
 )
 from pixiv.support import PIXIV_PROFILE_DIR
+from x.support   import X_DIR,   X_PROFILE_DIR
+from xhs.support import XHS_DIR, XHS_PROFILE_DIR
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 CIVITAI_PROFILE_DIR = Path.home() / ".civitai_splitter_chrome"
@@ -259,9 +261,8 @@ def _run_task(task_id: str, cmd: int, params: dict) -> None:
         _set_task_status(task_id, "canceled")
         return
 
-    _set_task_status(task_id, "running")
-
     with _EXEC_LOCK:
+        _set_task_status(task_id, "running")
         _run_task_locked(task_id, cmd, params)
 
 
@@ -323,8 +324,10 @@ def _run_task_locked(task_id: str, cmd: int, params: dict) -> None:
                 llm_persona=params.get("llm_persona", ""),
                 llm_account=params.get("llm_account", ""),
                 llm_content_mode=params.get("llm_content_mode", ""),
+                llm_mode=params.get("llm_mode", "unified"),
+                llm_personas_by_platform=params.get("llm_personas_by_platform") or {},
+                llm_content_modes_by_platform=params.get("llm_content_modes_by_platform") or {},
                 x_template=params.get("x_template", ""),
-                x_group=params.get("x_group", 1),
                 xhs_template=params.get("xhs_template", ""),
                 cancel_event=cancel_event,
             )
@@ -553,6 +556,73 @@ def api_llm_reverse_platforms():
     return jsonify({pid: dict(spec, id=pid) for pid, spec in PLATFORM_SPECS.items()})
 
 
+@app.route("/api/llm-reverse-models", methods=["GET"])
+def api_llm_reverse_models():
+    import urllib.request as _ur
+    provider = request.args.get("provider", "")
+    api_key  = request.args.get("api_key", "")
+    base_url = request.args.get("base_url", "").rstrip("/")
+
+    if provider == "anthropic":
+        return jsonify({"models": [
+            "claude-opus-4-7",
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-5-haiku-20241022",
+        ]})
+
+    if provider == "google_gemini":
+        if not api_key:
+            return jsonify({"error": "需要填写 API key"}), 400
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+        try:
+            with _ur.urlopen(url, timeout=10) as resp:
+                data = json.loads(resp.read())
+            models = [
+                m["name"].split("/")[-1]
+                for m in data.get("models", [])
+                if "generateContent" in m.get("supportedGenerationMethods", [])
+            ]
+            return jsonify({"models": models})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 502
+
+    # openai_compatible
+    if not base_url:
+        return jsonify({"error": "需要填写 base URL"}), 400
+    try:
+        req = _ur.Request(
+            f"{base_url}/models",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        with _ur.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read())
+        ids = sorted(m["id"] for m in data.get("data", []) if "id" in m)
+        return jsonify({"models": ids})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@app.route("/api/templates", methods=["GET"])
+def api_templates():
+    try:
+        from x.support import load_x_templates, load_x_settings
+        x_keys = list(load_x_templates().keys())
+        x_default = load_x_settings().get("default_template", "en_sfw")
+    except Exception:
+        x_keys = ["jp_sfw", "en_sfw", "zh_sfw", "jp_nsfw", "en_nsfw", "zh_nsfw"]
+        x_default = "en_sfw"
+    try:
+        from xhs.support import load_xhs_templates, load_xhs_settings
+        xhs_keys = list(load_xhs_templates().keys())
+        xhs_default = load_xhs_settings().get("default_template", "default")
+    except Exception:
+        xhs_keys = ["default"]
+        xhs_default = "default"
+    return jsonify({"x": x_keys, "x_default": x_default, "xhs": xhs_keys, "xhs_default": xhs_default})
+
+
 @app.route("/api/llm-reverse-config", methods=["GET"])
 def api_llm_reverse_config_get():
     cfg = _load_config()
@@ -586,7 +656,7 @@ def api_images():
     upload_dir = SCRIPT_DIR / "upload"
     if not upload_dir.exists():
         return jsonify([])
-    exts = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    exts = {'.jpg', '.jpeg', '.png', '.webp'}
     files = []
     for f in sorted(upload_dir.iterdir()):
         if f.is_file() and f.suffix.lower() in exts:
@@ -628,7 +698,8 @@ def api_open_folder():
 def api_status():
     model_path  = SCRIPT_DIR / "models" / "auto_censor.pt"
     upload_dir  = SCRIPT_DIR / "upload"
-    upload_count = sum(1 for f in upload_dir.iterdir() if f.is_file()) if upload_dir.exists() else 0
+    _img_exts = {'.png', '.jpg', '.jpeg', '.webp'}
+    upload_count = sum(1 for f in upload_dir.iterdir() if f.is_file() and f.suffix.lower() in _img_exts) if upload_dir.exists() else 0
     api_key = os.environ.get("CIVITAI_API_KEY", "")
     if len(api_key) > 4:
         masked = "*" * (len(api_key) - 4) + api_key[-4:]
@@ -654,8 +725,10 @@ def api_status():
         "upload_count":      upload_count,
         "has_api_key":       bool(api_key),
         "api_key_masked":    masked,
-        "pixiv_logged_in":   PIXIV_PROFILE_DIR.exists(),
-        "civitai_logged_in": CIVITAI_PROFILE_DIR.exists(),
+        "pixiv_logged_in":   (PIXIV_PROFILE_DIR   / ".session_valid").exists(),
+        "civitai_logged_in": (CIVITAI_PROFILE_DIR / ".session_valid").exists(),
+        "x_logged_in":       (X_DIR   / "cookies.json").exists(),
+        "xhs_logged_in":     (XHS_PROFILE_DIR     / ".session_valid").exists(),
         "scheduler":         {**_sched_default(), **(cfg.get("scheduler") or {})},
         "llm_reverse_enabled": bool(llm_cfg.get("enabled")),
         "llm_reverse_configured": bool(llm_cfg.get("base_url") and llm_cfg.get("api_key") and llm_cfg.get("model")),
@@ -719,8 +792,9 @@ def api_tagger_config_get():
 
     haintag_ok = False
     if haintag_root:
-        tagger_mod = Path(haintag_root) / "native_app" / "tagger.py"
-        haintag_ok = tagger_mod.exists()
+        root_p = Path(haintag_root)
+        haintag_ok = (root_p / "native_app" / "tagger.py").exists() or \
+                     (root_p / "_internal" / "native_app" / "tagger_subprocess.py").exists()
 
     model_ok = False
     if model_dir:
@@ -768,6 +842,7 @@ def api_pixiv_logout():
         )
     if running_pixiv:
         return jsonify({"error": "pixiv task is running"}), 400
+    (PIXIV_PROFILE_DIR / ".session_valid").unlink(missing_ok=True)
     shutil.rmtree(PIXIV_PROFILE_DIR, ignore_errors=True)
     return jsonify({"ok": True})
 
@@ -781,7 +856,160 @@ def api_civitai_logout():
         )
     if running_civitai:
         return jsonify({"error": "civitai task is running"}), 400
+    (CIVITAI_PROFILE_DIR / ".session_valid").unlink(missing_ok=True)
     shutil.rmtree(CIVITAI_PROFILE_DIR, ignore_errors=True)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/pixiv-open-login", methods=["POST"])
+def api_pixiv_open_login():
+    def _launch():
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as pw:
+                context = pw.chromium.launch_persistent_context(
+                    str(PIXIV_PROFILE_DIR),
+                    channel="chrome",
+                    headless=False,
+                    args=["--start-maximized", "--disable-sync", "--no-first-run",
+                          "--disable-blink-features=AutomationControlled"],
+                    ignore_default_args=["--enable-automation", "--no-sandbox"],
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                    ),
+                )
+                page = context.pages[0] if context.pages else context.new_page()
+                try:
+                    page.goto("https://www.pixiv.net/", wait_until="commit", timeout=30000)
+                except Exception:
+                    pass
+                while context.pages:
+                    time.sleep(1)
+                (PIXIV_PROFILE_DIR / ".session_valid").touch()
+        except Exception as exc:
+            import logging as _log
+            _log.getLogger(__name__).warning(f"pixiv login browser: {exc}")
+
+    import threading as _th
+    _th.Thread(target=_launch, daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/civitai-open-login", methods=["POST"])
+def api_civitai_open_login():
+    def _launch():
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as pw:
+                context = pw.chromium.launch_persistent_context(
+                    str(CIVITAI_PROFILE_DIR),
+                    channel="chrome",
+                    headless=False,
+                    args=["--start-maximized", "--disable-sync", "--no-first-run",
+                          "--disable-blink-features=AutomationControlled"],
+                    ignore_default_args=["--enable-automation", "--no-sandbox"],
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                    ),
+                )
+                page = context.pages[0] if context.pages else context.new_page()
+                try:
+                    page.goto("https://civitai.com/", wait_until="commit", timeout=30000)
+                except Exception:
+                    pass
+                while context.pages:
+                    time.sleep(1)
+                (CIVITAI_PROFILE_DIR / ".session_valid").touch()
+        except Exception as exc:
+            import logging as _log
+            _log.getLogger(__name__).warning(f"civitai login browser: {exc}")
+
+    import threading as _th
+    _th.Thread(target=_launch, daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/x-save-cookies", methods=["POST"])
+def api_x_save_cookies():
+    data = request.get_json(force=True) or {}
+    raw  = data.get("cookies", "")
+    try:
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            raise ValueError("not a list")
+    except Exception:
+        return jsonify({"error": "不是合法的 JSON 数组"}), 400
+    (X_DIR / "cookies.json").write_text(
+        json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return jsonify({"ok": True})
+
+
+@app.route("/api/x-logout", methods=["POST"])
+def api_x_logout():
+    (X_DIR / "cookies.json").unlink(missing_ok=True)
+    shutil.rmtree(X_PROFILE_DIR, ignore_errors=True)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/xhs-save-cookies", methods=["POST"])
+def api_xhs_save_cookies():
+    data = request.get_json(force=True) or {}
+    raw  = data.get("cookies", "")
+    try:
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            raise ValueError("not a list")
+    except Exception:
+        return jsonify({"error": "不是合法的 JSON 数组"}), 400
+    (XHS_DIR / "cookies.json").write_text(
+        json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return jsonify({"ok": True})
+
+
+@app.route("/api/xhs-logout", methods=["POST"])
+def api_xhs_logout():
+    (XHS_DIR / "cookies.json").unlink(missing_ok=True)
+    (XHS_PROFILE_DIR / ".session_valid").unlink(missing_ok=True)
+    shutil.rmtree(XHS_PROFILE_DIR, ignore_errors=True)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/xhs-open-login", methods=["POST"])
+def api_xhs_open_login():
+    def _launch():
+        try:
+            from playwright.sync_api import sync_playwright
+            with sync_playwright() as pw:
+                context = pw.chromium.launch_persistent_context(
+                    str(XHS_PROFILE_DIR),
+                    channel="chrome",
+                    headless=False,
+                    args=["--start-maximized", "--disable-sync", "--no-first-run",
+                          "--disable-blink-features=AutomationControlled"],
+                    ignore_default_args=["--enable-automation", "--no-sandbox"],
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                    ),
+                )
+                page = context.pages[0] if context.pages else context.new_page()
+                try:
+                    page.goto("https://www.xiaohongshu.com/", wait_until="commit", timeout=30000)
+                except Exception:
+                    pass
+                while context.pages:
+                    time.sleep(1)
+                (XHS_PROFILE_DIR / ".session_valid").touch()
+        except Exception as exc:
+            import logging as _log
+            _log.getLogger(__name__).warning(f"xhs login browser: {exc}")
+
+    import threading as _th
+    _th.Thread(target=_launch, daemon=True).start()
     return jsonify({"ok": True})
 
 
@@ -837,7 +1065,7 @@ def _scheduler_fire() -> None:
     with TASKS_LOCK:
         any_running = any(t.get("status") in ("running", "queued") for t in TASKS.values())
     upload_dir = SCRIPT_DIR / "upload"
-    img_exts = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+    img_exts = {'.jpg', '.jpeg', '.png', '.webp'}
     has_images = upload_dir.exists() and any(
         f.is_file() and f.suffix.lower() in img_exts for f in upload_dir.iterdir()
     )

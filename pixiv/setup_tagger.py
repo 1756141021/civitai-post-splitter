@@ -104,9 +104,10 @@ def _scan_model_dir(path: str) -> tuple[str | None, str | None]:
 def _check_haintag_root(root: Path) -> tuple[bool, str]:
     if not root.exists():
         return False, "directory does not exist"
-    tagger_mod = root / "native_app" / "tagger.py"
-    if not tagger_mod.exists():
-        return False, f"native_app/tagger.py not found in {root}"
+    source_ok = (root / "native_app" / "tagger.py").exists()
+    dist_ok   = (root / "_internal" / "native_app" / "tagger_subprocess.py").exists()
+    if not source_ok and not dist_ok:
+        return False, f"HainTag not found in {root}"
     return True, "ok"
 
 

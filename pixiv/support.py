@@ -901,6 +901,49 @@ class HainTagBridge:
         return self._reader_cls
 
 
+class _DistSubprocessEngine:
+    """Calls tagger_subprocess.py from a compiled HainTag distribution."""
+    is_ready = True
+
+    def __init__(self, script: str, model_path: str, mapping_path: str, python: str) -> None:
+        self._script = script
+        self._model_path = model_path
+        self._mapping_path = mapping_path
+        self._python = python
+
+    def predict(
+        self,
+        image_path: str,
+        gen_threshold: float = 0.35,
+        char_threshold: float = 0.70,
+        enabled_categories=None,
+        blacklist=None,
+    ) -> dict:
+        import subprocess
+        import json as _json
+        cats = ",".join(enabled_categories or {"general", "character", "copyright"})
+        bl   = ",".join(blacklist or [])
+        cmd  = [
+            self._python, "-E", self._script, str(image_path),
+            self._model_path, self._mapping_path,
+            str(gen_threshold), str(char_threshold), cats, bl,
+        ]
+        clean_env = dict(os.environ)
+        for v in ("PYTHONHOME", "PYTHONPATH", "_MEIPASS"):
+            clean_env.pop(v, None)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=60,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            env=clean_env,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"tagger_subprocess error: {result.stderr.strip()[:200]}")
+        data = _json.loads(result.stdout.strip())
+        if "error" in data:
+            raise RuntimeError(data["error"])
+        return data
+
+
 class HainTagTaggerBridge:
     def __init__(self, root: Path) -> None:
         self._root = root
@@ -967,6 +1010,7 @@ class HainTagTaggerBridge:
         model_dir = settings.get("tagger_model_dir", "")
         external_python = settings.get("tagger_python_path", "") or None
         appdata_dir = os.environ.get("APPDATA", "") or str(Path.home() / "AppData" / "Roaming")
+        _source_engine = None
         try:
             module = importlib.import_module("native_app.tagger")
             engine_cls = getattr(module, "TaggerEngine", None)
@@ -987,13 +1031,45 @@ class HainTagTaggerBridge:
             if not getattr(engine, "is_ready", False):
                 self._status = "engine_not_ready"
                 return None
+            _source_engine = engine
         except Exception:
-            self._status = "import_error"
-            return None
+            pass
 
+        if _source_engine is not None:
+            self._engine = _source_engine
+            self._status = "ok"
+            return self._engine
+
+        # Dist mode: _internal/native_app/tagger_subprocess.py
+        dist_script = self._root / "_internal" / "native_app" / "tagger_subprocess.py"
+        if dist_script.exists():
+            return self._init_dist_engine(dist_script)
+
+        self._status = "import_error"
+        return None
+
+    def _init_dist_engine(self, dist_script: Path):
+        import sys as _sys
+        settings = self._load_settings()
+        self._settings = settings
+        model_dir = settings.get("tagger_model_dir", "")
+        appdata_dir = os.environ.get("APPDATA", "") or str(Path.home() / "AppData" / "Roaming")
+        model_path, mapping_path = self._scan_model_dir(model_dir) if model_dir else (None, None)
+        if not model_path or not mapping_path:
+            model_sub = str(Path(appdata_dir) / "HainTag" / "models" / "cl_tagger")
+            model_path, mapping_path = self._scan_model_dir(model_sub)
+        if not model_path or not mapping_path:
+            self._status = "model_not_found"
+            return None
+        engine = _DistSubprocessEngine(
+            script=str(dist_script),
+            model_path=model_path,
+            mapping_path=mapping_path,
+            python=_sys.executable,
+        )
         self._engine = engine
         self._status = "ok"
-        return self._engine
+        return engine
 
     @staticmethod
     def _scan_model_dir(path: str) -> tuple[str | None, str | None]:
