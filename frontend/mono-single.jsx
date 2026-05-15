@@ -61,21 +61,24 @@ function _savePersistedTargets(targetsList) {
   } catch {}
 }
 
-function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
+function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel, onReloadDefaults }) {
+  const ud = uploadDefaults || {};
   const [images,       setImages]       = React.useState([]);
   const [selected,     setSelected]     = React.useState(new Set());
   const [loading,      setLoading]      = React.useState(true);
   const [uploading,    setUploading]    = React.useState(false);
-  const [sortMode,     setSortMode]     = React.useState('random');
+  const [sortMode,     setSortMode]     = React.useState(ud.sort_mode || 'random');
   const [orderedFiles, setOrderedFiles] = React.useState([]);
-  const [llmReverse,     setLlmReverse]     = React.useState(false);
-  const [llmPersona,     setLlmPersona]     = React.useState('');
-  const [llmContentMode, setLlmContentMode] = React.useState('sfw');
-  const [llmMode,               setLlmMode]               = React.useState('unified');
-  const [llmPersonasByPlatform, setLlmPersonasByPlatform] = React.useState({ pixiv: '', x: '', xhs: '' });
-  const [llmContentByPlatform,  setLlmContentByPlatform]  = React.useState({ pixiv: 'sfw', x: 'sfw', xhs: 'sfw' });
-  const [xTemplate,    setXTemplate]    = React.useState(() => localStorage.getItem('civitai-splitter:x-template')   || '');
-  const [xhsTemplate,  setXhsTemplate]  = React.useState(() => localStorage.getItem('civitai-splitter:xhs-template') || '');
+  const [llmReverse,     setLlmReverse]     = React.useState(!!ud.llm_reverse);
+  const [llmPersona,     setLlmPersona]     = React.useState(ud.llm_persona || '');
+  const [llmContentMode, setLlmContentMode] = React.useState(ud.llm_content_mode || 'sfw');
+  const [llmMode,               setLlmMode]               = React.useState(ud.llm_mode || 'unified');
+  const [llmPersonasByPlatform, setLlmPersonasByPlatform] = React.useState(ud.llm_personas_by_platform || { pixiv: '', x: '', xhs: '' });
+  const [llmContentByPlatform,  setLlmContentByPlatform]  = React.useState(ud.llm_content_modes_by_platform || { pixiv: 'sfw', x: 'sfw', xhs: 'sfw' });
+  const [xTemplate,    setXTemplate]    = React.useState(() => ud.x_template   ?? (localStorage.getItem('civitai-splitter:x-template')   || ''));
+  const [xhsTemplate,  setXhsTemplate]  = React.useState(() => ud.xhs_template ?? (localStorage.getItem('civitai-splitter:xhs-template') || ''));
+  const [saving,    setSaving]    = React.useState(false);
+  const [savedAt,   setSavedAt]   = React.useState(0);
   const [templateOpts, setTemplateOpts] = React.useState({ x: [], x_default: 'en_sfw', xhs: [], xhs_default: 'default' });
   const [pickN,        setPickN]        = React.useState('');
   const fileInputRef   = React.useRef(null);
@@ -83,10 +86,11 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
   const dragOverItem   = React.useRef(null);
   const prevSortMode   = React.useRef('random');
 
-  // Default target set comes from the legacy `cmd` button (2 = dual,
-  // 3 = pixiv-only). Once the user adjusts, localStorage takes over.
+  // Default targets: uploadDefaults (backend) > legacy localStorage > cmd-based.
   const _cmdDefaultTargets = cmd === 3 ? ['pixiv'] : ['civitai', 'pixiv'];
-  const _initialTargets = _loadPersistedTargets(_cmdDefaultTargets);
+  const _initialTargets = Array.isArray(ud.targets) && ud.targets.length > 0
+    ? ud.targets.filter(t => ALL_TARGETS.includes(t))
+    : _loadPersistedTargets(_cmdDefaultTargets);
   const [targetCivitai, setTargetCivitai] = React.useState(_initialTargets.includes('civitai'));
   const [targetPixiv,   setTargetPixiv]   = React.useState(_initialTargets.includes('pixiv'));
   const [targetX,       setTargetX]       = React.useState(_initialTargets.includes('x'));
@@ -135,10 +139,10 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
     const persona = (llmConfig.personas || []).find(p => p.id === llmConfig.default_persona_id) || (llmConfig.personas || [])[0] || {};
     const defaultId   = persona.id || '';
     const defaultMode = persona.default_content_mode || llmConfig.default_content_mode || 'sfw';
-    setLlmPersona(defaultId);
-    setLlmContentMode(defaultMode);
-    setLlmPersonasByPlatform({ pixiv: defaultId, x: defaultId, xhs: defaultId });
-    setLlmContentByPlatform({ pixiv: defaultMode, x: defaultMode, xhs: defaultMode });
+    if (!ud.llm_persona)      setLlmPersona(defaultId);
+    if (!ud.llm_content_mode) setLlmContentMode(defaultMode);
+    if (!ud.llm_personas_by_platform)      setLlmPersonasByPlatform({ pixiv: defaultId, x: defaultId, xhs: defaultId });
+    if (!ud.llm_content_modes_by_platform) setLlmContentByPlatform({ pixiv: defaultMode, x: defaultMode, xhs: defaultMode });
   }, [llmConfig]);
 
   const toggle = name => setSelected(prev => {
@@ -196,15 +200,50 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
     return { llm_reverse: llmReverse, llm_mode: 'unified', llm_persona: llmPersona, llm_content_mode: llmContentMode, ...templateFields };
   };
 
+  const _currentTargets = () => [
+    targetCivitai && 'civitai',
+    targetPixiv && 'pixiv',
+    targetX && 'x',
+    targetXhs && 'xhs',
+  ].filter(Boolean);
+
+  const buildPayload = () => ({
+    targets: _currentTargets(),
+    sort_mode: sortMode,
+    llm_reverse: llmReverse,
+    llm_mode: llmMode,
+    llm_persona: llmPersona,
+    llm_content_mode: llmContentMode,
+    llm_personas_by_platform: llmPersonasByPlatform,
+    llm_content_modes_by_platform: llmContentByPlatform,
+    x_template: xTemplate,
+    xhs_template: xhsTemplate,
+  });
+
+  const _postDefaults = () =>
+    fetch('/api/upload-defaults', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildPayload()),
+    });
+
+  const saveSettings = () => {
+    setSaving(true);
+    _postDefaults()
+      .then(() => {
+        setSaving(false);
+        setSavedAt(Date.now());
+        onReloadDefaults && onReloadDefaults();
+        setTimeout(() => setSavedAt(0), 2000);
+      })
+      .catch(() => setSaving(false));
+  };
+
   const go = () => {
-    const targetsList = [
-      targetCivitai && 'civitai',
-      targetPixiv && 'pixiv',
-      targetX && 'x',
-      targetXhs && 'xhs',
-    ].filter(Boolean);
+    const targetsList = _currentTargets();
     if (targetsList.length === 0) return;
     _savePersistedTargets(targetsList);
+    _postDefaults().catch(() => {});
     const targets = targetsList.join(',');
     const llmOpts = buildLlmOpts();
     if (sortMode === 'manual') {
@@ -414,14 +453,10 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
           {!isManual && (
             <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
                     onClick={() => {
-                      const targetsList = [
-                        targetCivitai && 'civitai',
-                        targetPixiv && 'pixiv',
-                        targetX && 'x',
-                        targetXhs && 'xhs',
-                      ].filter(Boolean);
+                      const targetsList = _currentTargets();
                       if (targetsList.length === 0) return;
                       _savePersistedTargets(targetsList);
+                      _postDefaults().catch(() => {});
                       onConfirm(cmd, [], { sort: sortMode, targets: targetsList.join(','), ...buildLlmOpts() });
                     }} title="随机从 upload/ 选 1-5 张，排序方式遵循当前选项">
               随机 1-5
@@ -429,6 +464,10 @@ function ImagePickerDialog({ cmd, llmConfig, onConfirm, onCancel }) {
           )}
           {isManual && <div style={{ marginRight: 'auto' }} />}
           <button className="mn-btn" onClick={onCancel}>取消</button>
+          <button className="mn-btn mn-btn-ghost" onClick={saveSettings} disabled={saving}
+                  style={{ minWidth: 64 }}>
+            {saving ? '保存中…' : (savedAt > 0 ? '已保存 ✓' : '保存')}
+          </button>
           <button className="mn-btn mn-btn-accent" onClick={go}
                   disabled={uploadCount === 0} style={{ opacity: uploadCount === 0 ? 0.5 : 1 }}>
             上传 {uploadCount} 张
@@ -1320,8 +1359,10 @@ function MonoSingleApp() {
         <ImagePickerDialog
           cmd={uploadDialog.cmd}
           llmConfig={llmReverseConfig}
+          uploadDefaults={status.upload_defaults || {}}
           onConfirm={confirmUpload}
           onCancel={() => setUploadDialog(null)}
+          onReloadDefaults={reloadStatus}
         />
       )}
       {taggerSetup && (

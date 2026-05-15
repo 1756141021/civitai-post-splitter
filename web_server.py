@@ -753,6 +753,7 @@ def api_status():
         "llm_reverse_model": llm_cfg.get("model", ""),
         "llm_reverse_api_key_masked": llm_masked,
         "censor_preset":      censor_preset,
+        "upload_defaults":    cfg.get("upload_defaults") or {},
     })
 
 
@@ -946,6 +947,20 @@ def api_civitai_open_login():
 
     import threading as _th
     _th.Thread(target=_launch, daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/upload-defaults", methods=["GET"])
+def api_upload_defaults_get():
+    return jsonify(_load_config().get("upload_defaults") or {})
+
+
+@app.route("/api/upload-defaults", methods=["POST"])
+def api_upload_defaults_set():
+    data = request.get_json(force=True) or {}
+    cfg = _load_config()
+    cfg["upload_defaults"] = data
+    _save_config(cfg)
     return jsonify({"ok": True})
 
 
