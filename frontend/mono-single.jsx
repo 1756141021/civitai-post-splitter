@@ -825,16 +825,25 @@ function LlmReverseDialog({ onClose }) {
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 11, color: M.inkDim, marginBottom: 3 }}>
                   平台
-                  <FieldHelp text="决定模型输出哪些字段。范文表单也跟着切换" />
+                  <FieldHelp text="决定模型输出哪些字段，可多选。勾选多个时 LLM 一次生成所有平台的文案" />
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
-                  {platformIds.map(pid => (
-                    <label key={pid} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
-                      <input type="radio" checked={active.platform === pid}
-                             onChange={() => updatePersona({ platform: pid })} />
-                      {specs[pid].label}
-                    </label>
-                  ))}
+                  {platformIds.map(pid => {
+                    const current = Array.isArray(active.platform) ? active.platform : [active.platform].filter(Boolean);
+                    const checked = current.includes(pid);
+                    return (
+                      <label key={pid} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                        <input type="checkbox" checked={checked}
+                               onChange={e => {
+                                 const next = e.target.checked
+                                   ? [...new Set([...current, pid])]
+                                   : current.filter(p => p !== pid);
+                                 if (next.length > 0) updatePersona({ platform: next });
+                               }} />
+                        {specs[pid].label}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 

@@ -16,9 +16,11 @@ from .llm_platforms import (
     PLATFORM_SPECS,
     all_field_keys,
     empty_sample_fields,
+    get_merged_spec,
     get_platform_spec,
     list_platform_ids,
     normalize_platform_id,
+    normalize_platform_ids,
     required_field_keys,
 )
 
@@ -90,7 +92,7 @@ def _migrate_persona(persona: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     out["id"] = str(persona.get("id") or "").strip() or _gen_persona_id()
     out["label"] = str(persona.get("label") or out["id"]).strip()
-    out["platform"] = normalize_platform_id(persona.get("platform"))
+    out["platform"] = normalize_platform_ids(persona.get("platform"))
     out["default_content_mode"] = _normalize_content_mode(persona.get("default_content_mode", "sfw"))
     voice = str(persona.get("voice") or "").strip()
     if not voice:
@@ -200,8 +202,10 @@ def validate_llm_reverse_config(config: dict[str, Any]) -> list[str]:
     account_ids = _unique_ids(accounts, "account", errors)
     valid_platforms = set(list_platform_ids())
     for persona in personas:
-        if persona.get("platform") not in valid_platforms:
-            errors.append(f"persona {persona.get('id', '')} unknown platform: {persona.get('platform')}")
+        platforms = persona.get("platform") if isinstance(persona.get("platform"), list) else [persona.get("platform")]
+        for plat in platforms:
+            if plat not in valid_platforms:
+                errors.append(f"persona {persona.get('id', '')} unknown platform: {plat}")
         for sample in persona.get("samples", []):
             if sample.get("mode") not in {"sfw", "nsfw"}:
                 errors.append(f"persona {persona.get('id', '')} sample mode invalid")
@@ -260,7 +264,10 @@ def infer_image_copy(
 ) -> dict[str, Any]:
     cfg = normalize_llm_reverse_config(config)
     persona, mode = resolve_persona(cfg, persona_id, content_mode)
-    spec = get_platform_spec(persona.get("platform", DEFAULT_PLATFORM_ID))
+    platforms = persona.get("platform", DEFAULT_PLATFORM_ID)
+    if not isinstance(platforms, list):
+        platforms = [platforms]
+    spec = get_merged_spec(platforms)
     result = _base_result(cfg, persona, mode, spec)
     if not cfg.get("enabled"):
         result["status"] = "disabled"
@@ -333,6 +340,7 @@ def empty_copy_block() -> dict[str, Any]:
     return {
         "title": {"ja": "", "en": "", "zh": ""},
         "caption": {"ja": "", "en": "", "zh": ""},
+        "xhs": {"title": "", "body": "", "tags": []},
         "llm_reverse": {
             "status": "",
             "persona_id": "",
@@ -356,11 +364,18 @@ def apply_llm_result_to_copy_block(
     full manifest is assembled). For convenience, `apply_llm_result_to_manifest_copy`
     wraps this for the manifest case.
     """
+    plat = platform or result.get("platform", "") or ""
+    platform_ids: list[str]
+    if isinstance(plat, list):
+        platform_ids = plat
+    else:
+        platform_ids = [str(plat).strip().lower()] if plat else []
+
     copy["llm_reverse"] = {
         "status": str(result.get("status", "") or ""),
         "persona_id": str(result.get("persona_id", "") or ""),
         "account_id": str(account_id or ""),
-        "platform": str(platform or result.get("platform", "") or ""),
+        "platform": ",".join(platform_ids) if platform_ids else "",
         "content_mode": str(result.get("content_mode", "") or ""),
         "error": str(result.get("error", "") or ""),
     }
@@ -368,30 +383,39 @@ def apply_llm_result_to_copy_block(
         return
 
     fields = result.get("fields") or {}
-    platform_id = (platform or result.get("platform", "") or "").strip().lower()
 
     def _set(bucket: str, lang: str, value: Any) -> None:
         v = str(value or "").strip()
         if v:
             copy[bucket][lang] = v
 
-    if platform_id == "pixiv":
-        _set("title",   "ja", fields.get("title_ja"))
-        _set("title",   "zh", fields.get("title_zh"))
-        _set("caption", "ja", fields.get("caption_ja"))
-        _set("caption", "zh", fields.get("caption_zh"))
-    elif platform_id == "x":
-        _set("caption", "en", fields.get("tweet"))
-    elif platform_id == "xhs":
-        _set("title",   "zh", fields.get("xhs_title"))
-        _set("caption", "zh", fields.get("xhs_body"))
-    else:
-        for k in ("title_ja", "title_zh", "title_en"):
-            if k in fields:
-                _set("title", k.rsplit("_", 1)[-1], fields[k])
-        for k in ("caption_ja", "caption_zh", "caption_en"):
-            if k in fields:
-                _set("caption", k.rsplit("_", 1)[-1], fields[k])
+    for pid in platform_ids:
+        if pid == "pixiv":
+            _set("title",   "ja", fields.get("title_ja"))
+            _set("title",   "zh", fields.get("title_zh"))
+            _set("caption", "ja", fields.get("caption_ja"))
+            _set("caption", "zh", fields.get("caption_zh"))
+        elif pid == "x":
+            _set("caption", "en", fields.get("tweet"))
+        elif pid == "xhs":
+            xhs_block = copy.setdefault("xhs", {"title": "", "body": "", "tags": []})
+            xhs_title = str(fields.get("xhs_title") or "").strip()
+            xhs_body = str(fields.get("xhs_body") or "").strip()
+            xhs_tags_raw = fields.get("xhs_tags") or []
+            xhs_tags = [str(t).strip() for t in xhs_tags_raw if str(t).strip()] if isinstance(xhs_tags_raw, list) else []
+            if xhs_title:
+                xhs_block["title"] = xhs_title
+            if xhs_body:
+                xhs_block["body"] = xhs_body
+            if xhs_tags:
+                xhs_block["tags"] = xhs_tags
+        else:
+            for k in ("title_ja", "title_zh", "title_en"):
+                if k in fields:
+                    _set("title", k.rsplit("_", 1)[-1], fields[k])
+            for k in ("caption_ja", "caption_zh", "caption_en"):
+                if k in fields:
+                    _set("caption", k.rsplit("_", 1)[-1], fields[k])
 
 
 def apply_llm_result_to_manifest_copy(
@@ -406,13 +430,16 @@ def apply_llm_result_to_manifest_copy(
 
 
 def _base_result(cfg: dict[str, Any], persona: dict[str, Any], mode: str, spec: dict[str, Any]) -> dict[str, Any]:
+    plat = persona.get("platform", DEFAULT_PLATFORM_ID)
+    if not isinstance(plat, list):
+        plat = [plat]
     return {
         "enabled": bool(cfg.get("enabled")),
         "status": "disabled",
         "provider": str(cfg.get("provider", "openai_compatible")),
         "model": str(cfg.get("model", "")),
         "persona_id": str(persona.get("id", "")),
-        "platform": str(persona.get("platform", DEFAULT_PLATFORM_ID)),
+        "platform": plat,
         "platform_label": str(spec.get("label", "")),
         "content_mode": mode,
         "fields": {},
@@ -508,7 +535,11 @@ def _render_samples_block(persona: dict[str, Any], mode: str, spec: dict[str, An
     matched = [s for s in samples if s.get("mode") == mode]
     if not matched:
         return ""
-    valid_keys = set(all_field_keys(persona.get("platform", DEFAULT_PLATFORM_ID)))
+    _plat = persona.get("platform", DEFAULT_PLATFORM_ID)
+    if isinstance(_plat, list):
+        valid_keys = set(k for pid in _plat for k in all_field_keys(pid))
+    else:
+        valid_keys = set(all_field_keys(_plat))
     rendered: list[str] = []
     for idx, sample in enumerate(matched[:MAX_FEW_SHOT_SAMPLES], start=1):
         fields = sample.get("fields") or {}

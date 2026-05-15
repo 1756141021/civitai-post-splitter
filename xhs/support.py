@@ -269,11 +269,12 @@ def build_xhs_payload(
     )
     tags = tag_pick["tags"]
 
+    copy_xhs = (copy or {}).get("xhs") or {}
     copy_title = (copy or {}).get("title") or {}
     copy_caption = (copy or {}).get("caption") or {}
 
-    title = str(copy_title.get("zh", "") or "").strip()
-    caption = str(copy_caption.get("zh", "") or "").strip()
+    title = str(copy_xhs.get("title", "") or copy_title.get("zh", "") or "").strip()
+    caption = str(copy_xhs.get("body", "") or copy_caption.get("zh", "") or "").strip()
     if not title:
         title = (pixiv_payload or {}).get("title_zh", "") or ""
     if not caption:

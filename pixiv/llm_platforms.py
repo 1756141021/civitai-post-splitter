@@ -66,6 +66,68 @@ def normalize_platform_id(value: Any) -> str:
     return pid if pid in PLATFORM_SPECS else DEFAULT_PLATFORM_ID
 
 
+def normalize_platform_ids(value: Any) -> list[str]:
+    """Normalize platform field to a deduplicated list of valid platform IDs.
+
+    Accepts a single string (legacy) or a list. Invalid IDs fall back to
+    DEFAULT_PLATFORM_ID. Always returns at least one element.
+    """
+    raw = value if isinstance(value, list) else [value]
+    seen: set[str] = set()
+    result: list[str] = []
+    for v in raw:
+        pid = str(v or "").strip().lower()
+        pid = pid if pid in PLATFORM_SPECS else DEFAULT_PLATFORM_ID
+        if pid not in seen:
+            seen.add(pid)
+            result.append(pid)
+    return result or [DEFAULT_PLATFORM_ID]
+
+
+def get_merged_spec(platform_ids: list[str]) -> dict[str, Any]:
+    """Merge platform specs for multiple platforms into one combined spec.
+
+    Fields and extra_fields are deduplicated by key in order of appearance.
+    For a single platform, equivalent to get_platform_spec.
+    """
+    if not platform_ids:
+        return get_platform_spec(DEFAULT_PLATFORM_ID)
+    if len(platform_ids) == 1:
+        return get_platform_spec(platform_ids[0])
+    merged_fields: list[dict] = []
+    merged_extra: list[dict] = []
+    seen_keys: set[str] = set()
+    intros: list[str] = []
+    policy_notes: list[str] = []
+    labels: list[str] = []
+    for pid in platform_ids:
+        spec = PLATFORM_SPECS.get(pid) or PLATFORM_SPECS[DEFAULT_PLATFORM_ID]
+        labels.append(str(spec.get("label", pid)))
+        intro = spec.get("prompt_intro", "")
+        if intro:
+            intros.append(intro)
+        note = spec.get("policy_notes", "")
+        if note:
+            policy_notes.append(note)
+        for f in (spec.get("fields") or []):
+            key = str(f.get("key") or "")
+            if key and key not in seen_keys:
+                seen_keys.add(key)
+                merged_fields.append(deepcopy(f))
+        for f in (spec.get("extra_fields") or []):
+            key = str(f.get("key") or "")
+            if key and key not in seen_keys:
+                seen_keys.add(key)
+                merged_extra.append(deepcopy(f))
+    return {
+        "label": " / ".join(labels),
+        "fields": merged_fields,
+        "extra_fields": merged_extra,
+        "prompt_intro": " ".join(intros),
+        "policy_notes": " ".join(p for p in policy_notes if p),
+    }
+
+
 def all_field_keys(platform_id: str) -> list[str]:
     spec = PLATFORM_SPECS.get(platform_id) or {}
     keys: list[str] = []
