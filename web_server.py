@@ -363,7 +363,25 @@ def _run_task_locked(task_id: str, cmd: int, params: dict) -> None:
 
         elif cmd == 5:
             import launcher as _launcher
-            _launcher.cmd_check_update(cancel_event=cancel_event)
+            # Patch _do_pull to capture output into web log (subprocess.call bypasses sys.stdout)
+            def _web_do_pull() -> bool:
+                try:
+                    r = subprocess.run(
+                        ["git", "-C", str(SCRIPT_DIR), "pull", "--ff-only"],
+                        timeout=60, capture_output=True, text=True,
+                    )
+                    if r.stdout: print(r.stdout.rstrip())
+                    if r.stderr: print(r.stderr.rstrip())
+                    return r.returncode == 0
+                except Exception as exc:
+                    print(f"  pull 失败: {exc}")
+                    return False
+            _orig_do_pull = _launcher._do_pull
+            _launcher._do_pull = _web_do_pull
+            try:
+                _launcher.cmd_check_update(cancel_event=cancel_event)
+            finally:
+                _launcher._do_pull = _orig_do_pull
             if _is_task_canceled(task_id):
                 _push_log_line(task_id, "INFO", "worker", "任务已取消")
                 _set_task_status(task_id, "canceled")
@@ -1159,11 +1177,20 @@ def api_stream():
                 recent_logs.extend(t.get("log_lines", [])[-10:])
         recent_logs.sort(key=lambda x: x.get("t", ""))
 
+        pending_inputs = []
+        with TASKS_LOCK:
+            for t in TASKS.values():
+                pi = t.get("pending_input")
+                if pi:
+                    pending_inputs.append({"task_id": t["id"], "prompt": pi.get("prompt", "")})
+
         for snap in all_tasks:
             yield f"event: task_update\ndata: {json.dumps(snap, ensure_ascii=False)}\n\n"
         yield f"event: scheduler_update\ndata: {json.dumps({**_sched_default(), **(_load_config().get('scheduler') or {})}, ensure_ascii=False)}\n\n"
         for entry in recent_logs[-50:]:
             yield f"event: log\ndata: {json.dumps(entry, ensure_ascii=False)}\n\n"
+        for pi in pending_inputs:
+            yield f"event: input_required\ndata: {json.dumps(pi, ensure_ascii=False)}\n\n"
 
         try:
             while True:
