@@ -678,10 +678,10 @@ def create_xhs_post(
                 # First-time: dialog "笔记完成原创声明后..." appears
                 confirm_btn = page.get_by_text("声明原创", exact=True)
                 if confirm_btn.count() > 0:
-                    # Check the agreement checkbox first
-                    agree_cb = page.get_by_text("我已阅读并同意", exact=False).locator("xpath=..").locator("input[type='checkbox'], span.d-checkbox-simulator, span[class*='checkbox']")
-                    if agree_cb.count() > 0:
-                        agree_cb.first.click()
+                    # Checkbox is an SVG icon — click the label text to toggle it
+                    agree_label = page.get_by_text("我已阅读并同意", exact=False)
+                    if agree_label.count() > 0:
+                        agree_label.first.click()
                         _sleep_with_cancel(0.5, cancel_event)
                     confirm_btn.first.click()
                     log.info("    xhs: 原创声明协议已确认")
