@@ -80,6 +80,8 @@ def normalize_llm_reverse_config(config: dict[str, Any] | None) -> dict[str, Any
             if key in {"personas", "accounts"}:
                 if isinstance(value, list) and value:
                     merged[key] = value
+            elif key in {"has_api_key", "api_key_masked"}:
+                continue  # mask 输出字段，不持久化
             else:
                 merged[key] = value
     merged["personas"] = [_migrate_persona(p) for p in merged.get("personas", []) if isinstance(p, dict)]

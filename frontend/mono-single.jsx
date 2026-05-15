@@ -706,6 +706,7 @@ function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
   const specs = initialSpecs;
   const [activeId, setActiveId] = React.useState((initialCfg?.personas || [])[0]?.id || '');
   const [apiKey, setApiKey] = React.useState('');
+  const [apiKeyEditing, setApiKeyEditing] = React.useState(false);
   const [clearKey, setClearKey] = React.useState(false);
   const [modelOpen, setModelOpen] = React.useState(
     !initialCfg?.has_api_key || !initialCfg?.base_url || !initialCfg?.model
@@ -720,11 +721,10 @@ function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
   const fetchModels = () => {
     setFetchingMods(true);
     setModFetchErr('');
-    const qs = new URLSearchParams({
-      provider: cfg.provider || '',
-      api_key:  apiKey || '',
-      base_url: cfg.base_url || '',
-    });
+    const params = { provider: cfg.provider || '', base_url: cfg.base_url || '' };
+    if (apiKey.trim()) params.api_key = apiKey.trim();
+    // 没传 api_key 时让后端 fallback 到 saved
+    const qs = new URLSearchParams(params);
     fetch(`/api/llm-reverse-models?${qs}`)
       .then(r => r.json())
       .then(d => {
@@ -909,15 +909,26 @@ function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
                   <button className="mn-btn mn-btn-ghost" onClick={() => setClearKey(false)}
                           style={{ marginLeft: 'auto', fontSize: 10.5, padding: '1px 8px' }}>撤销</button>
                 </div>
+              ) : cfg.has_api_key && !apiKey && !apiKeyEditing ? (
+                <div className="mn-input" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5 }}>
+                  <span style={{ color: M.ok }}>● 已保存</span>
+                  <span className="mn-mono" style={{ color: M.inkDim }}>{cfg.api_key_masked}</span>
+                  <button className="mn-btn mn-btn-ghost" onClick={() => setApiKeyEditing(true)}
+                          style={{ marginLeft: 'auto', fontSize: 10.5, padding: '1px 8px' }}>修改</button>
+                  <button className="mn-btn mn-btn-ghost" onClick={() => setClearKey(true)}
+                          title="把已保存的 API key 清空"
+                          style={{ fontSize: 10.5, padding: '1px 8px' }}>清空</button>
+                </div>
               ) : (
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                   <input className="mn-input" type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-                         placeholder={cfg.has_api_key ? `API key (${cfg.api_key_masked})` : 'API key'}
+                         placeholder={cfg.has_api_key ? '输入新 API key 替换已保存的' : 'API key'}
+                         autoFocus={apiKeyEditing}
                          style={{ fontSize: 12, flex: 1 }} />
-                  {cfg.has_api_key && !apiKey && (
-                    <button className="mn-btn mn-btn-ghost" onClick={() => setClearKey(true)}
-                            title="把已保存的 API key 清空"
-                            style={{ fontSize: 10.5, padding: '4px 8px', flexShrink: 0 }}>清空</button>
+                  {apiKeyEditing && (
+                    <button className="mn-btn mn-btn-ghost" onClick={() => { setApiKey(''); setApiKeyEditing(false); }}
+                            title="不修改，保留已保存的"
+                            style={{ fontSize: 10.5, padding: '4px 8px', flexShrink: 0 }}>取消</button>
                   )}
                 </div>
               )}

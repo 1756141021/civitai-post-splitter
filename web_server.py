@@ -577,9 +577,15 @@ def api_llm_reverse_platforms():
 @app.route("/api/llm-reverse-models", methods=["GET"])
 def api_llm_reverse_models():
     import urllib.request as _ur
+    import urllib.error as _ue
     provider = request.args.get("provider", "")
-    api_key  = request.args.get("api_key", "")
+    api_key  = request.args.get("api_key", "").strip()
     base_url = request.args.get("base_url", "").rstrip("/")
+
+    # 空 api_key 时 fallback 到 saved（用户保存过但密码框看不到原值）
+    if not api_key:
+        saved = normalize_llm_reverse_config(_load_config().get("llm_reverse"))
+        api_key = str(saved.get("api_key", ""))
 
     if provider == "anthropic":
         return jsonify({"models": [
@@ -592,8 +598,10 @@ def api_llm_reverse_models():
 
     if provider == "google_gemini":
         if not api_key:
-            return jsonify({"error": "需要填写 API key"}), 400
-        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+            return jsonify({"error": "需要先填写或保存 API key"}), 400
+        # 支持用户自定义 base_url（本地代理），缺省走官方
+        gemini_base = base_url or "https://generativelanguage.googleapis.com"
+        url = f"{gemini_base}/v1beta/models?key={api_key}"
         try:
             with _ur.urlopen(url, timeout=10) as resp:
                 data = json.loads(resp.read())
@@ -603,8 +611,10 @@ def api_llm_reverse_models():
                 if "generateContent" in m.get("supportedGenerationMethods", [])
             ]
             return jsonify({"models": models})
+        except _ue.HTTPError as e:
+            return jsonify({"error": f"上游返回 {e.code}（检查 API key 或代理是否可用）"}), 502
         except Exception as e:
-            return jsonify({"error": str(e)}), 502
+            return jsonify({"error": f"无法连接：{e}"}), 502
 
     # openai_compatible
     if not base_url:
@@ -612,14 +622,16 @@ def api_llm_reverse_models():
     try:
         req = _ur.Request(
             f"{base_url}/models",
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={"Authorization": f"Bearer {api_key}"} if api_key else {},
         )
         with _ur.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
         ids = sorted(m["id"] for m in data.get("data", []) if "id" in m)
         return jsonify({"models": ids})
+    except _ue.HTTPError as e:
+        return jsonify({"error": f"上游返回 {e.code}（检查 API key 或 base URL）"}), 502
     except Exception as e:
-        return jsonify({"error": str(e)}), 502
+        return jsonify({"error": f"无法连接：{e}"}), 502
 
 
 @app.route("/api/templates", methods=["GET"])
