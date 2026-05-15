@@ -605,11 +605,15 @@ def api_llm_reverse_models():
         try:
             with _ur.urlopen(url, timeout=10) as resp:
                 data = json.loads(resp.read())
+            # Google 官方格式: {"models": [{"name":"models/X", "supportedGenerationMethods":[...]}]}
             models = [
                 m["name"].split("/")[-1]
                 for m in data.get("models", [])
                 if "generateContent" in m.get("supportedGenerationMethods", [])
             ]
+            if not models:
+                # OpenAI 兼容代理格式: {"object":"list", "data":[{"id":"X"}]}
+                models = sorted({str(m.get("id", "")) for m in data.get("data", []) if m.get("id")})
             return jsonify({"models": models})
         except _ue.HTTPError as e:
             return jsonify({"error": f"上游返回 {e.code}（检查 API key 或代理是否可用）"}), 502
