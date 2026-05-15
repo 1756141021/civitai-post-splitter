@@ -63,7 +63,7 @@ DEFAULT_SETTINGS = {
 # components; class names rotate but role/aria/data-* attrs are more stable.
 XHS_SELECTORS = {
     # Tab to switch from video → image-text mode (default is video).
-    "image_text_tab": 'div.creator-tab:has-text("上传图文"), [role="tab"]:has-text("上传图文")',
+    "image_text_tab": 'div.creator-tab:has-text("上传图文"), [role="tab"]:has-text("上传图文"), text=上传图文',
     "file_input": 'input[type="file"]',
     "title_input": 'input[placeholder*="标题"], input[placeholder*="title" i]',
     "body_editor": '[contenteditable="true"], .editor-content, textarea[placeholder*="描述"]',
@@ -491,9 +491,9 @@ def create_xhs_post(
 
     # 1. Switch to image-text tab (default is video)
     try:
-        tab = page.locator(XHS_SELECTORS["image_text_tab"]).first
-        if tab.count() > 0:
-            tab.click()
+        tab_loc = page.locator(XHS_SELECTORS["image_text_tab"])
+        if tab_loc.count() > 0:
+            tab_loc.first.click()
             _sleep_with_cancel(2, cancel_event)
     except Exception as exc:
         log.warning(f"    xhs: 切换图文 tab 失败（可能已在图文模式）: {exc}")

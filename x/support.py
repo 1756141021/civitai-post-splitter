@@ -61,6 +61,7 @@ X_SELECTORS = {
     "alt_textarea": '[data-testid="altTextInput"]',
     "alt_save_button": '[data-testid="altTextSaveButton"]',
     "sensitive_menu_button": 'button[aria-label*="content warning" i]',
+    "typeahead_result": '[data-testid="typeaheadResult"]',
 }
 
 
@@ -576,6 +577,16 @@ def create_x_post(
         except Exception as exc:
             log.warning(f"    X: 写正文失败: {exc}")
 
+    # Click first autocomplete suggestion if a hashtag dropdown is still open
+    try:
+        _sleep_with_cancel(1, cancel_event)
+        suggestion_loc = page.locator(X_SELECTORS["typeahead_result"])
+        if suggestion_loc.count() > 0:
+            suggestion_loc.first.click()
+            _sleep_with_cancel(1, cancel_event)
+    except Exception:
+        pass
+
     alt = payload.get("alt_text") or ""
     if alt:
         try:
@@ -606,21 +617,21 @@ def create_x_post(
 
     posted = False
     try:
-        ta = page.locator(X_SELECTORS["compose_textarea"]).first
-        ta.click()
-        page.keyboard.press("Control+Enter")
-        log.info("    X: 已发送 Ctrl+Enter（X 发推快捷键）")
+        page.locator(X_SELECTORS["post_button"]).first.click(timeout=10000)
+        log.info("    X: 点击 Post 按钮")
         posted = True
     except Exception as exc:
-        log.warning(f"    X: 快捷键发推失败（{exc}），尝试 force-click Post")
+        log.warning(f"    X: 点击 Post 失败（{exc}），尝试 Ctrl+Enter")
 
     if not posted:
         try:
-            page.locator(X_SELECTORS["post_button"]).first.click(force=True, timeout=10000)
-            log.info("    X: force-click Post 已发送")
+            ta = page.locator(X_SELECTORS["compose_textarea"]).first
+            ta.click()
+            page.keyboard.press("Control+Enter")
+            log.info("    X: 已发送 Ctrl+Enter")
             posted = True
         except Exception as exc:
-            log.error(f"    X: 点击 Post 失败: {exc}")
+            log.error(f"    X: 发推失败: {exc}")
             return None
 
     status_re = re.compile(r"https?://(?:x|twitter)\.com/[^/]+/status/(\d+)")

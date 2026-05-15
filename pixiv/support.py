@@ -941,7 +941,7 @@ class _DistSubprocessEngine:
         data = _json.loads(result.stdout.strip())
         if "error" in data:
             raise RuntimeError(data["error"])
-        return data
+        return data.get("results", data)
 
 
 class HainTagTaggerBridge:
