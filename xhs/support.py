@@ -54,7 +54,7 @@ DEFAULT_SETTINGS = {
     # compliance — algo auto-flags + demotes if missing.
     "auto_check_ai_declaration": True,
     "auto_declare_original": True,
-    "recommended_tag_count": 0,   # disabled until correct selector confirmed via DevTools
+    "recommended_tag_count": 3,
     "topic_dropdown_wait_sec": 3,
     "default_template": "default",
     "jpg_quality": 90,
@@ -84,13 +84,7 @@ XHS_SELECTORS = {
     "ai_declaration_expand": 'div:has-text("添加内容类型声明"), [class*="content-type"]:has-text("添加")',
     "ai_declaration_ai_content": '[class*="item"]:has-text("笔记含AI合成内容"), li:has-text("笔记含AI合成内容")',
     # Recommended tag chips shown below editor after content is typed
-    "recommended_tag_chip": (
-        '[class*="recommend"] [class*="tag"],'
-        ' [class*="suggest-tag"],'
-        ' [class*="topic-recommend"] span,'
-        ' [class*="tag-recommend"] span,'
-        ' [class*="recommend-tag"]'
-    ),
+    "recommended_tag_chip": 'span.tag[data-impression*="recommend"]',
 }
 
 
@@ -673,10 +667,10 @@ def create_xhs_post(
     # 7. 原创声明 toggle
     if settings.get("auto_declare_original", True):
         try:
-            orig_loc = (
-                page.locator('div:has-text("原创声明") input[type="checkbox"]')
-                .or_(page.locator('div:has-text("原创声明") [role="switch"]'))
-                .or_(page.locator('[class*="original"] input, [class*="original"] [role="switch"]'))
+            orig_loc = page.locator(
+                ':has-text("原创声明") span.d-switch-simulator,'
+                ' :has-text("原创声明") span.d-switch-indicator,'
+                ' :has-text("原创声明") span[class*="switch-simulator"]'
             )
             if orig_loc.count() > 0:
                 orig_loc.first.click()
