@@ -1337,10 +1337,11 @@ function ActiveHero({ tick, tasks }) {
 
 // ── ZONE 2: Operations strip — all 5 actions visible ───────────
 function OperationsStrip({ runCmd, onStartUpload }) {
+  const _t2 = _loadPersistedTargets(['civitai', 'pixiv']).join(' + ');
   const ops = [
-    { key: '1', icon: 'split',   title: 'Split post',     sub: '一帖多图 → 多帖单图', cmd: 1 },
-    { key: '2', icon: 'upload',  title: 'Dual upload',    sub: 'Civitai + Pixiv',     cmd: 2, upload: true },
-    { key: '3', icon: 'image',   title: 'Pixiv only',     sub: '跳过 Civitai',        cmd: 3, upload: true },
+    { key: '1', icon: 'split',   title: 'Split post',     sub: '一帖多图 → 多帖单图',    cmd: 1 },
+    { key: '2', icon: 'upload',  title: '多站发布',        sub: _t2 || 'Civitai + Pixiv', cmd: 2, upload: true },
+    { key: '3', icon: 'image',   title: 'Pixiv only',     sub: '跳过 Civitai',           cmd: 3, upload: true },
     { key: '4', icon: 'shield',  title: 'R-18 mosaic',    sub: '安装 / 检查',         cmd: 4 },
     { key: '5', icon: 'refresh', title: 'Update',         sub: '检查更新',            cmd: 5 },
   ];
