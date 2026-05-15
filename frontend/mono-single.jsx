@@ -1278,6 +1278,13 @@ function MonoSingleApp() {
       setTasks(prev => prev.filter(t => t.id !== id));
     });
     es.addEventListener('input_required', e => setPendingInput(JSON.parse(e.data)));
+    es.addEventListener('status_update', e => {
+      const s = JSON.parse(e.data);
+      setStatus(prev => ({ ...prev, ...s }));
+      if (s.civitai_logged_in) setCivitaiOpening(false);
+      if (s.pixiv_logged_in) setPixivOpening(false);
+      if (s.xhs_logged_in) setXhsOpening(false);
+    });
     let errTimer = null;
     es.onopen  = () => { clearTimeout(errTimer); setConnected(true); };
     es.onerror = () => { errTimer = setTimeout(() => { if (es.readyState !== 1) setConnected(false); }, 2000); };
@@ -1837,7 +1844,7 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
                                 if (s.pixiv_logged_in) { clearInterval(poll); setPixivOpening(false); onStatusReload && onStatusReload(); }
                               }).catch(() => {});
                             }, 3000);
-                            setTimeout(() => { clearInterval(poll); setPixivOpening(false); }, 600000);
+                            setTimeout(() => { clearInterval(poll); setPixivOpening(false); }, 60000);
                           })
                           .catch(() => { setPixivOpening(false); setPixivMsg('请求失败'); });
                       }}
@@ -1891,7 +1898,7 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
                                 if (s.civitai_logged_in) { clearInterval(poll); setCivitaiOpening(false); onStatusReload && onStatusReload(); }
                               }).catch(() => {});
                             }, 3000);
-                            setTimeout(() => { clearInterval(poll); setCivitaiOpening(false); }, 600000);
+                            setTimeout(() => { clearInterval(poll); setCivitaiOpening(false); }, 60000);
                           })
                           .catch(() => { setCivitaiOpening(false); setCivitaiMsg('请求失败'); });
                       }}
@@ -2034,7 +2041,7 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
                                 if (s.xhs_logged_in) { clearInterval(poll); setXhsOpening(false); onStatusReload && onStatusReload(); }
                               }).catch(() => {});
                             }, 3000);
-                            setTimeout(() => { clearInterval(poll); setXhsOpening(false); }, 600000);
+                            setTimeout(() => { clearInterval(poll); setXhsOpening(false); }, 60000);
                           })
                           .catch(() => { setXhsOpening(false); setXhsMsg('请求失败'); });
                       }}

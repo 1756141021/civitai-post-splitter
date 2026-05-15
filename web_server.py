@@ -759,10 +759,10 @@ def api_status():
         "upload_count":      upload_count,
         "has_api_key":       bool(api_key),
         "api_key_masked":    masked,
-        "pixiv_logged_in":   (PIXIV_PROFILE_DIR   / ".session_valid").exists(),
-        "civitai_logged_in": (CIVITAI_PROFILE_DIR / ".session_valid").exists(),
-        "x_logged_in":       (X_DIR   / "cookies.json").exists(),
-        "xhs_logged_in":     (XHS_PROFILE_DIR     / ".session_valid").exists(),
+        "pixiv_logged_in":   PIXIV_PROFILE_DIR.exists(),
+        "civitai_logged_in": CIVITAI_PROFILE_DIR.exists(),
+        "x_logged_in":       (X_DIR / "cookies.json").exists(),
+        "xhs_logged_in":     XHS_PROFILE_DIR.exists(),
         "scheduler":         {**_sched_default(), **(cfg.get("scheduler") or {})},
         "llm_reverse_enabled": bool(llm_cfg.get("enabled")),
         "llm_reverse_configured": bool(llm_cfg.get("base_url") and llm_cfg.get("api_key") and llm_cfg.get("model")),
@@ -877,7 +877,6 @@ def api_pixiv_logout():
         )
     if running_pixiv:
         return jsonify({"error": "pixiv task is running"}), 400
-    (PIXIV_PROFILE_DIR / ".session_valid").unlink(missing_ok=True)
     shutil.rmtree(PIXIV_PROFILE_DIR, ignore_errors=True)
     return jsonify({"ok": True})
 
@@ -891,7 +890,6 @@ def api_civitai_logout():
         )
     if running_civitai:
         return jsonify({"error": "civitai task is running"}), 400
-    (CIVITAI_PROFILE_DIR / ".session_valid").unlink(missing_ok=True)
     shutil.rmtree(CIVITAI_PROFILE_DIR, ignore_errors=True)
     return jsonify({"ok": True})
 
@@ -919,9 +917,12 @@ def api_pixiv_open_login():
                     page.goto("https://www.pixiv.net/", wait_until="commit", timeout=30000)
                 except Exception:
                     pass
-                while context.pages:
-                    time.sleep(1)
-                (PIXIV_PROFILE_DIR / ".session_valid").touch()
+                try:
+                    while context.pages:
+                        time.sleep(1)
+                except Exception:
+                    pass
+                _broadcast_sse("status_update", {"pixiv_logged_in": PIXIV_PROFILE_DIR.exists()})
         except Exception as exc:
             import logging as _log
             _log.getLogger(__name__).warning(f"pixiv login browser: {exc}")
@@ -954,9 +955,12 @@ def api_civitai_open_login():
                     page.goto("https://civitai.com/", wait_until="commit", timeout=30000)
                 except Exception:
                     pass
-                while context.pages:
-                    time.sleep(1)
-                (CIVITAI_PROFILE_DIR / ".session_valid").touch()
+                try:
+                    while context.pages:
+                        time.sleep(1)
+                except Exception:
+                    pass
+                _broadcast_sse("status_update", {"civitai_logged_in": CIVITAI_PROFILE_DIR.exists()})
         except Exception as exc:
             import logging as _log
             _log.getLogger(__name__).warning(f"civitai login browser: {exc}")
@@ -1022,7 +1026,6 @@ def api_xhs_save_cookies():
 @app.route("/api/xhs-logout", methods=["POST"])
 def api_xhs_logout():
     (XHS_DIR / "cookies.json").unlink(missing_ok=True)
-    (XHS_PROFILE_DIR / ".session_valid").unlink(missing_ok=True)
     shutil.rmtree(XHS_PROFILE_DIR, ignore_errors=True)
     return jsonify({"ok": True})
 
@@ -1050,9 +1053,12 @@ def api_xhs_open_login():
                     page.goto("https://www.xiaohongshu.com/", wait_until="commit", timeout=30000)
                 except Exception:
                     pass
-                while context.pages:
-                    time.sleep(1)
-                (XHS_PROFILE_DIR / ".session_valid").touch()
+                try:
+                    while context.pages:
+                        time.sleep(1)
+                except Exception:
+                    pass
+                _broadcast_sse("status_update", {"xhs_logged_in": XHS_PROFILE_DIR.exists()})
         except Exception as exc:
             import logging as _log
             _log.getLogger(__name__).warning(f"xhs login browser: {exc}")

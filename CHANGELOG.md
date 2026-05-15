@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-05-15
+
+### Fixed
+- 账号面板登录状态判断：Pixiv / Civitai / 小红书 改回"profile 目录是否存在"判断，与登录前的老逻辑一致。原 `.session_valid` 标记文件方案依赖 `while context.pages` 循环结束后写文件，浏览器关闭时 `context.pages` 访问抛异常会被外层 `except` 吞掉，touch 永远跑不到，导致登录完状态不更新。
+
+### Removed
+- `.session_valid` 标记文件相关读/写/删全部清理（dead code）。
+
 ## 2026-05-14 (4)
 
 ### Added

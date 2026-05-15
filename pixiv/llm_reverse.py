@@ -265,6 +265,7 @@ def infer_image_copy(
     persona_id: str = "",
     account_id: str = "",  # accepted for backward compat; ignored now
     content_mode: str = "",
+    extra_context: str = "",
     cancel_event=None,
 ) -> dict[str, Any]:
     cfg = normalize_llm_reverse_config(config)
@@ -295,11 +296,11 @@ def infer_image_copy(
         timeout = float(cfg.get("timeout_seconds", 45) or 45)
 
         if provider == "google_gemini":
-            payload, endpoint, headers = _build_gemini_request(cfg, persona, mode, spec, image_ref)
+            payload, endpoint, headers = _build_gemini_request(cfg, persona, mode, spec, image_ref, extra_context)
         elif provider == "anthropic":
-            payload, endpoint, headers = _build_anthropic_request(cfg, persona, mode, spec, image_ref)
+            payload, endpoint, headers = _build_anthropic_request(cfg, persona, mode, spec, image_ref, extra_context)
         else:
-            payload = _build_request_payload(cfg, persona, mode, spec, image_ref)
+            payload = _build_request_payload(cfg, persona, mode, spec, image_ref, extra_context)
             endpoint = _chat_completions_url(str(cfg.get("base_url", "")))
             headers = {"Authorization": f"Bearer {cfg['api_key']}", "Content-Type": "application/json"}
 
@@ -473,6 +474,7 @@ def _build_request_payload(
     mode: str,
     spec: dict[str, Any],
     image_ref: str,
+    extra_context: str = "",
 ) -> dict[str, Any]:
     fields = spec.get("fields") or []
     extra_fields = spec.get("extra_fields") or []
@@ -504,6 +506,8 @@ def _build_request_payload(
         parts.append(f"mode instruction: {mode_prompt}")
     if extra_prompt:
         parts.append(f"extra persona instruction: {extra_prompt}")
+    if extra_context:
+        parts.append(f"image subject context (from file metadata): {extra_context}")
     if avoid_line:
         parts.append(f"avoid topics: {avoid_line}")
     if spec.get("policy_notes"):
@@ -599,9 +603,10 @@ def _build_gemini_request(
     mode: str,
     spec: dict[str, Any],
     image_ref: str,
+    extra_context: str = "",
 ) -> tuple[dict[str, Any], str, dict[str, str]]:
     """Return (payload, endpoint, headers) for Gemini native API."""
-    oai_payload = _build_request_payload(cfg, persona, mode, spec, image_ref)
+    oai_payload = _build_request_payload(cfg, persona, mode, spec, image_ref, extra_context)
     content_parts = oai_payload["messages"][0]["content"]
     prompt_text = next((p["text"] for p in content_parts if p.get("type") == "text"), "")
 
@@ -641,9 +646,10 @@ def _build_anthropic_request(
     mode: str,
     spec: dict[str, Any],
     image_ref: str,
+    extra_context: str = "",
 ) -> tuple[dict[str, Any], str, dict[str, str]]:
     """Return (payload, endpoint, headers) for Anthropic Messages API."""
-    oai_payload = _build_request_payload(cfg, persona, mode, spec, image_ref)
+    oai_payload = _build_request_payload(cfg, persona, mode, spec, image_ref, extra_context)
     content_parts = oai_payload["messages"][0]["content"]
     prompt_text = next((p["text"] for p in content_parts if p.get("type") == "text"), "")
 

@@ -53,6 +53,8 @@ DEFAULT_SETTINGS = {
     # publisher's "AI synthesised content" declaration. Hashtag alone is NOT
     # compliance — algo auto-flags + demotes if missing.
     "auto_check_ai_declaration": True,
+    "auto_declare_original": True,
+    "recommended_tag_count": 0,   # disabled until correct selector confirmed via DevTools
     "topic_dropdown_wait_sec": 3,
     "default_template": "default",
     "jpg_quality": 90,
@@ -63,18 +65,32 @@ DEFAULT_SETTINGS = {
 # components; class names rotate but role/aria/data-* attrs are more stable.
 XHS_SELECTORS = {
     # Tab to switch from video → image-text mode (default is video).
-    "image_text_tab": 'div.creator-tab:has-text("上传图文"), [role="tab"]:has-text("上传图文"), text=上传图文',
+    "image_text_tab": 'div.creator-tab:has-text("上传图文"), [role="tab"]:has-text("上传图文")',
     "file_input": 'input[type="file"]',
     "title_input": 'input[placeholder*="标题"], input[placeholder*="title" i]',
     "body_editor": '[contenteditable="true"], .editor-content, textarea[placeholder*="描述"]',
     "publish_button": 'button:has-text("发布")',
     # Topic suggestion dropdown shown after typing `#`. Must click the first
     # option for the topic to be registered as a real topic (not plain text).
-    "topic_option": '.publish-topic-item, .topic-suggest-item, [class*="topic"][class*="item"]',
-    # GB45438-2025 AI content declaration checkbox in publish settings panel.
-    # Selector candidates are best-effort starting points — xhs may rename.
-    "ai_declaration_checkbox": 'input[type="checkbox"][name*="ai" i], label:has-text("AI 合成"), label:has-text("AI合成"), label:has-text("含 AI"):has(input)',
-    "ai_declaration_section": 'text=/内容类型声明|AI.{0,3}合成|含\\s*AI/',
+    "topic_option": (
+        '.publish-topic-item, .topic-suggest-item,'
+        ' [class*="topic"][class*="item"],'
+        ' [class*="suggest"][class*="item"],'
+        ' [class*="mention"][class*="item"],'
+        ' [class*="topic-list"] > *, [class*="suggest-list"] > *,'
+        ' [role="option"]'
+    ),
+    # GB45438-2025: 内容类型声明面板需先展开，再点"笔记含AI合成内容"选项
+    "ai_declaration_expand": 'div:has-text("添加内容类型声明"), [class*="content-type"]:has-text("添加")',
+    "ai_declaration_ai_content": '[class*="item"]:has-text("笔记含AI合成内容"), li:has-text("笔记含AI合成内容")',
+    # Recommended tag chips shown below editor after content is typed
+    "recommended_tag_chip": (
+        '[class*="recommend"] [class*="tag"],'
+        ' [class*="suggest-tag"],'
+        ' [class*="topic-recommend"] span,'
+        ' [class*="tag-recommend"] span,'
+        ' [class*="recommend-tag"]'
+    ),
 }
 
 
@@ -491,9 +507,25 @@ def create_xhs_post(
 
     # 1. Switch to image-text tab (default is video)
     try:
-        tab_loc = page.locator(XHS_SELECTORS["image_text_tab"])
-        if tab_loc.count() > 0:
-            tab_loc.first.click()
+        tab_loc = (
+            page.locator('div.creator-tab:has-text("上传图文")')
+            .or_(page.locator('[role="tab"]:has-text("上传图文")'))
+            .or_(page.get_by_text("上传图文", exact=True))
+        )
+        clicked = False
+        for i in range(tab_loc.count()):
+            el = tab_loc.nth(i)
+            try:
+                if el.is_visible():
+                    el.scroll_into_view_if_needed(timeout=3000)
+                    el.click(timeout=5000)
+                    clicked = True
+                    break
+            except Exception:
+                continue
+        if not clicked and tab_loc.count() > 0:
+            tab_loc.first.click(force=True)
+        if clicked or tab_loc.count() > 0:
             _sleep_with_cancel(2, cancel_event)
     except Exception as exc:
         log.warning(f"    xhs: 切换图文 tab 失败（可能已在图文模式）: {exc}")
@@ -550,6 +582,16 @@ def create_xhs_post(
                 log.warning(f"    xhs: 写正文失败: {exc}")
 
         topic_wait = float(settings.get("topic_dropdown_wait_sec", 3))
+        _TOPIC_EXTRA_SELS = [
+            '[class*="topic"][class*="item"]',
+            '[class*="suggest"][class*="item"]',
+            '[class*="mention-list"] li',
+            '[class*="mention-list"] > *',
+            '[class*="topic"] li',
+            '[class*="dropdown"] li',
+            '[role="option"]',
+            '[role="listitem"]',
+        ]
         for tag in payload.get("tags") or []:
             if not tag:
                 continue
@@ -559,42 +601,92 @@ def create_xhs_post(
             try:
                 page.keyboard.type(" ", delay=10)
                 page.keyboard.type("#" + topic_text, delay=20)
-                _sleep_with_cancel(topic_wait, cancel_event)
-                options = page.locator(XHS_SELECTORS["topic_option"])
-                if options.count() > 0:
-                    options.first.click()
-                    _sleep_with_cancel(0.5, cancel_event)
-                else:
-                    log.warning(
-                        f"    xhs: 话题 {tag} 未弹出下拉，留作纯文本"
-                        "（可能 selector 失效或网络慢）"
-                    )
+                # Try each selector candidate with a short timeout window
+                clicked = False
+                deadline = time.time() + topic_wait
+                all_sels = [XHS_SELECTORS["topic_option"]] + _TOPIC_EXTRA_SELS
+                for sel in all_sels:
+                    remaining_ms = max(500, int((deadline - time.time()) * 1000))
+                    try:
+                        page.wait_for_selector(sel, timeout=remaining_ms)
+                        loc = page.locator(sel)
+                        if loc.count() > 0:
+                            loc.first.click()
+                            clicked = True
+                            _sleep_with_cancel(0.5, cancel_event)
+                            break
+                    except Exception:
+                        pass
+                    if time.time() > deadline:
+                        break
+                if not clicked:
+                    # Fallback: Enter accepts first highlighted suggestion in most editors
+                    page.keyboard.press("Enter")
+                    _sleep_with_cancel(0.3, cancel_event)
+                    log.warning(f"    xhs: 话题 {tag} selector 未命中，已按 Enter 兜底")
             except Exception as exc:
                 log.warning(f"    xhs: 话题 {tag} 插入失败: {exc}")
 
-    # 5. AI synthesis declaration (GB45438-2025 compliance, effective 2025-09-01).
-    # MUST be checked or xhs auto-flags + demotes after publish.
+    # 5. 推荐话题：点击编辑器下方 XHS 推荐的 tag 芯片
+    rec_count = int(settings.get("recommended_tag_count", 3))
+    if rec_count > 0:
+        try:
+            rec_loc = page.locator(XHS_SELECTORS["recommended_tag_chip"])
+            clicked_rec = 0
+            for i in range(min(rec_loc.count(), rec_count)):
+                try:
+                    el = rec_loc.nth(i)
+                    if el.is_visible():
+                        el.click()
+                        _sleep_with_cancel(0.3, cancel_event)
+                        clicked_rec += 1
+                except Exception:
+                    continue
+            if clicked_rec:
+                log.info(f"    xhs: 点击了 {clicked_rec} 个推荐话题")
+            else:
+                log.info("    xhs: 未找到推荐话题芯片（selector 待确认）")
+        except Exception as exc:
+            log.warning(f"    xhs: 推荐话题点击失败: {exc}")
+
+    # 6. AI 内容声明（GB45438-2025，2025-09-01 起）
+    # 流程：展开"添加内容类型声明"折叠面板 → 点"笔记含AI合成内容"
     if payload.get("ai_declaration_required"):
         try:
-            candidates = page.locator(XHS_SELECTORS["ai_declaration_checkbox"])
-            if candidates.count() > 0:
-                cb = candidates.first
-                try:
-                    cb.check(force=True, timeout=5000)
-                    log.info("    xhs: AI 合成声明已勾选")
-                except Exception:
-                    cb.click()
-                    log.info("    xhs: AI 合成声明已点选（fallback click）")
+            expand_loc = page.get_by_text("添加内容类型声明", exact=False)
+            if expand_loc.count() > 0:
+                expand_loc.first.click()
+                _sleep_with_cancel(1, cancel_event)
+            ai_loc = page.get_by_text("笔记含AI合成内容", exact=True)
+            if ai_loc.count() == 0:
+                ai_loc = page.get_by_text("笔记含AI合成内容", exact=False)
+            if ai_loc.count() == 0:
+                ai_loc = page.locator(XHS_SELECTORS["ai_declaration_ai_content"])
+            if ai_loc.count() > 0:
+                ai_loc.first.click()
+                log.info("    xhs: 已勾选「笔记含AI合成内容」")
             else:
-                log.warning(
-                    "    xhs: 未找到 AI 合成声明 checkbox —— 可能在【设置/内容类型声明】"
-                    "面板里要先展开。实测确认后更新 xhs/support.py 的 "
-                    "XHS_SELECTORS['ai_declaration_checkbox']。未勾选 → 限流风险。"
-                )
+                log.warning("    xhs: 未找到「笔记含AI合成内容」选项，跳过")
         except Exception as exc:
-            log.warning(f"    xhs: AI 声明勾选失败: {exc}")
+            log.warning(f"    xhs: AI 内容声明失败（跳过）: {exc}")
 
-    # 6. Publish
+    # 7. 原创声明 toggle
+    if settings.get("auto_declare_original", True):
+        try:
+            orig_loc = (
+                page.locator('div:has-text("原创声明") input[type="checkbox"]')
+                .or_(page.locator('div:has-text("原创声明") [role="switch"]'))
+                .or_(page.locator('[class*="original"] input, [class*="original"] [role="switch"]'))
+            )
+            if orig_loc.count() > 0:
+                orig_loc.first.click()
+                log.info("    xhs: 已勾选原创声明")
+            else:
+                log.warning("    xhs: 未找到原创声明 toggle，跳过")
+        except Exception as exc:
+            log.warning(f"    xhs: 原创声明失败（跳过）: {exc}")
+
+    # 8. Publish
     try:
         publish_btn = page.locator(XHS_SELECTORS["publish_button"]).first
         for _ in range(20):
@@ -604,6 +696,10 @@ def create_xhs_post(
             except Exception:
                 pass
             _sleep_with_cancel(1, cancel_event)
+        try:
+            publish_btn.scroll_into_view_if_needed(timeout=3000)
+        except Exception:
+            pass
         publish_btn.click()
     except Exception as exc:
         log.error(f"    xhs: 点击发布失败: {exc}")

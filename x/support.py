@@ -41,7 +41,7 @@ DEFAULT_TEMPLATES = {
 }
 
 DEFAULT_SETTINGS = {
-    "tag_limit": 2,
+    "tag_limit": 3,
     "text_max_chars": 280,
     "alt_text_max_chars": 1000,
     "image_long_side_max": 2048,
@@ -322,8 +322,26 @@ def build_x_payload(
         elif lang == "zh":
             caption = (pixiv_payload or {}).get("caption_zh", "") or ""
 
+    if not title:
+        for _fb in ("zh", "ja", "en"):
+            if _fb != lang:
+                title = str(copy_title.get(_fb, "") or "").strip()
+                if title:
+                    break
+    if not title:
+        title = str((copy.get("xhs") or {}).get("title", "") or "").strip()
+
+    if not caption:
+        for _fb in ("zh", "ja", "en"):
+            if _fb != lang:
+                caption = str(copy_caption.get(_fb, "") or "").strip()
+                if caption:
+                    break
+    if not caption:
+        caption = str((copy.get("xhs") or {}).get("body", "") or "").strip()
+
     text = build_text(
-        title=title,
+        title="",
         caption=caption,
         tags=tags,
         max_chars=int(settings.get("text_max_chars", 280)),
@@ -574,18 +592,11 @@ def create_x_post(
             ta = page.locator(X_SELECTORS["compose_textarea"]).first
             ta.click()
             ta.type(payload["text"], delay=15)
+            # Space after last hashtag closes the autocomplete dropdown
+            page.keyboard.press("Space")
+            _sleep_with_cancel(0.5, cancel_event)
         except Exception as exc:
             log.warning(f"    X: 写正文失败: {exc}")
-
-    # Click first autocomplete suggestion if a hashtag dropdown is still open
-    try:
-        _sleep_with_cancel(1, cancel_event)
-        suggestion_loc = page.locator(X_SELECTORS["typeahead_result"])
-        if suggestion_loc.count() > 0:
-            suggestion_loc.first.click()
-            _sleep_with_cancel(1, cancel_event)
-    except Exception:
-        pass
 
     alt = payload.get("alt_text") or ""
     if alt:
@@ -637,11 +648,17 @@ def create_x_post(
     status_re = re.compile(r"https?://(?:x|twitter)\.com/[^/]+/status/(\d+)")
     for _ in range(int(settings.get("publish_timeout_sec", 90)) // 2):
         _sleep_with_cancel(2, cancel_event)
+        try:
+            # Post button is modal-specific; disappears when compose closes after send
+            if page.locator(X_SELECTORS["post_button"]).count() == 0:
+                time.sleep(float(delay) + random.uniform(1, 3))
+                return page.url or "https://x.com/"
+        except Exception:
+            pass
         m = status_re.search(page.url or "")
         if m:
-            wait = float(delay) + random.uniform(1, 3)
-            time.sleep(wait)
+            time.sleep(float(delay) + random.uniform(1, 3))
             return m.group(0)
 
-    log.error("    X: 发布超时未跳转到 status URL")
+    log.error("    X: 发布超时未确认")
     return None

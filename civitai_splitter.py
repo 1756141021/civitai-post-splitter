@@ -48,6 +48,24 @@ def _targets_need_copy(targets) -> bool:
     return any(PLATFORM_RULES.get(t, {}).get("needs_copy") for t in targets)
 
 
+def _build_llm_extra_context(pixiv_payload: dict | None) -> str:
+    if not pixiv_payload:
+        return ""
+    parts: list[str] = []
+    domain = str(pixiv_payload.get("domain", "") or "").strip()
+    if domain:
+        parts.append(f"domain={domain}")
+    entity_tags = pixiv_payload.get("entity_tags") or []
+    if entity_tags:
+        parts.append("entity tags: " + ", ".join(str(t) for t in entity_tags[:10]))
+    hits = pixiv_payload.get("metadata_entity_hits") or []
+    if hits:
+        hit_names = [str(h.get("name") or h) for h in hits[:5] if h]
+        if hit_names:
+            parts.append("metadata entities: " + ", ".join(hit_names))
+    return "; ".join(parts)
+
+
 def _platform_accepts_age(platform: str, image_age: str) -> bool:
     """Whether `platform` accepts an image at `image_age`. Hard rule, no override."""
     rule = PLATFORM_RULES.get(platform, {})
@@ -770,6 +788,7 @@ def create_upload_manifest(
                 # Per-platform mode: independent LLM call per copy platform
                 image_path_for_llm = Path(pixiv_clean.output_path) if pixiv_clean else image_path
                 image_age = (pixiv_payload or {}).get("age_restriction", "all_ages")
+                _llm_extra_ctx = _build_llm_extra_context(pixiv_payload)
                 copy_targets = [t for t in targets if PLATFORM_RULES.get(t, {}).get("needs_copy")]
                 for plat in copy_targets:
                     per_persona_id = llm_personas_by_platform.get(plat, "")
@@ -784,6 +803,7 @@ def create_upload_manifest(
                         persona_id=per_persona_id,
                         account_id=llm_account_id,
                         content_mode=per_content_mode,
+                        extra_context=_llm_extra_ctx,
                         cancel_event=cancel_event,
                     )
                     if per_result.get("status") == "ok":
@@ -827,12 +847,15 @@ def create_upload_manifest(
                     )
                 else:
                     _raise_if_canceled(cancel_event)
+                    _ctx = _build_llm_extra_context(pixiv_payload)
+                    log.info(f"    LLM 反推: extra_context={_ctx!r}")
                     llm_reverse_result = infer_image_copy(
                         image_path=Path(pixiv_clean.output_path) if pixiv_clean else image_path,
                         config=llm_reverse_config,
                         persona_id=llm_persona_id,
                         account_id=llm_account_id,
                         content_mode=llm_content_mode,
+                        extra_context=_ctx,
                         cancel_event=cancel_event,
                     )
                     if llm_reverse_result.get("status") == "ok":
