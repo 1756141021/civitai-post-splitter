@@ -481,8 +481,10 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
 function TaggerSetupDialog({ onClose }) {
   const [haintag,   setHaintag]   = React.useState('');
   const [modelDir,  setModelDir]  = React.useState('');
+  const [pixaiDir,  setPixaiDir]  = React.useState('');
   const [haintagOk, setHaintagOk] = React.useState(null);
   const [modelOk,   setModelOk]   = React.useState(null);
+  const [pixaiOk,   setPixaiOk]   = React.useState(null);
   const [saving,    setSaving]    = React.useState(false);
   const [saved,     setSaved]     = React.useState(false);
 
@@ -490,8 +492,10 @@ function TaggerSetupDialog({ onClose }) {
     fetch('/api/tagger-config').then(r => r.json()).then(d => {
       setHaintag(d.haintag_root || '');
       setModelDir(d.model_dir || '');
+      setPixaiDir(d.pixai_model_dir || '');
       setHaintagOk(d.haintag_ok);
       setModelOk(d.model_ok);
+      setPixaiOk(d.pixai_ok);
     }).catch(() => {});
   }, []);
 
@@ -501,7 +505,7 @@ function TaggerSetupDialog({ onClose }) {
     fetch('/api/tagger-config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ haintag_root: haintag, model_dir: modelDir }),
+      body: JSON.stringify({ haintag_root: haintag, model_dir: modelDir, pixai_model_dir: pixaiDir }),
     })
       .then(r => r.json())
       .then(() => fetch('/api/tagger-config'))
@@ -510,6 +514,7 @@ function TaggerSetupDialog({ onClose }) {
         setSaving(false);
         setHaintagOk(d.haintag_ok);
         setModelOk(d.model_ok);
+        setPixaiOk(d.pixai_ok);
         if (closeAfter) {
           setSaved(true);
           setTimeout(() => { setSaved(false); onClose(true); }, 900);
@@ -526,13 +531,51 @@ function TaggerSetupDialog({ onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 540, padding: '20px 24px' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>WD14 图像标注器 配置</div>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>打标器 配置</div>
         <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginBottom: 18 }}>
-          两个字段均可选填，不填也能正常上传。
+          PixAI 优先；均可选填，不填也能正常上传。
+        </div>
+
+        {/* PixAI model directory */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
+            <span style={{ fontSize: 12.5 }}>PixAI 模型目录</span>
+            <span className="mn-mono" style={{ marginLeft: 6, fontSize: 10.5, color: M.inkFaint }}>推荐</span>
+            {pixaiOk !== null && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: pixaiOk ? M.ok : M.red }}>
+                {pixaiOk ? '✓ model.onnx 已找到' : pixaiDir ? '✗ 未找到 model.onnx' : '—'}
+              </span>
+            )}
+          </div>
+          <input className="mn-input" value={pixaiDir} onChange={e => setPixaiDir(e.target.value)}
+                 placeholder="含 model.onnx 的目录，如 E:\models\pixai-tagger-v0.9" style={{ width: '100%', fontSize: 12 }} />
+          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
+            须包含：<span style={{ color: M.ink2 }}>model.onnx</span>、<span style={{ color: M.ink2 }}>selected_tags.csv</span>、<span style={{ color: M.ink2 }}>thresholds.csv</span>、<span style={{ color: M.ink2 }}>preprocess.json</span><br />
+            来源：<span style={{ color: M.ink2 }}>deepghs/pixai-tagger-v0.9-onnx</span>（launcher [6] 可自动下载）
+          </div>
+        </div>
+
+        {/* WD14/CL model directory */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
+            <span style={{ fontSize: 12.5 }}>WD14/CL 模型目录</span>
+            <span className="mn-mono" style={{ marginLeft: 6, fontSize: 10.5, color: M.inkFaint }}>fallback</span>
+            {modelOk !== null && (
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: modelOk ? M.ok : M.red }}>
+                {modelOk ? '✓ .onnx + 映射文件已找到' : modelDir ? '✗ 缺少 .onnx 或映射文件' : '—'}
+              </span>
+            )}
+          </div>
+          <input className="mn-input" value={modelDir} onChange={e => setModelDir(e.target.value)}
+                 placeholder="如 E:\ComfyUI\models\onnx\cl_tagger" style={{ width: '100%', fontSize: 12 }} />
+          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
+            目录须包含：<span style={{ color: M.ink2 }}>*.onnx</span> 模型文件（如 <span style={{ color: M.ink2 }}>cl_tagger_1_02.onnx</span>）<br />
+            + <span style={{ color: M.ink2 }}>*tag*mapping*.json</span> 或 <span style={{ color: M.ink2 }}>*tag*.csv</span>（标签列表）
+          </div>
         </div>
 
         {/* haintag root */}
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
             <span style={{ fontSize: 12.5 }}>haintag 根目录</span>
             <span className="mn-mono" style={{ marginLeft: 6, fontSize: 10.5, color: M.inkFaint }}>可选</span>
@@ -545,28 +588,7 @@ function TaggerSetupDialog({ onClose }) {
           <input className="mn-input" value={haintag} onChange={e => setHaintag(e.target.value)}
                  placeholder="如 E:\projects\haintag\dist\HainTag" style={{ width: '100%', fontSize: 12 }} />
           <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
-            填 HainTag 发布版目录（含 <span style={{ color: M.ink2 }}>HainTag.exe</span>）或源码根目录。<br />
-            发布版模式通过 <span style={{ color: M.ink2 }}>_internal/native_app/tagger_subprocess.py</span> 调用。<br />
-            留空 → 独立模式（需在当前环境安装 onnxruntime）。
-          </div>
-        </div>
-
-        {/* model directory */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 5 }}>
-            <span style={{ fontSize: 12.5 }}>模型目录</span>
-            {modelOk !== null && (
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: modelOk ? M.ok : M.red }}>
-                {modelOk ? '✓ .onnx + 映射文件已找到' : modelDir ? '✗ 缺少 .onnx 或映射文件' : '—'}
-              </span>
-            )}
-          </div>
-          <input className="mn-input" value={modelDir} onChange={e => setModelDir(e.target.value)}
-                 placeholder="如 E:\ComfyUI\models\onnx\cl_tagger" style={{ width: '100%', fontSize: 12 }} />
-          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
-            目录须包含：<span style={{ color: M.ink2 }}>*.onnx</span> 模型文件（如 <span style={{ color: M.ink2 }}>cl_tagger_1_02.onnx</span>）<br />
-            + <span style={{ color: M.ink2 }}>*tag*mapping*.json</span> 或 <span style={{ color: M.ink2 }}>*label*.json</span> 或 <span style={{ color: M.ink2 }}>*tag*.csv</span>（标签列表）。<br />
-            ComfyUI 默认路径：<span style={{ color: M.ink2 }}>ComfyUI\models\onnx\cl_tagger\</span>
+            填 HainTag 发布版目录（含 <span style={{ color: M.ink2 }}>HainTag.exe</span>）或源码根目录。
           </div>
         </div>
 
@@ -1111,21 +1133,27 @@ function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
   );
 }
 
-function SchedulerDialog({ current, onClose, onSave }) {
+function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
   const sched = current || {};
-  const [minHours, setMinHours] = React.useState(String(sched.min_hours ?? 0.4));
-  const [maxHours, setMaxHours] = React.useState(String(sched.max_hours ?? 0.8));
-  const [count,    setCount]    = React.useState(String(sched.count ?? 1));
-  const [sortMode, setSortMode] = React.useState(sched.sort || 'random');
+  const [minHours,      setMinHours]      = React.useState(String(sched.min_hours ?? 0.4));
+  const [maxHours,      setMaxHours]      = React.useState(String(sched.max_hours ?? 0.8));
+  const [count,         setCount]         = React.useState(String(sched.count ?? 1));
+  const [sortMode,      setSortMode]      = React.useState(sched.sort || 'random');
   const _initialTargetsCsv = sched.targets || 'civitai,pixiv';
-  const [civitai,  setCivitai]  = React.useState(_initialTargetsCsv.includes('civitai'));
-  const [pixiv,    setPixiv]    = React.useState(_initialTargetsCsv.includes('pixiv'));
+  const [civitai,       setCivitai]       = React.useState(_initialTargetsCsv.includes('civitai'));
+  const [pixiv,         setPixiv]         = React.useState(_initialTargetsCsv.includes('pixiv'));
   // .split(',') prevents 'x' matching 'civitai' / 'xhs' substring false-positive.
   const _targetsArr = _initialTargetsCsv.split(',').map(s => s.trim());
-  const [xTarget,  setXTarget]  = React.useState(_targetsArr.includes('x'));
-  const [xhs,      setXhs]      = React.useState(_targetsArr.includes('xhs'));
-  const [saving,   setSaving]   = React.useState(false);
-  const [err,      setErr]      = React.useState('');
+  const [xTarget,       setXTarget]       = React.useState(_targetsArr.includes('x'));
+  const [xhs,           setXhs]           = React.useState(_targetsArr.includes('xhs'));
+  const [llmReverse,    setLlmReverse]    = React.useState(!!sched.llm_reverse);
+  const [llmPersona,    setLlmPersona]    = React.useState(sched.llm_persona || '');
+  const [llmContentMode,setLlmContentMode]= React.useState(sched.llm_content_mode || 'sfw');
+  const [saving,        setSaving]        = React.useState(false);
+  const [err,           setErr]           = React.useState('');
+
+  const personas = (llmConfig && llmConfig.personas) || [];
+  const llmEnabled = llmConfig && llmConfig.enabled;
 
   const submit = () => {
     const min = parseFloat(minHours), max = parseFloat(maxHours), cnt = parseInt(count, 10);
@@ -1137,7 +1165,10 @@ function SchedulerDialog({ current, onClose, onSave }) {
     fetch('/api/scheduler', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: true, min_hours: min, max_hours: max, count: cnt, targets, sort: sortMode }),
+      body: JSON.stringify({
+        enabled: true, min_hours: min, max_hours: max, count: cnt, targets, sort: sortMode,
+        llm_reverse: llmReverse, llm_persona: llmPersona, llm_content_mode: llmContentMode,
+      }),
     })
       .then(r => r.json())
       .then(d => { setSaving(false); if (d.ok) { onSave(); onClose(); } else { setErr(d.error || '保存失败'); } })
@@ -1172,7 +1203,7 @@ function SchedulerDialog({ current, onClose, onSave }) {
           </select>
         </div>
 
-        <div style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: llmEnabled ? 12 : 18 }}>
           <div style={{ fontSize: 12.5, marginBottom: 6 }}>发布目标</div>
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
             <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
@@ -1190,6 +1221,29 @@ function SchedulerDialog({ current, onClose, onSave }) {
             </label>
           </div>
         </div>
+
+        {llmEnabled && (
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <input type="checkbox" checked={llmReverse} onChange={e => setLlmReverse(e.target.checked)} />
+                LLM 标题/简介
+              </label>
+              {llmReverse && <>
+                <select className="mn-input" value={llmPersona} onChange={e => setLlmPersona(e.target.value)}
+                        style={{ fontSize: 12, flex: 1 }}>
+                  <option value="">（默认人设）</option>
+                  {personas.map(p => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
+                </select>
+                <select className="mn-input" value={llmContentMode} onChange={e => setLlmContentMode(e.target.value)}
+                        style={{ fontSize: 12, width: 76 }}>
+                  <option value="sfw">SFW</option>
+                  <option value="nsfw">NSFW</option>
+                </select>
+              </>}
+            </div>
+          </div>
+        )}
 
         {err && <div className="mn-mono" style={{ fontSize: 11, color: M.red, marginBottom: 10 }}>{err}</div>}
 
@@ -1216,7 +1270,7 @@ function MonoSingleApp() {
   const [llmReverseDialog, setLlmReverseDialog] = React.useState(false);
   const [llmReverseConfig, setLlmReverseConfig] = React.useState(null);
   const [llmSpecs, setLlmSpecs] = React.useState(null);
-  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 0.4, max_hours: 0.8, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
+  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 0.4, max_hours: 0.8, count: 1, sort: 'random', targets: 'civitai,pixiv', llm_reverse: false, llm_persona: '', llm_account: '', llm_content_mode: '' } });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
   const [pageDragging, setPageDragging] = React.useState(false);
   const [dropToast,    setDropToast]    = React.useState('');
@@ -1392,6 +1446,7 @@ function MonoSingleApp() {
       {schedulerDialog && (
         <SchedulerDialog
           current={status.scheduler}
+          llmConfig={llmReverseConfig}
           onClose={() => setSchedulerDialog(false)}
           onSave={() => fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {})}
         />

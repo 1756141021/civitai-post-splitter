@@ -992,6 +992,7 @@ def create_upload_manifest(
                 "available": tagger_result.get("available", False),
                 "top_tags": list(tagger_result.get("flat_tags", []))[:30],
                 "tagger_type": tagger_result.get("tagger_type", "cl"),
+                "details": tagger_result.get("details", []),
             },
             "censor": censor_result.to_dict() if censor_result is not None else {"status": "disabled", "applied": False},
         },

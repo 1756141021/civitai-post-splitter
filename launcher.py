@@ -503,6 +503,23 @@ def cmd_scheduler() -> None:
         except ValueError:
             pass
 
+    cur_llm = sched.get("llm_reverse", False)
+    raw = input(f"  启用 LLM 反推？（当前：{'是' if cur_llm else '否'}，留空保持，y/n）: ").strip().lower()
+    if raw in ("y", "yes"):
+        sched["llm_reverse"] = True
+    elif raw in ("n", "no"):
+        sched["llm_reverse"] = False
+    if sched.get("llm_reverse"):
+        raw = input(f"  LLM 人设 ID（留空保持 '{sched.get('llm_persona', '')}' ）: ").strip()
+        if raw:
+            sched["llm_persona"] = raw
+        raw = input(f"  LLM 账号 ID（留空保持 '{sched.get('llm_account', '')}' ）: ").strip()
+        if raw:
+            sched["llm_account"] = raw
+        raw = input(f"  内容模式 sfw/nsfw（留空保持 '{sched.get('llm_content_mode', '')}' ）: ").strip().lower()
+        if raw in ("sfw", "nsfw", ""):
+            sched["llm_content_mode"] = raw
+
     _save_sched_config(sched)
     print()
     print("  配置已保存。")
@@ -539,7 +556,16 @@ def cmd_scheduler() -> None:
                 continue
 
             print(f"  触发！上传 {count} 张 → {targets}")
-            run(["civitai_splitter.py", "upload", "--targets", targets, "--count", str(count)])
+            cmd = ["civitai_splitter.py", "upload", "--targets", targets, "--count", str(count)]
+            if sched.get("llm_reverse"):
+                cmd.append("--llm-reverse")
+                if sched.get("llm_persona"):
+                    cmd += ["--llm-persona", sched["llm_persona"]]
+                if sched.get("llm_account"):
+                    cmd += ["--llm-account", sched["llm_account"]]
+                if sched.get("llm_content_mode"):
+                    cmd += ["--llm-content-mode", sched["llm_content_mode"]]
+            run(cmd)
     except KeyboardInterrupt:
         print("\n  调度循环已停止。")
 

@@ -824,6 +824,7 @@ def api_tagger_config_get():
     ht = _load_haintag_settings()
     haintag_root = cfg.get("haintag_root", "")
     model_dir = ht.get("tagger_model_dir", "")
+    pixai_dir = ht.get("pixai_tagger_model_dir", "")
 
     haintag_ok = False
     if haintag_root:
@@ -836,12 +837,16 @@ def api_tagger_config_get():
         m, mp = _scan_model_dir(model_dir)
         model_ok = bool(m and mp)
 
+    pixai_ok = bool(pixai_dir) and (Path(pixai_dir) / "model.onnx").exists()
+
     return jsonify({
         "haintag_root": haintag_root,
         "haintag_ok": haintag_ok,
         "model_dir": model_dir,
         "model_ok": model_ok,
-        "needs_setup": not model_dir,
+        "pixai_model_dir": pixai_dir,
+        "pixai_ok": pixai_ok,
+        "needs_setup": not model_dir and not pixai_dir,
     })
 
 
@@ -864,6 +869,11 @@ def api_tagger_config_post():
         val = body["model_dir"].strip()
         _save_haintag_settings({"tagger_model_dir": val})
         changed.append("model_dir")
+
+    if "pixai_model_dir" in body:
+        val = body["pixai_model_dir"].strip()
+        _save_haintag_settings({"pixai_tagger_model_dir": val})
+        changed.append("pixai_model_dir")
 
     return jsonify({"ok": True, "changed": changed})
 
@@ -1070,7 +1080,8 @@ def api_xhs_open_login():
 
 def _sched_default() -> dict:
     return {"enabled": False, "targets": "civitai,pixiv", "count": 1, "sort": "random",
-            "min_hours": 0.4, "max_hours": 0.8, "next_fire_at": None}
+            "min_hours": 0.4, "max_hours": 0.8, "next_fire_at": None,
+            "llm_reverse": False, "llm_persona": "", "llm_account": "", "llm_content_mode": ""}
 
 
 def _broadcast_scheduler(sched: dict) -> None:
@@ -1133,7 +1144,13 @@ def _scheduler_fire() -> None:
         sort_mode = sched.get("sort", "random")
         tl = targets_str.lower()
         cmd = 3 if ("pixiv" in tl and "civitai" not in tl) else 2
-        params = {"count": count, "files": [], "targets": targets_str, "sort": sort_mode}
+        params = {
+            "count": count, "files": [], "targets": targets_str, "sort": sort_mode,
+            "llm_reverse": bool(sched.get("llm_reverse")),
+            "llm_persona": sched.get("llm_persona", ""),
+            "llm_account": sched.get("llm_account", ""),
+            "llm_content_mode": sched.get("llm_content_mode", ""),
+        }
         task_id = uuid.uuid4().hex[:8]
         label, target = CMD_LABELS[cmd]
         task = {
@@ -1177,6 +1194,14 @@ def api_scheduler():
         sched["targets"] = body["targets"]
     if "sort" in body:
         sched["sort"] = body["sort"] if body["sort"] in ("random", "name_asc", "name_desc", "time_asc", "time_desc") else "random"
+    if "llm_reverse" in body:
+        sched["llm_reverse"] = bool(body["llm_reverse"])
+    if "llm_persona" in body:
+        sched["llm_persona"] = str(body["llm_persona"])
+    if "llm_account" in body:
+        sched["llm_account"] = str(body["llm_account"])
+    if "llm_content_mode" in body:
+        sched["llm_content_mode"] = body["llm_content_mode"] if body["llm_content_mode"] in ("sfw", "nsfw", "") else ""
     if sched.get("min_hours", 1.0) > sched.get("max_hours", 3.0):
         return jsonify({"error": "min_hours > max_hours"}), 400
     if any(k in body for k in ("enabled", "min_hours", "max_hours")):

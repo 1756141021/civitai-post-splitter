@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-05-16 (2)
+
+### Added
+- **Scheduler LLM 反推支持**：定时自动发布现在可配置 LLM 反推（`llm_reverse` / `llm_persona` / `llm_content_mode`）。launcher CLI 配置菜单新增询问步骤；Web UI Scheduler Dialog 新增 LLM checkbox + 人设/内容模式选择；`_scheduler_fire()` 从 sched 配置读取并传入 params；`_sched_default()` 补充 LLM 字段默认值。
+- **Web UI 打标配置新增 PixAI 模型目录**：`/api/tagger-config` GET/POST 均支持 `pixai_model_dir` 字段；TaggerSetupDialog 新增 PixAI 目录输入框（含 `model.onnx` 存在检测），优先级说明移到标题描述，对话框改名为「打标器 配置」。
+- **Manifest `tagger.details`**：`manifest["pixiv"]["tagger"]` 新增 `details` 字段，回传 tagger 推理异常信息，方便事后 debug。
+
 ## 2026-05-16
 
 ### Added
