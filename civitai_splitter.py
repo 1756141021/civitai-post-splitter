@@ -223,15 +223,26 @@ def _make_bridges():
     else:
         metadata_reader = StandaloneMetadataReader()
 
-    # tagger bridge: PixAI → CL → None
+    # tagger bridge: PixAI → CL → None (with runtime fallback)
     settings = _load_haintag_settings()
+    tagger = None
     pixai_dir = settings.get("pixai_tagger_model_dir", "")
     if pixai_dir and (Path(pixai_dir) / "model.onnx").exists():
-        tagger = PixAITaggerBridge(Path(pixai_dir))
-    elif settings.get("tagger_model_dir"):
+        try:
+            t = PixAITaggerBridge(Path(pixai_dir))
+            sample = Path(pixai_dir) / "sample.webp"
+            if sample.exists():
+                probe = t.predict_tags(sample)
+                if probe.get("available"):
+                    tagger = t
+                else:
+                    log.info(f"PixAI tagger 加载失败 ({probe.get('status')}), 尝试 WD14 回退")
+            else:
+                tagger = t
+        except Exception as exc:
+            log.info(f"PixAI tagger 异常 ({exc}), 尝试 WD14 回退")
+    if tagger is None and settings.get("tagger_model_dir"):
         tagger = StandaloneTaggerBridge()
-    else:
-        tagger = None
 
     return metadata_reader, tagger
 
@@ -752,6 +763,8 @@ def create_upload_manifest(
     _raise_if_canceled(cancel_event)
     if needs_pixiv_payload and tagger_bridge is not None:
         tagger_result = tagger_bridge.predict_tags(image_path)
+        if tagger_result.get("status") not in ("ok", "disabled") and not tagger_result.get("available"):
+            log.info(f"    tagger: {tagger_result.get('status')} — 仅用 prompt/文件名候选")
     else:
         tagger_result = {"available": False, "status": "disabled", "flat_tags": [], "groups": {}, "details": []}
     extra_candidates: list[str] = []
@@ -1149,10 +1162,10 @@ def cmd_upload(args):
     popularity_data = load_json(files["popularity"], {})
     age_rules = load_json(files["age_rules"], {})
     hain_bridge, tagger_bridge = _make_bridges()
-    _tagger_probe = getattr(tagger_bridge, "_model_dir", None)
+    _tagger_probe = getattr(tagger_bridge, "_model_dir", None) or getattr(tagger_bridge, "_dir", None)
     if "pixiv" in getattr(args, "targets", ""):
         if not _tagger_probe:
-            log.info("WD14 tagger: 未配置 model_dir，将仅用 prompt/文件名候选（可在 web 设置面板或 launcher [6] 配置）")
+            log.info("tagger: 未配置，将仅用 prompt/文件名候选（可在 web 设置面板或 launcher [6] 配置）")
     jp_alias_cache = load_json(files["jp_aliases"], {})
     general_jp_data = load_json(files["general_jp"], {})
     danbooru_jp_map = load_json(files["danbooru_jp"], {})
