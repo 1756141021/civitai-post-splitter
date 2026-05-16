@@ -22,7 +22,7 @@
         "AIイラスト": 739287,
         "AI生成": 259828
       },
-      "updated_at": "2026-05-16T19:26:52"
+      "updated_at": "2026-05-16T20:15:00"
     },
     "glasses": {
       "winner": "眼鏡",
@@ -39,7 +39,7 @@
         "碧眼": 14548,
         "青い目": 4389
       },
-      "updated_at": "2026-05-16T19:26:52"
+      "updated_at": "2026-05-16T20:14:57"
     },
     "purple_eyes": {
       "winner": "紫目",
@@ -13206,9 +13206,16 @@
     "vocaloid": {
       "winner": "VOCALOID",
       "counts": {
-        "VOCALOID": 0
+        "VOCALOID": 609697
       },
-      "updated_at": ""
+      "updated_at": "2026-05-16T20:15:00"
+    },
+    "character:star (symbol)": {
+      "winner": "星形",
+      "counts": {
+        "星形": 17
+      },
+      "updated_at": "2026-05-16T20:14:58"
     }
   }
 }

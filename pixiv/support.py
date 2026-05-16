@@ -1296,18 +1296,9 @@ def extract_metadata_entity_groups(
 ) -> dict[str, Any]:
     metadata = metadata_info.get("metadata")
     positive_prompt = getattr(metadata, "positive_prompt", "") if metadata else ""
-    raw_chunks = getattr(metadata, "raw_chunks", {}) if metadata else {}
-    parameters = getattr(metadata, "parameters", {}) if metadata else {}
-
     lora_candidates = extract_lora_tokens(positive_prompt)
     text_candidates = list(split_prompt_tokens(LORA_RE.sub("", positive_prompt)))
     text_candidates.extend(lora_candidates)
-    for value in raw_chunks.values():
-        if isinstance(value, str):
-            text_candidates.extend(split_prompt_tokens(LORA_RE.sub("", value)))
-    for value in parameters.values():
-        if isinstance(value, str):
-            text_candidates.extend(split_prompt_tokens(LORA_RE.sub("", value)))
 
     groups: dict[str, list[tuple[str, float]]] = {"character": [], "copyright": []}
     hits: list[dict[str, Any]] = []

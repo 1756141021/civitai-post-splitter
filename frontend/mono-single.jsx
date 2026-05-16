@@ -81,6 +81,9 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   const [savedAt,   setSavedAt]   = React.useState(0);
   const [templateOpts, setTemplateOpts] = React.useState({ x: [], x_default: 'en_sfw', xhs: [], xhs_default: 'default' });
   const [pickN,        setPickN]        = React.useState('');
+  const [uploadPage, setUploadPage] = React.useState(0);
+  const [xhsPage,    setXhsPage]    = React.useState(0);
+  const PAGE_SIZE = 24;
   const fileInputRef   = React.useRef(null);
   const dragItem       = React.useRef(null);
   const dragOverItem   = React.useRef(null);
@@ -117,6 +120,8 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
       setOrderedFiles(applySortToImages(images, prevSortMode.current));
     }
     prevSortMode.current = sortMode;
+    setUploadPage(0);
+    setXhsPage(0);
   }, [sortMode]);
 
   const loadImages = () =>
@@ -278,29 +283,45 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   const enabledAll = (uploadEnabled ? uploadImgs.length : 0) + (xhsEnabled ? xhsImgs.length : 0);
   const uploadCount = enabledSel;
 
-  const _renderGrid = files => (
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(80px,1fr))', gap:5 }}>
-      {files.map(f => {
-        const sel = selected.has(f.name);
-        return (
-          <div key={`${f.source}:${f.name}`} onClick={() => toggle(f.name)}
-               style={{ cursor:'pointer', borderRadius:5, border:`2px solid ${sel ? M.accent : M.line}`,
-                        overflow:'hidden', position:'relative', background:M.bg }}>
-            <img src={imgUrl(f)} alt={f.name} loading="lazy"
-                 style={{ width:'100%', aspectRatio:'1', objectFit:'cover', display:'block' }} />
-            <div style={{ position:'absolute', top:3, right:3, width:14, height:14, borderRadius:'50%',
-                          background: sel ? M.accent : 'rgba(0,0,0,0.45)', display:'grid', placeItems:'center' }}>
-              {sel && <span style={{ color:'#fff', fontSize:9, lineHeight:1 }}>✓</span>}
-            </div>
-            <div style={{ padding:'1px 3px', fontSize:8.5, fontFamily:M.mono, color:M.inkFaint,
-                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', background:M.panel }}>
-              {f.name}
-            </div>
+  const _renderGrid = (files, page, setPage) => {
+    const totalPages = Math.ceil(files.length / PAGE_SIZE) || 1;
+    const safePage = Math.min(page, totalPages - 1);
+    const paged = files.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+    return (
+      <>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px,1fr))', gap:6 }}>
+          {paged.map(f => {
+            const sel = selected.has(f.name);
+            return (
+              <div key={`${f.source}:${f.name}`} onClick={() => toggle(f.name)}
+                   style={{ cursor:'pointer', borderRadius:5, border:`2px solid ${sel ? M.accent : M.line}`,
+                            overflow:'hidden', position:'relative', background:M.bg }}>
+                <img src={imgUrl(f)} alt={f.name} loading="lazy"
+                     style={{ width:'100%', aspectRatio:'1', objectFit:'cover', display:'block' }} />
+                <div style={{ position:'absolute', top:3, right:3, width:14, height:14, borderRadius:'50%',
+                              background: sel ? M.accent : 'rgba(0,0,0,0.45)', display:'grid', placeItems:'center' }}>
+                  {sel && <span style={{ color:'#fff', fontSize:9, lineHeight:1 }}>✓</span>}
+                </div>
+                <div style={{ padding:'1px 3px', fontSize:8.5, fontFamily:M.mono, color:M.inkFaint,
+                              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', background:M.panel }}>
+                  {f.name}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {totalPages > 1 && (
+          <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:10, padding:'8px 0', flexShrink:0 }}>
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize:12, padding:'2px 8px' }}
+                    disabled={safePage === 0} onClick={() => setPage(safePage - 1)}>‹</button>
+            <span className="mn-mono" style={{ fontSize:11, color:M.inkDim }}>{safePage + 1}/{totalPages}</span>
+            <button className="mn-btn mn-btn-ghost" style={{ fontSize:12, padding:'2px 8px' }}
+                    disabled={safePage >= totalPages - 1} onClick={() => setPage(safePage + 1)}>›</button>
           </div>
-        );
-      })}
-    </div>
-  );
+        )}
+      </>
+    );
+  };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
@@ -378,7 +399,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
                 <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: 6 }}>
                   {loading ? <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>
                     : uploadImgs.length === 0 ? <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 11 }}>upload/ 为空</div>
-                    : _renderGrid(uploadImgs)}
+                    : _renderGrid(uploadImgs, uploadPage, setUploadPage)}
                 </div>
               </div>
             )}
@@ -395,7 +416,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
               <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: 6 }}>
                 {loading ? <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>
                   : xhsImgs.length === 0 ? <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 11 }}>xhs_upload/ 为空</div>
-                  : _renderGrid(xhsImgs)}
+                  : _renderGrid(xhsImgs, xhsPage, setXhsPage)}
               </div>
             </div>
           </div>
