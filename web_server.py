@@ -71,6 +71,9 @@ _EXEC_LOCK = threading.Lock()
 SSE_CLIENTS: list[queue.Queue] = []
 CLIENTS_LOCK = threading.Lock()
 
+_pixai_tasks: dict[str, dict] = {}
+_pixai_tasks_lock = threading.Lock()
+
 CMD_LABELS = {
     1: ("Split post",     "Local"),
     2: ("Dual upload",    "Civitai + Pixiv"),
@@ -876,6 +879,51 @@ def api_tagger_config_post():
         changed.append("pixai_model_dir")
 
     return jsonify({"ok": True, "changed": changed})
+
+
+@app.route("/api/install-pixai-tagger", methods=["POST"])
+def api_install_pixai_tagger():
+    body = request.get_json(silent=True) or {}
+    target_dir = body.get("target_dir", "").strip()
+    if not target_dir:
+        target_dir = str(SCRIPT_DIR / "models" / "pixai_tagger")
+
+    task_id = uuid.uuid4().hex[:8]
+
+    def _do_download():
+        try:
+            try:
+                from huggingface_hub import snapshot_download
+            except ImportError:
+                with _pixai_tasks_lock:
+                    _pixai_tasks[task_id] = {"status": "error", "error": "huggingface_hub 未安装，请先 pip install huggingface_hub"}
+                return
+            snapshot_download(
+                repo_id="deepghs/pixai-tagger-v0.9-onnx",
+                local_dir=target_dir,
+                ignore_patterns=["*.md", ".git*"],
+            )
+            _save_haintag_settings({"pixai_tagger_model_dir": target_dir})
+            with _pixai_tasks_lock:
+                _pixai_tasks[task_id] = {"status": "done", "model_dir": target_dir}
+        except Exception as exc:
+            with _pixai_tasks_lock:
+                _pixai_tasks[task_id] = {"status": "error", "error": str(exc)}
+
+    with _pixai_tasks_lock:
+        _pixai_tasks[task_id] = {"status": "running", "target_dir": target_dir}
+
+    threading.Thread(target=_do_download, daemon=True).start()
+    return jsonify({"ok": True, "task_id": task_id, "target_dir": target_dir})
+
+
+@app.route("/api/install-pixai-tagger-status/<task_id>")
+def api_install_pixai_tagger_status(task_id):
+    with _pixai_tasks_lock:
+        state = _pixai_tasks.get(task_id)
+    if not state:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(state)
 
 
 @app.route("/api/pixiv-logout", methods=["POST"])

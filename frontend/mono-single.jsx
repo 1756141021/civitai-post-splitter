@@ -479,14 +479,17 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
 }
 
 function TaggerSetupDialog({ onClose }) {
-  const [haintag,   setHaintag]   = React.useState('');
-  const [modelDir,  setModelDir]  = React.useState('');
-  const [pixaiDir,  setPixaiDir]  = React.useState('');
-  const [haintagOk, setHaintagOk] = React.useState(null);
-  const [modelOk,   setModelOk]   = React.useState(null);
-  const [pixaiOk,   setPixaiOk]   = React.useState(null);
-  const [saving,    setSaving]    = React.useState(false);
-  const [saved,     setSaved]     = React.useState(false);
+  const [haintag,      setHaintag]      = React.useState('');
+  const [modelDir,     setModelDir]     = React.useState('');
+  const [pixaiDir,     setPixaiDir]     = React.useState('');
+  const [haintagOk,    setHaintagOk]    = React.useState(null);
+  const [modelOk,      setModelOk]      = React.useState(null);
+  const [pixaiOk,      setPixaiOk]      = React.useState(null);
+  const [saving,       setSaving]       = React.useState(false);
+  const [saved,        setSaved]        = React.useState(false);
+  const [installState, setInstallState] = React.useState('idle'); // idle|running|done|error
+  const [installErr,   setInstallErr]   = React.useState('');
+  const pollRef = React.useRef(null);
 
   React.useEffect(() => {
     fetch('/api/tagger-config').then(r => r.json()).then(d => {
@@ -497,7 +500,35 @@ function TaggerSetupDialog({ onClose }) {
       setModelOk(d.model_ok);
       setPixaiOk(d.pixai_ok);
     }).catch(() => {});
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
+
+  const startInstall = () => {
+    setInstallState('running'); setInstallErr('');
+    fetch('/api/install-pixai-tagger', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) { setInstallState('error'); setInstallErr(d.error || '启动失败'); return; }
+        const taskId = d.task_id;
+        pollRef.current = setInterval(() => {
+          fetch(`/api/install-pixai-tagger-status/${taskId}`)
+            .then(r => r.json())
+            .then(s => {
+              if (s.status === 'done') {
+                clearInterval(pollRef.current);
+                setInstallState('done');
+                setPixaiDir(s.model_dir || '');
+                setPixaiOk(true);
+              } else if (s.status === 'error') {
+                clearInterval(pollRef.current);
+                setInstallState('error');
+                setInstallErr(s.error || '下载失败');
+              }
+            }).catch(() => {});
+        }, 2000);
+      })
+      .catch(() => { setInstallState('error'); setInstallErr('请求失败'); });
+  };
 
   // POST current inputs → server saves + checks paths → update ok indicators
   const postAndVerify = (closeAfter) => {
@@ -528,6 +559,8 @@ function TaggerSetupDialog({ onClose }) {
     onClose(false);
   };
 
+  const installLabel = installState === 'running' ? '安装中…' : installState === 'done' ? '✓ 已安装' : '一键安装';
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 540, padding: '20px 24px' }}>
@@ -547,12 +580,30 @@ function TaggerSetupDialog({ onClose }) {
               </span>
             )}
           </div>
-          <input className="mn-input" value={pixaiDir} onChange={e => setPixaiDir(e.target.value)}
-                 placeholder="含 model.onnx 的目录，如 E:\models\pixai-tagger-v0.9" style={{ width: '100%', fontSize: 12 }} />
-          <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
-            须包含：<span style={{ color: M.ink2 }}>model.onnx</span>、<span style={{ color: M.ink2 }}>selected_tags.csv</span>、<span style={{ color: M.ink2 }}>thresholds.csv</span>、<span style={{ color: M.ink2 }}>preprocess.json</span><br />
-            来源：<span style={{ color: M.ink2 }}>deepghs/pixai-tagger-v0.9-onnx</span>（launcher [6] 可自动下载）
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input className="mn-input" value={pixaiDir} onChange={e => setPixaiDir(e.target.value)}
+                   placeholder="含 model.onnx 的目录，如 E:\models\pixai-tagger-v0.9"
+                   style={{ flex: 1, fontSize: 12 }} disabled={installState === 'running'} />
+            <button className="mn-btn mn-btn-accent" onClick={startInstall}
+                    disabled={installState === 'running' || installState === 'done'}
+                    style={{ fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {installLabel}
+            </button>
           </div>
+          {installState === 'running' && (
+            <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, marginTop: 4 }}>
+              正在从 HuggingFace 下载（约 1.27 GB），请稍候…
+            </div>
+          )}
+          {installState === 'error' && (
+            <div className="mn-mono" style={{ fontSize: 10.5, color: M.red, marginTop: 4 }}>{installErr}</div>
+          )}
+          {installState !== 'running' && installState !== 'error' && (
+            <div className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint, marginTop: 4, lineHeight: 1.6 }}>
+              须包含：<span style={{ color: M.ink2 }}>model.onnx</span>、<span style={{ color: M.ink2 }}>selected_tags.csv</span>、<span style={{ color: M.ink2 }}>thresholds.csv</span>、<span style={{ color: M.ink2 }}>preprocess.json</span><br />
+              「一键安装」下载到 <span style={{ color: M.ink2 }}>models/pixai_tagger/</span>，需要 <span style={{ color: M.ink2 }}>pip install huggingface_hub</span>
+            </div>
+          )}
         </div>
 
         {/* WD14/CL model directory */}
