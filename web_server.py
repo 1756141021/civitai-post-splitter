@@ -926,6 +926,51 @@ def api_install_pixai_tagger_status(task_id):
     return jsonify(state)
 
 
+@app.route("/api/install-cl-tagger", methods=["POST"])
+def api_install_cl_tagger():
+    body = request.get_json(silent=True) or {}
+    target_dir = body.get("target_dir", "").strip()
+    if not target_dir:
+        target_dir = str(SCRIPT_DIR / "models" / "cl_tagger")
+
+    task_id = uuid.uuid4().hex[:8]
+
+    def _do_download():
+        try:
+            try:
+                from huggingface_hub import snapshot_download
+            except ImportError:
+                with _pixai_tasks_lock:
+                    _pixai_tasks[task_id] = {"status": "error", "error": "huggingface_hub 未安装，请先 pip install huggingface_hub"}
+                return
+            snapshot_download(
+                repo_id="SmilingWolf/wd-vit-tagger-v3",
+                local_dir=target_dir,
+                ignore_patterns=["*.md", ".git*"],
+            )
+            _save_haintag_settings({"tagger_model_dir": target_dir})
+            with _pixai_tasks_lock:
+                _pixai_tasks[task_id] = {"status": "done", "model_dir": target_dir}
+        except Exception as exc:
+            with _pixai_tasks_lock:
+                _pixai_tasks[task_id] = {"status": "error", "error": str(exc)}
+
+    with _pixai_tasks_lock:
+        _pixai_tasks[task_id] = {"status": "running", "target_dir": target_dir}
+
+    threading.Thread(target=_do_download, daemon=True).start()
+    return jsonify({"ok": True, "task_id": task_id, "target_dir": target_dir})
+
+
+@app.route("/api/install-cl-tagger-status/<task_id>")
+def api_install_cl_tagger_status(task_id):
+    with _pixai_tasks_lock:
+        state = _pixai_tasks.get(task_id)
+    if not state:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(state)
+
+
 @app.route("/api/pixiv-logout", methods=["POST"])
 def api_pixiv_logout():
     with TASKS_LOCK:
