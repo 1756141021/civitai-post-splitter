@@ -1507,12 +1507,12 @@ def candidate_rule_matches(candidate: str, needle: str) -> bool:
 
 
 def infer_candidate_age_restriction(candidates: list[str], age_rules: dict[str, Any]) -> str:
-    normalized = [normalize_key(candidate) for candidate in candidates]
+    normalized = set(normalize_key(candidate) for candidate in candidates)
     for rule in age_rules.get("candidate_rules", []):
         needle = normalize_key(str(rule.get("match", "")))
         if not needle:
             continue
-        if any(candidate_rule_matches(candidate, needle) for candidate in normalized):
+        if needle in normalized:
             return str(rule.get("age_restriction", "all_ages"))
     return str(age_rules.get("default", "all_ages"))
 

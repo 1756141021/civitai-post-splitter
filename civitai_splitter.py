@@ -1215,28 +1215,35 @@ def cmd_upload(args):
     sort_mode = getattr(args, "sort", "random")
     selected_names = getattr(args, "files", None) or []
     if selected_names:
-        name_map = {f.name.lower(): f for f in all_images}
-        image_files = [name_map[n.lower()] for n in selected_names if n.lower() in name_map]
-        if not image_files:
-            log.warning("指定的文件不在 upload/ 目录，改用排序规则")
+        up_map = {f.name.lower(): f for f in all_images}
+        xhs_map = {f.name.lower(): f for f in xhs_only}
+        image_files = [up_map[n.lower()] for n in selected_names if n.lower() in up_map]
+        xhs_files = [xhs_map[n.lower()] for n in selected_names if n.lower() in xhs_map]
+        if not image_files and not xhs_files:
+            log.warning("指定的文件不在 upload/ 或 xhs_upload/ 目录，改用排序规则")
             image_files = _select_by_sort(all_images, sort_mode, 1)
-        mode_desc = f"指定顺序 {len(image_files)} 张"
+            xhs_files = _select_by_sort(xhs_only, sort_mode, 1) if xhs_only else []
+        mode_desc = f"指定顺序 {len(image_files)}+{len(xhs_files)} 张"
     else:
         requested = max(0, int(getattr(args, "count", 0) or 0))
         if requested > 0:
-            count = min(requested, len(all_images))
-            mode_desc = f"按 {sort_mode} 选 {count} 张"
+            count = min(requested, len(all_images)) if all_images else 0
+            xhs_count = min(requested, len(xhs_only)) if xhs_only else 0
+            mode_desc = f"按 {sort_mode} 选 {count}+{xhs_count} 张"
         else:
-            count = min(random.randint(1, 5), len(all_images))
-            mode_desc = f"随机选 {count} 张"
-        image_files = _select_by_sort(all_images, sort_mode, count)
-    upload_targets = [t for t in targets if t != "xhs"] if xhs_only else targets
+            count = min(random.randint(1, 5), len(all_images)) if all_images else 0
+            xhs_count = min(random.randint(1, 5), len(xhs_only)) if xhs_only else 0
+            mode_desc = f"随机选 {count}+{xhs_count} 张"
+        image_files = _select_by_sort(all_images, sort_mode, count) if count else []
+        xhs_files = _select_by_sort(xhs_only, sort_mode, xhs_count) if xhs_count else []
+    upload_targets = [t for t in targets if t != "xhs"] if xhs_files else targets
     image_queue = [(img, upload_targets) for img in image_files]
-    image_queue += [(img, ["xhs"]) for img in xhs_only]
+    image_queue += [(img, ["xhs"]) for img in xhs_files]
     all_processed_targets = list(dict.fromkeys(t for _, et in image_queue for t in et))
     log.info(
-        f"upload/ 有 {len(all_images)} 张图片，本次{mode_desc}上传；"
-        f"xhs_upload/ 有 {len(xhs_only)} 张（全量）。目标：{all_processed_targets}\n"
+        f"upload/ {len(all_images)} 张本次选 {len(image_files)}；"
+        f"xhs_upload/ {len(xhs_only)} 张本次选 {len(xhs_files)}。"
+        f"目标：{all_processed_targets}\n"
     )
 
     temp_dir = make_temp_dir("civitai_upload_")

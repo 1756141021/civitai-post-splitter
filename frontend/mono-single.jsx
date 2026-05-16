@@ -272,9 +272,11 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   const xhsImgs = sortedImages.filter(f => f.source === 'xhs_upload');
   const uploadSelCount = uploadImgs.filter(f => selected.has(f.name)).length;
   const xhsSelCount = xhsImgs.filter(f => selected.has(f.name)).length;
-  const totalSel = isManual ? orderedFiles.length : (uploadSelCount + xhsSelCount);
-  const totalAll = uploadImgs.length + xhsImgs.length;
-  const uploadCount = totalSel;
+  const uploadEnabled = targetCivitai || targetPixiv || targetX;
+  const xhsEnabled = targetXhs;
+  const enabledSel = isManual ? orderedFiles.length : (uploadEnabled ? uploadSelCount : 0) + (xhsEnabled ? xhsSelCount : 0);
+  const enabledAll = (uploadEnabled ? uploadImgs.length : 0) + (xhsEnabled ? xhsImgs.length : 0);
+  const uploadCount = enabledSel;
 
   const _renderGrid = files => (
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(80px,1fr))', gap:5 }}>
@@ -308,7 +310,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>{label}</div>
             <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>
-              {loading ? '加载中…' : isManual ? `已排序 ${orderedFiles.length} 张` : `已选 ${totalSel} 张`}
+              {loading ? '加载中…' : isManual ? `已排序 ${orderedFiles.length} 张` : `已选 ${enabledSel} 张`}
             </div>
           </div>
           <select className="mn-input" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ fontSize: 11, width: 100 }}>
@@ -399,41 +401,13 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
           </div>
         )}
 
-        {/* ZONE 2: Selected preview + unified progress bar */}
+        {/* ZONE 2: Unified progress bar */}
         {!isManual && (
-          <div style={{ borderTop: `1px solid ${M.line}`, flexShrink: 0 }}>
-            {cmd !== 3 && (
-              <div style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 10, minHeight: 48 }}>
-                <div className="mn-mono" style={{ fontSize: 10, color: M.inkFaint, minWidth: 76, flexShrink: 0 }}>upload/</div>
-                <div style={{ flex: 1, display: 'flex', gap: 4, overflowX: 'auto', alignItems: 'center', minHeight: 36, padding: '2px 0' }}>
-                  {uploadSelCount === 0
-                    ? <span className="mn-mono" style={{ fontSize: 10, color: M.inkFaint }}>未选图片</span>
-                    : uploadImgs.filter(f => selected.has(f.name)).map(f => (
-                        <img key={f.name} src={imgUrl(f)} style={{ width: 32, height: 32, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                      ))
-                  }
-                </div>
-                <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, flexShrink: 0, minWidth: 40, textAlign: 'right' }}>{uploadSelCount}</span>
-              </div>
-            )}
-            <div style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, ...(cmd !== 3 ? { borderTop: `1px solid ${M.lineSoft}` } : {}) }}>
-              <div className="mn-mono" style={{ fontSize: 10, color: M.inkFaint, minWidth: 76, flexShrink: 0 }}>xhs_upload/</div>
-              <div style={{ flex: 1, display: 'flex', gap: 4, overflowX: 'auto', alignItems: 'center', minHeight: 36, padding: '2px 0' }}>
-                {xhsSelCount === 0
-                  ? <span className="mn-mono" style={{ fontSize: 10, color: M.inkFaint }}>未选图片</span>
-                  : xhsImgs.filter(f => selected.has(f.name)).map(f => (
-                      <img key={f.name} src={imgUrl(f)} style={{ width: 32, height: 32, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                    ))
-                }
-              </div>
-              <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, flexShrink: 0, minWidth: 40, textAlign: 'right' }}>{xhsSelCount}</span>
+          <div style={{ padding: '8px 14px', borderTop: `1px solid ${M.line}`, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ flex: 1, height: 5, borderRadius: 3, background: M.lineSoft, overflow: 'hidden' }}>
+              <div style={{ width: enabledAll > 0 ? `${enabledSel / enabledAll * 100}%` : '0%', height: '100%', borderRadius: 3, background: M.accent, transition: 'width 0.2s ease' }} />
             </div>
-            <div style={{ padding: '8px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1, height: 5, borderRadius: 3, background: M.lineSoft, overflow: 'hidden' }}>
-                <div style={{ width: totalAll > 0 ? `${totalSel / totalAll * 100}%` : '0%', height: '100%', borderRadius: 3, background: M.accent, transition: 'width 0.2s ease' }} />
-              </div>
-              <span className="mn-mono" style={{ fontSize: 12, color: M.inkDim, whiteSpace: 'nowrap', minWidth: 44, textAlign: 'right' }}>{totalSel}/{totalAll}</span>
-            </div>
+            <span className="mn-mono" style={{ fontSize: 12, color: M.inkDim, whiteSpace: 'nowrap', minWidth: 44, textAlign: 'right' }}>{enabledSel}/{enabledAll}</span>
           </div>
         )}
 
