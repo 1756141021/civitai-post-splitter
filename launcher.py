@@ -163,7 +163,7 @@ def header():
     print("  [3] 仅上传到 Pixiv")
     print("  [4] 安装 / 检查 R-18 自动打码")
     print("  [5] 检查 / 拉取更新")
-    print("  [6] 配置图片打标 (cl_tagger / WD14)")
+    print("  [6] 配置 / 下载 Tagger 模型 (PixAI / CL)")
     print("  [7] 切换 Pixiv 账号（清除 + 重新登录）")
     print("  [8] 切换 Civitai 账号（清除 + 重新登录）")
     print("  [9] 定时自动发布（配置 / 启动）")
@@ -237,6 +237,131 @@ def cmd_setup_censor() -> None:
 
 def cmd_setup_tagger() -> None:
     run([str(Path("pixiv") / "setup_tagger.py")])
+
+
+def _read_haintag_settings() -> dict:
+    appdata = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+    cfg = Path(appdata) / "HainTag" / "settings.json"
+    if cfg.exists():
+        try:
+            payload = json.loads(cfg.read_text(encoding="utf-8"))
+            s = payload.get("settings", payload) if isinstance(payload, dict) else {}
+            return s if isinstance(s, dict) else {}
+        except Exception:
+            pass
+    return {}
+
+
+def _write_haintag_settings(settings: dict) -> None:
+    appdata = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+    path = Path(appdata) / "HainTag" / "settings.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing: dict = {}
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    if isinstance(existing, dict) and "settings" in existing:
+        existing["settings"].update(settings)
+    elif isinstance(existing, dict):
+        existing.update(settings)
+    else:
+        existing = settings
+    path.write_text(json.dumps(existing, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _tagger_download_pixai(target_dir: str) -> None:
+    try:
+        from huggingface_hub import snapshot_download
+        print()
+        print("  正在下载 PixAI tagger v0.9 ONNX 模型（约 1.27 GB）...")
+        print("  目标目录:", target_dir)
+        print()
+        snapshot_download(
+            repo_id="deepghs/pixai-tagger-v0.9-onnx",
+            local_dir=target_dir,
+            ignore_patterns=["*.md", "sample.*", ".gitattributes"],
+        )
+        print()
+        print("  [OK] 下载完成，已保存到:", target_dir)
+        _write_haintag_settings({"pixai_tagger_model_dir": target_dir})
+        print("  pixai_tagger_model_dir 已写入设置。")
+    except ImportError:
+        print()
+        print("  [!] huggingface_hub 未安装，无法自动下载。")
+        print("  手动安装：pip install huggingface_hub")
+    except Exception as exc:
+        print()
+        print(f"  [FAIL] 下载失败：{exc}")
+
+
+def cmd_tagger_menu() -> None:
+    print()
+    print("  当前 Tagger 配置：")
+    ht = _read_haintag_settings()
+    pixai_dir = ht.get("pixai_tagger_model_dir", "")
+    cl_dir = ht.get("tagger_model_dir", "")
+    if pixai_dir and (Path(pixai_dir) / "model.onnx").exists():
+        print(f"  PixAI  : {pixai_dir}  [激活]")
+    elif pixai_dir:
+        print(f"  PixAI  : {pixai_dir}  [model.onnx 未找到]")
+    else:
+        print("  PixAI  : 未配置")
+    if cl_dir and os.path.isdir(cl_dir):
+        print(f"  CL/WD14: {cl_dir}  [目录存在]")
+    elif cl_dir:
+        print(f"  CL/WD14: {cl_dir}  [目录不存在]")
+    else:
+        print("  CL/WD14: 未配置")
+    print()
+    print("  优先级：PixAI > CL/WD14")
+    print()
+    print("  [1] 运行配置向导（交互式设置模型路径）")
+    print("  [2] 下载 PixAI tagger v0.9（自动，需 huggingface_hub）")
+    print("  [3] 查看 PixAI 下载地址（手动下载）")
+    print("  [Q] 返回主菜单")
+    print()
+
+    while True:
+        try:
+            c = input("  选择: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return
+
+        if c in ("q", ""):
+            return
+
+        if c == "1":
+            print()
+            cmd_setup_tagger()
+            return
+
+        if c == "2":
+            print()
+            default_dir = str(Path.home() / "pixai-tagger-v0.9-onnx")
+            raw = input(f"  下载到哪个目录？（留空使用默认 {default_dir}）: ").strip().strip('"')
+            target = raw if raw else default_dir
+            _tagger_download_pixai(target)
+            return
+
+        if c == "3":
+            print()
+            print("  PixAI tagger v0.9 ONNX 下载地址：")
+            print("    https://huggingface.co/deepghs/pixai-tagger-v0.9-onnx")
+            print()
+            print("  需要下载的文件：")
+            print("    model.onnx          (~1.27 GB)")
+            print("    selected_tags.csv   (~597 KB)")
+            print("    preprocess.json")
+            print("    thresholds.csv")
+            print()
+            print("  下载后在「运行配置向导」里指定目录路径即可。")
+            print()
+            input("  按 Enter 返回...")
+            return
+
+        print("  请输入 1、2、3 或 Q。")
 
 
 def cmd_pixiv_logout() -> None:
@@ -432,7 +557,7 @@ def main() -> int:
         "3": ("仅上传到 Pixiv", cmd_upload_pixiv),
         "4": ("安装 / 检查打码", cmd_setup_censor),
         "5": ("检查 / 拉取更新", cmd_check_update),
-        "6": ("配置图片打标 (cl_tagger)", cmd_setup_tagger),
+        "6": ("配置 / 下载 Tagger 模型", cmd_tagger_menu),
         "7": ("切换 Pixiv 账号（清除 + 重新登录）", cmd_pixiv_logout),
         "8": ("切换 Civitai 账号（清除 + 重新登录）", cmd_civitai_login),
         "9": ("定时自动发布", cmd_scheduler),

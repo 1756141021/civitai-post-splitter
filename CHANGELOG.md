@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-16
+
+### Added
+- **PixAI Tagger v0.9 集成**：新建 `pixiv/pixai_tagger.py`（`PixAITaggerBridge`），支持 `deepghs/pixai-tagger-v0.9-onnx` ONNX 模型。CLIP 风格归一化（mean=std=0.5，BCHW layout），读取 `preprocess.json` / `thresholds.csv` / `selected_tags.csv`，返回与 `StandaloneTaggerBridge` 相同 schema（含空 `copyright` 组保持接口兼容）。
+- **Tagger 优先链**：`_make_bridges()` 拆分 metadata reader 和 tagger bridge 选择逻辑。新优先链：PixAI → CL/WD14 → None，HainTag 退出 tagger 自动优先（metadata reader 保持不变）。
+- **Launcher 下载菜单**：`[6]` 改为「配置 / 下载 Tagger 模型」，进入子菜单可选：配置向导 / 自动下载 PixAI（`huggingface_hub.snapshot_download`）/ 查看手动下载地址。
+- **Setup wizard 支持双 tagger**：`setup_tagger.py` 新增 PixAI 配置步骤（`step2_pixai_model_dir` / `step3_pixai_verify`），`main()` 现在询问配置 PixAI / CL / 两者，互不干扰。
+- **Manifest `tagger_type` 字段**：manifest `pixiv.tagger` 新增 `tagger_type: "pixai"|"cl"`，旧 manifest 向前兼容（key 缺失默认 cl）。
+
+### Fixed
+- `_write_haintag_settings`（`setup_tagger.py` 和 `launcher.py`）：`else` 分支改为 `existing.update(settings)`，修复 fresh 用户（无 HainTag `{"settings":{}}` 嵌套格式）配置多个 key 时后写覆盖前写的问题。预存在问题，PixAI + CL 双配置时首次暴露。
+
 ## 2026-05-15
 
 ### Fixed

@@ -72,6 +72,7 @@ def _platform_accepts_age(platform: str, image_age: str) -> bool:
     max_age = rule.get("max_age", "r18g")
     return _NSFW_TIER_PLAT.get(image_age, 0) <= _NSFW_TIER_PLAT.get(max_age, 2)
 from pixiv.standalone import StandaloneMetadataReader, StandaloneTaggerBridge
+from pixiv.pixai_tagger import PixAITaggerBridge
 from pixiv.support import (
     HainTagBridge,
     HainTagTaggerBridge,
@@ -193,17 +194,43 @@ def _resolve_haintag_root() -> Path:
     return SCRIPT_DIR.parent / "haintag"
 
 
+def _load_haintag_settings() -> dict:
+    appdata = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
+    cfg = Path(appdata) / "HainTag" / "settings.json"
+    if cfg.exists():
+        try:
+            payload = json.loads(cfg.read_text(encoding="utf-8"))
+            s = payload.get("settings", payload) if isinstance(payload, dict) else {}
+            return s if isinstance(s, dict) else {}
+        except Exception:
+            pass
+    return {}
+
+
 def _make_bridges():
     """
     返回 (metadata_bridge, tagger_bridge)。
-    haintag 存在时用 HainTag* 实现（读 prompt、WD14 推理都更完整）；
-    不存在时 fallback 到 standalone 实现（PIL 读 metadata，onnxruntime 推理）。
-    两者接口完全一致，调用方不需要区分。
+    metadata reader: haintag 存在时用 HainTagBridge，否则 StandaloneMetadataReader。
+    tagger bridge: PixAI → CL(Standalone) → None 优先链，均不可用时返回 None。
     """
+    # metadata reader 保持现有逻辑
     root = _resolve_haintag_root()
     if root.exists():
-        return HainTagBridge(root), HainTagTaggerBridge(root)
-    return StandaloneMetadataReader(), StandaloneTaggerBridge()
+        metadata_reader = HainTagBridge(root)
+    else:
+        metadata_reader = StandaloneMetadataReader()
+
+    # tagger bridge: PixAI → CL → None
+    settings = _load_haintag_settings()
+    pixai_dir = settings.get("pixai_tagger_model_dir", "")
+    if pixai_dir and (Path(pixai_dir) / "model.onnx").exists():
+        tagger = PixAITaggerBridge(Path(pixai_dir))
+    elif settings.get("tagger_model_dir"):
+        tagger = StandaloneTaggerBridge()
+    else:
+        tagger = None
+
+    return metadata_reader, tagger
 
 
 MODEL_HASH_PATCHES = {
@@ -964,6 +991,7 @@ def create_upload_manifest(
                 "status": tagger_result.get("status", "disabled"),
                 "available": tagger_result.get("available", False),
                 "top_tags": list(tagger_result.get("flat_tags", []))[:30],
+                "tagger_type": tagger_result.get("tagger_type", "cl"),
             },
             "censor": censor_result.to_dict() if censor_result is not None else {"status": "disabled", "applied": False},
         },

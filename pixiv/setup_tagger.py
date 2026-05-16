@@ -77,6 +77,8 @@ def _write_haintag_settings(settings: dict) -> None:
             pass
     if isinstance(existing, dict) and "settings" in existing:
         existing["settings"].update(settings)
+    elif isinstance(existing, dict):
+        existing.update(settings)
     else:
         existing = settings
     HAINTAG_SETTINGS_PATH.write_text(
@@ -291,6 +293,115 @@ def step2_model_dir() -> str | None:
     return raw
 
 
+def _scan_pixai_dir(path: str) -> tuple[bool, bool]:
+    """Return (has_model, has_tags) for a PixAI model directory."""
+    if not path or not os.path.isdir(path):
+        return False, False
+    has_model = os.path.isfile(os.path.join(path, "model.onnx"))
+    has_tags = os.path.isfile(os.path.join(path, "selected_tags.csv"))
+    return has_model, has_tags
+
+
+def step2_pixai_model_dir() -> str | None:
+    print()
+    hr()
+    print("Step 2-A: PixAI Tagger v0.9 model directory")
+    hr()
+    print()
+    print("  PixAI tagger has broader character coverage than CL/WD14,")
+    print("  including newer characters trained on Danbooru data up to v0.9.")
+    print()
+    print("  The directory must contain:")
+    print("    - model.onnx          (~1.27 GB)")
+    print("    - selected_tags.csv   (~597 KB)")
+    print("    - preprocess.json     (optional, auto-detected)")
+    print("    - thresholds.csv      (optional, auto-detected)")
+    print()
+    print("  Download from:")
+    print("    https://huggingface.co/deepghs/pixai-tagger-v0.9-onnx")
+    print()
+
+    ht_settings = _read_haintag_settings()
+    current_dir = ht_settings.get("pixai_tagger_model_dir", "")
+
+    if current_dir:
+        print(f"  Current value: {current_dir}")
+        has_model, has_tags = _scan_pixai_dir(current_dir)
+        if has_model and has_tags:
+            print("  [OK] model.onnx + selected_tags.csv found")
+            print()
+            if ask("  Keep this path?"):
+                return current_dir
+        else:
+            missing = []
+            if not has_model:
+                missing.append("model.onnx")
+            if not has_tags:
+                missing.append("selected_tags.csv")
+            print(f"  [MISS] Missing: {', '.join(missing)}")
+        print()
+    else:
+        print("  No PixAI model directory configured yet.")
+        print()
+
+    raw = input("  Enter PixAI model directory path (or leave empty to skip): ").strip().strip('"')
+    if not raw:
+        print()
+        print("  Skipping PixAI. Will fall back to CL tagger if configured.")
+        return None
+
+    has_model, has_tags = _scan_pixai_dir(raw)
+    if not has_model:
+        print(f"  [FAIL] model.onnx not found in: {raw}")
+        return None
+    if not has_tags:
+        print(f"  [FAIL] selected_tags.csv not found in: {raw}")
+        return None
+
+    print("  [OK] model.onnx + selected_tags.csv found")
+    _write_haintag_settings({"pixai_tagger_model_dir": raw})
+    print(f"  Saved pixai_tagger_model_dir to {HAINTAG_SETTINGS_PATH}")
+    return raw
+
+
+def step3_pixai_verify(model_dir: str) -> None:
+    print()
+    hr()
+    print("Step 3-A: Verify PixAI tagger")
+    hr()
+    print()
+
+    if not ask("  Run a quick load test now?", default="y"):
+        print()
+        print("  Skipped. Run 'upload' to see tagger status in the manifest.")
+        return
+
+    if not _check_onnxruntime():
+        print("  [MISS] onnxruntime not installed.")
+        if ask("  Install now?", default="y"):
+            if not _install_onnxruntime():
+                print("  [FAIL] Installation failed. Run manually:")
+                print("    pip install onnxruntime>=1.16.0")
+                return
+        else:
+            print("  Skipped. Install onnxruntime to enable PixAI tagger.")
+            return
+
+    sys.path.insert(0, str(PROJECT_DIR))
+    try:
+        from pixiv.pixai_tagger import PixAITaggerBridge
+        bridge = PixAITaggerBridge(Path(model_dir))
+        ok = bridge._ensure_loaded()
+        if not ok:
+            print(f"  [FAIL] {bridge._status}")
+            return
+        print(f"  [OK] {len(bridge._tags)} tags loaded, model ready")
+        print()
+        print("  PixAI tagger is fully configured and working.")
+    except Exception as exc:
+        print(f"  [FAIL] {type(exc).__name__}: {exc}")
+
+
 def _check_onnxruntime() -> bool:
     try:
         import onnxruntime  # noqa: F401
@@ -401,33 +512,63 @@ def step3_verify(haintag_root: Path | None, model_dir: str | None) -> None:
 def main() -> int:
     print()
     print(" " + "=" * 46)
-    print("  cl_tagger (WD14) Setup Wizard")
+    print("  Tagger Setup Wizard")
     print(" " + "=" * 46)
     print()
-    print("  This wizard configures the image tagger used to")
-    print("  generate richer Pixiv tags from image content.")
+    print("  Priority: PixAI Tagger > CL/WD14 Tagger")
     print()
+    print("  Configure which tagger to use for image tagging.")
     print("  You can skip any step; uploads will still work.")
-    print("  Re-run anytime from launcher menu [6].")
+    print("  Re-run anytime from launcher menu.")
+    print()
 
-    haintag_root = step1_haintag_root()
-    if haintag_root is not None:
-        step1b_python_path(haintag_root)
-    model_dir = step2_model_dir()
-    step3_verify(haintag_root, model_dir)
+    print("  Which tagger do you want to configure?")
+    print("    [1] PixAI Tagger v0.9  (recommended — broader character coverage)")
+    print("    [2] CL Tagger / WD14   (lighter, fallback)")
+    print("    [3] Both")
+    print()
+    while True:
+        try:
+            choice = input("  Choice [1/2/3]: ").strip()
+        except EOFError:
+            choice = "1"
+        if choice in ("1", "2", "3"):
+            break
+        print("  Please enter 1, 2, or 3.")
+
+    do_pixai = choice in ("1", "3")
+    do_cl = choice in ("2", "3")
+
+    pixai_dir: str | None = None
+    cl_dir: str | None = None
+
+    if do_pixai:
+        pixai_dir = step2_pixai_model_dir()
+        if pixai_dir:
+            step3_pixai_verify(pixai_dir)
+
+    if do_cl:
+        haintag_root = step1_haintag_root()
+        if haintag_root is not None:
+            step1b_python_path(haintag_root)
+        else:
+            haintag_root = None
+        cl_dir = step2_model_dir()
+        step3_verify(haintag_root, cl_dir)
 
     print()
     hr()
     print("  Setup complete.")
-    if model_dir:
-        if haintag_root:
-            print("  Path: haintag (TaggerEngine). Next upload will use WD14 tags.")
-        else:
-            print("  Path: standalone (onnxruntime). Next upload will use WD14 tags.")
+    print()
+    ht_settings = _read_haintag_settings()
+    effective_pixai = ht_settings.get("pixai_tagger_model_dir", "")
+    effective_cl = ht_settings.get("tagger_model_dir", "")
+    if effective_pixai and os.path.isfile(os.path.join(effective_pixai, "model.onnx")):
+        print(f"  Active tagger : PixAI ({effective_pixai})")
+    elif effective_cl:
+        print(f"  Active tagger : CL/WD14 ({effective_cl})")
     else:
-        print("  Model directory not configured.")
-        print("  Re-run setup and set a directory containing .onnx + tag mapping json.")
-        print()
+        print("  Active tagger : none configured")
         print("  Uploads will still work — tagger just won't enrich tag candidates.")
     hr()
     print()
