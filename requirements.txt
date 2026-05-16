@@ -2,8 +2,7 @@ playwright>=1.40.0
 httpx>=0.25.0
 Pillow>=10.0.0
 flask>=3.0.0
-# Optional: standalone WD14 tagger (skip if you use haintag instead)
-# onnxruntime>=1.16.0
+onnxruntime>=1.16.0
 # Optional: auto-censor (skip if you don't need R-18 mosaic)
 # ultralytics>=8.0.0
 # opencv-python>=4.8.0
