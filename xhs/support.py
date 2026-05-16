@@ -31,7 +31,7 @@ XHS_PUBLISH_URL = "https://creator.xiaohongshu.com/publish/publish?source=offici
 XHS_PROFILE_DIR = Path.home() / ".civitai_splitter_xhs_chrome"
 
 DEFAULT_TEMPLATES = {
-    "default": {"core": "#AI绘画", "lang": "zh", "social": "#治愈系插画"},
+    "default": {"core": "#插画", "lang": "zh", "social": "#治愈系插画"},
 }
 
 DEFAULT_SETTINGS = {
@@ -69,7 +69,7 @@ XHS_SELECTORS = {
     "file_input": 'input[type="file"]',
     "title_input": 'input[placeholder*="标题"], input[placeholder*="title" i]',
     "body_editor": '[contenteditable="true"], .editor-content, textarea[placeholder*="描述"]',
-    "publish_button": 'button:has-text("发布")',
+    "publish_button": 'button.ce-btn.bg-red, button.ce-btn:has-text("发布"), button:has-text("发布")',
     # Topic suggestion dropdown shown after typing `#`. Must click the first
     # option for the topic to be registered as a real topic (not plain text).
     "topic_option": (
@@ -271,15 +271,35 @@ def build_xhs_payload(
 
     entity_tags = (pixiv_payload or {}).get("entity_tags") or []
     ai_tag = settings.get("ai_declaration_tag", "#AI创作") if settings.get("auto_append_ai_tag", True) else ""
-    tag_pick = pick_xhs_tags(
-        entity_tags=entity_tags,
-        template=template,
-        ai_tag=ai_tag,
-        limit=int(settings.get("tag_limit", 3)),
-    )
-    tags = tag_pick["tags"]
+    tag_limit = int(settings.get("tag_limit", 5))
 
     copy_xhs = (copy or {}).get("xhs") or {}
+    llm_tags = [t for t in (copy_xhs.get("tags") or []) if t]
+
+    if llm_tags:
+        # LLM generated Chinese tags — use directly, append ai_tag if room
+        seen: set[str] = set()
+        tags: list[str] = []
+        for t in llm_tags:
+            norm = normalize_hashtag(t)
+            if norm and norm.lower() not in seen and len(tags) < tag_limit:
+                tags.append(norm)
+                seen.add(norm.lower())
+        if ai_tag:
+            norm_ai = normalize_hashtag(ai_tag)
+            if norm_ai and norm_ai.lower() not in seen and len(tags) < tag_limit:
+                tags.append(norm_ai)
+        tag_pick = {"tags": tags, "sources": {"character_tags": [], "template_tag": "", "social_tag": "", "ai_tag": ai_tag}}
+    else:
+        # Never pass raw Pixiv entity_tags to XHS — they are almost always Japanese.
+        # Template + ai_tag are sufficient and always Chinese.
+        tag_pick = pick_xhs_tags(
+            entity_tags=[],
+            template=template,
+            ai_tag=ai_tag,
+            limit=tag_limit,
+        )
+    tags = tag_pick["tags"]
     copy_title = (copy or {}).get("title") or {}
     copy_caption = (copy or {}).get("caption") or {}
 
@@ -417,7 +437,8 @@ def open_xhs_browser(pw, profile_dir: Path | None = None):
             log.info(f"xhs: 注入 {n} 条 cookies（来自 xhs/cookies.json）")
 
     page = context.pages[0] if context.pages else context.new_page()
-    page.set_viewport_size({"width": 1920, "height": 1080})
+    # Do NOT force viewport size — --start-maximized owns the window geometry.
+    # Forcing 1920x1080 on a differently-scaled screen breaks coordinate clicks.
     ensure_xhs_logged_in(page)
     return context, page
 
@@ -692,20 +713,110 @@ def create_xhs_post(
             log.warning(f"    xhs: 原创声明失败（跳过）: {exc}")
 
     # 8. Publish
+    _sleep_with_cancel(1, cancel_event)  # let any post-dialog transitions settle
     try:
-        publish_btn = page.locator(XHS_SELECTORS["publish_button"]).first
-        for _ in range(20):
+        # Button lives inside an iframe — search all frames
+        publish_frame = None
+        publish_btn = None
+        for _frame in page.frames:
+            for _sel in [
+                'button.ce-btn.bg-red',
+                'button.ce-btn:has-text("发布")',
+                'button:has-text("发布")',
+            ]:
+                try:
+                    _loc = _frame.locator(_sel)
+                    if _loc.count() > 0:
+                        publish_frame = _frame
+                        publish_btn = _loc.first
+                        log.info(f"    xhs: 找到发布按钮 sel={_sel!r} frame={_frame.url[:60]!r}")
+                        break
+                except Exception:
+                    pass
+            if publish_btn:
+                break
+            _role = _frame.get_by_role("button", name="发布", exact=True)
+            if _role.count() > 0:
+                publish_frame = _frame
+                publish_btn = _role.first
+                log.info(f"    xhs: 找到发布按钮(role) frame={_frame.url[:60]!r}")
+                break
+        if publish_btn is None:
+            # Last resort: shadow DOM click or coordinate click
+            log.warning("    xhs: 所有 frame 里都找不到发布按钮，尝试 shadow DOM / 坐标点击")
+            shadow_clicked = page.evaluate("""
+                () => {
+                    function find(root) {
+                        for (const el of root.querySelectorAll('button, [role="button"], [class*="btn"]')) {
+                            if (el.shadowRoot) { const r = find(el.shadowRoot); if (r) return r; }
+                            const t = (el.textContent || '').trim().replace(/\\s+/g, '');
+                            if (t === '发布' || t.endsWith('发布')) return el;
+                        }
+                        return null;
+                    }
+                    const el = find(document);
+                    if (!el) return false;
+                    el.scrollIntoView({block:'nearest'});
+                    el.click();
+                    return true;
+                }
+            """)
+            if shadow_clicked:
+                log.info("    xhs: JS 点击成功")
+            else:
+                # Coordinate fallback: scan bottom of viewport with elementFromPoint
+                clicked_coord = page.evaluate("""
+                    () => {
+                        const h = window.innerHeight;
+                        const w = window.innerWidth;
+                        for (const yOff of [28, 32, 36, 40, 45]) {
+                            for (const xPct of [0.55, 0.52, 0.58, 0.50, 0.60]) {
+                                const x = Math.round(w * xPct);
+                                const y = h - yOff;
+                                const el = document.elementFromPoint(x, y);
+                                if (el && (el.textContent||'').trim().replace(/\\s+/g,'').includes('发布')) {
+                                    el.click();
+                                    return `clicked at (${x},${y}) el=${el.tagName}.${el.className}`;
+                                }
+                            }
+                        }
+                        return null;
+                    }
+                """)
+                if clicked_coord:
+                    log.info(f"    xhs: 坐标点击成功: {clicked_coord}")
+                else:
+                    # Last resort: blind click at bottom-center of actual viewport
+                    actual_h = page.evaluate("window.innerHeight") or 720
+                    actual_w = page.evaluate("window.innerWidth") or 1280
+                    bx = int(actual_w * 0.55)
+                    by = actual_h - 30
+                    log.warning(f"    xhs: 盲点 ({bx}, {by}) viewport=({actual_w},{actual_h})")
+                    page.mouse.click(bx, by)
+        else:
             try:
-                if publish_btn.is_enabled():
-                    break
+                publish_btn.scroll_into_view_if_needed(timeout=3000)
             except Exception:
                 pass
-            _sleep_with_cancel(1, cancel_event)
-        try:
-            publish_btn.scroll_into_view_if_needed(timeout=3000)
-        except Exception:
-            pass
-        publish_btn.click()
+            try:
+                publish_btn.click(timeout=5000)
+                log.info("    xhs: 发布按钮已点击")
+            except Exception as click_exc:
+                log.warning(f"    xhs: click 失败，尝试 force: {click_exc}")
+                try:
+                    publish_btn.click(force=True, timeout=5000)
+                    log.info("    xhs: 发布按钮已点击 (force)")
+                except Exception as force_exc:
+                    log.warning(f"    xhs: force 失败，尝试 JS: {force_exc}")
+                    publish_frame.evaluate("""
+                        () => {
+                            const btn = document.querySelector('button.ce-btn.bg-red')
+                                || [...document.querySelectorAll('button')]
+                                    .find(b => b.textContent.trim() === '发布');
+                            if (btn) btn.click();
+                        }
+                    """)
+                    log.info("    xhs: 发布按钮已点击（JS fallback）")
     except Exception as exc:
         log.error(f"    xhs: 点击发布失败: {exc}")
         return None

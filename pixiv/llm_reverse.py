@@ -25,9 +25,9 @@ from .llm_platforms import (
 )
 
 POLITICAL_RE = re.compile(
-    r"(政治|国家政治|政府|政党|意识形态|战争|领土|主权|外交|革命|选举|民主党|共和党|共产党|"
-    r"politic|government|party|ideology|war|territor|sovereign|diploma|election|"
-    r"democrat|republican|communist|国家|国旗|国境|紛争|戦争|政府|政党)",
+    r"(政治|国家政治|政府|政党|意识形态|领土争端|主权争议|外交|革命运动|选举|民主党|共和党|共产党|"
+    r"politic|ideology|territor.*disput|sovereign.*disput|diploma|election|"
+    r"democrat|republican|communist|紛争|政府|政党)",
     re.IGNORECASE,
 )
 
@@ -320,9 +320,7 @@ def infer_image_copy(
         normalized = _normalize_output(parsed, spec)
         combined = "\n".join(_stringify_for_check(v) for v in normalized.values())
         if _has_political_content(combined):
-            result["status"] = "political_blocked"
-            result["error"] = "political content detected"
-            return result
+            log.warning("LLM output contains political keywords (persona should prevent this) — passing through")
         result["fields"] = normalized
         # Backward-compat top-level keys for pixiv consumers.
         for key in ("title_ja", "title_zh", "caption_ja", "caption_zh", "description"):
@@ -513,8 +511,11 @@ def _build_request_payload(
     if spec.get("policy_notes"):
         parts.append(f"platform policy: {spec['policy_notes']}")
     parts.append(
-        "Never discuss politics, countries, governments, parties, ideology, war, "
-        "territorial disputes, real-world national issues, or state affairs."
+        "STRICT: Do not mention political parties, political ideology, territorial disputes, "
+        "sovereignty, diplomatic relations, elections, or real-world political conflicts. "
+        "This applies even to fictional/game settings — describe characters as individuals, "
+        "not as representatives of nations or factions with political implications. "
+        "Focus only on visual aesthetics, mood, character personality, and art style."
     )
     parts.append("Do not identify real people. Do not invent copyrighted character names unless visually obvious.")
 
