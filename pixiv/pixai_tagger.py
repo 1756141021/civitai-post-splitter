@@ -50,7 +50,8 @@ class PixAITaggerBridge:
         try:
             arr = self._preprocess(path)
             inp = self._session.get_inputs()[0].name
-            scores = self._session.run(None, {inp: arr})[0][0]
+            outputs = self._session.run(["prediction"], {inp: arr})
+            scores = outputs[0][0]
             return self._decode(scores)
         except Exception as exc:
             return {"available": True, "status": "error", "flat_tags": [], "groups": {}, "details": [f"{type(exc).__name__}: {exc}"]}
@@ -176,11 +177,6 @@ class PixAITaggerBridge:
         arr = arr.transpose(2, 0, 1)  # HWC → CHW
         return arr[None]  # BCHW
 
-    @staticmethod
-    def _sigmoid(x: float) -> float:
-        import math
-        return 1.0 / (1.0 + math.exp(-x)) if x >= -500 else 0.0
-
     def _decode(self, scores) -> dict[str, Any]:
         if self._tags is None:
             return {"available": False, "status": "mapping_missing", "flat_tags": [], "groups": {}, "details": []}
@@ -195,7 +191,7 @@ class PixAITaggerBridge:
             cat = info.get("category", "")
             if not cat or cat not in self._thresholds:
                 continue
-            prob = self._sigmoid(float(score))
+            prob = float(score)
             threshold = self._thresholds[cat]
             if prob < threshold:
                 continue
