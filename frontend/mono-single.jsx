@@ -87,7 +87,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   const prevSortMode   = React.useRef('random');
 
   // Default targets: uploadDefaults (backend) > legacy localStorage > cmd-based.
-  const _cmdDefaultTargets = cmd === 3 ? ['pixiv'] : ['civitai', 'pixiv'];
+  const _cmdDefaultTargets = cmd === 3 ? ['xhs'] : ['civitai', 'pixiv'];
   const _initialTargets = Array.isArray(ud.targets) && ud.targets.length > 0
     ? ud.targets.filter(t => ALL_TARGETS.includes(t))
     : _loadPersistedTargets(_cmdDefaultTargets);
@@ -122,7 +122,13 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   const loadImages = () =>
     fetch('/api/images').then(r => r.json()).then(list => {
       setImages(list);
-      setSelected(prev => prev.size === 0 ? new Set(list.map(f => f.name)) : new Set([...prev].filter(n => list.some(f => f.name === n))));
+      setSelected(prev => {
+        if (prev.size === 0) {
+          const autoSelect = cmd === 3 ? list.filter(f => f.source === 'xhs_upload') : list;
+          return new Set(autoSelect.map(f => f.name));
+        }
+        return new Set([...prev].filter(n => list.some(f => f.name === n)));
+      });
       setLoading(false);
     }).catch(() => setLoading(false));
 
@@ -157,6 +163,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
     setUploading(true);
     const fd = new FormData();
     files.forEach(f => fd.append('files', f));
+    if (cmd === 3) fd.append('folder', 'xhs_upload');
     await fetch('/api/add-upload-files', { method: 'POST', body: fd });
     const newNames = files.map(f => f.name);
     await fetch('/api/images').then(r => r.json()).then(list => {
@@ -260,54 +267,63 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   };
 
   const isManual = sortMode === 'manual';
-  const uploadCount = isManual ? orderedFiles.length : selected.size;
+  const imgUrl = f => `/${f.source || 'upload'}/${encodeURIComponent(f.name)}`;
+  const uploadImgs = sortedImages.filter(f => f.source !== 'xhs_upload');
+  const xhsImgs = sortedImages.filter(f => f.source === 'xhs_upload');
+  const uploadSelCount = uploadImgs.filter(f => selected.has(f.name)).length;
+  const xhsSelCount = xhsImgs.filter(f => selected.has(f.name)).length;
+  const totalSel = isManual ? orderedFiles.length : (uploadSelCount + xhsSelCount);
+  const totalAll = uploadImgs.length + xhsImgs.length;
+  const uploadCount = totalSel;
+
+  const _renderGrid = files => (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(80px,1fr))', gap:5 }}>
+      {files.map(f => {
+        const sel = selected.has(f.name);
+        return (
+          <div key={`${f.source}:${f.name}`} onClick={() => toggle(f.name)}
+               style={{ cursor:'pointer', borderRadius:5, border:`2px solid ${sel ? M.accent : M.line}`,
+                        overflow:'hidden', position:'relative', background:M.bg }}>
+            <img src={imgUrl(f)} alt={f.name} loading="lazy"
+                 style={{ width:'100%', aspectRatio:'1', objectFit:'cover', display:'block' }} />
+            <div style={{ position:'absolute', top:3, right:3, width:14, height:14, borderRadius:'50%',
+                          background: sel ? M.accent : 'rgba(0,0,0,0.45)', display:'grid', placeItems:'center' }}>
+              {sel && <span style={{ color:'#fff', fontSize:9, lineHeight:1 }}>✓</span>}
+            </div>
+            <div style={{ padding:'1px 3px', fontSize:8.5, fontFamily:M.mono, color:M.inkFaint,
+                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', background:M.panel }}>
+              {f.name}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 640, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '14px 18px 10px', borderBottom: `1px solid ${M.line}` }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>{label}</div>
-          <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>
-            {loading ? '加载中…' : isManual
-              ? `upload/ 共 ${images.length} 张 · 已排序 ${orderedFiles.length} 张`
-              : `upload/ 共 ${images.length} 张 · 已选 ${selected.size} 张`}
+      <div style={{ background: M.panel, borderRadius: 8, border: `1px solid ${M.line}`, width: 920, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ padding: '14px 18px 10px', borderBottom: `1px solid ${M.line}`, flexShrink: 0, display: 'flex', alignItems: 'baseline', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+            <div className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>
+              {loading ? '加载中…' : isManual ? `已排序 ${orderedFiles.length} 张` : `已选 ${totalSel} 张`}
+            </div>
           </div>
-        </div>
-
-        <div style={{ padding: '8px 18px', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <select className="mn-input" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ fontSize: 12, width: 110 }}>
+          <select className="mn-input" value={sortMode} onChange={e => setSortMode(e.target.value)} style={{ fontSize: 11, width: 100 }}>
             {SORT_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          {!isManual && <>
-            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
-                    onClick={() => setSelected(new Set(images.map(f => f.name)))}>全选</button>
-            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
-                    onClick={() => setSelected(new Set())}>清空</button>
-            <input className="mn-input" value={pickN} onChange={e => setPickN(e.target.value)}
-                   onKeyDown={e => e.key === 'Enter' && selectTopN(pickN)}
-                   placeholder="N" style={{ width: 36, fontSize: 12, textAlign: 'center' }}
-                   title="输入数字后回车或点按钮，按当前排序选前 N 张" />
-            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
-                    onClick={() => selectTopN(pickN)}>选前N</button>
-          </>}
-          <div style={{ marginLeft: 'auto' }}>
-            <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={addFiles} />
-            <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12 }}
-                    onClick={() => fileInputRef.current.click()} disabled={uploading}>
-              <MIcon name="plus" size={12} /> {uploading ? '导入中…' : '添加文件'}
-            </button>
-          </div>
+          <input ref={fileInputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={addFiles} />
+          <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '3px 8px' }}
+                  onClick={() => fileInputRef.current.click()} disabled={uploading}>
+            {uploading ? '导入中…' : '+ 添加'}
+          </button>
         </div>
 
-        <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>
-          {loading && <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>}
-          {!loading && images.length === 0 && (
-            <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>
-              upload/ 为空。点"添加文件"从电脑上选图。
-            </div>
-          )}
-
-          {!loading && isManual ? (
+        {/* ZONE 1: Dual-pane image grids (or manual mode) */}
+        {!loading && isManual ? (
+          <div style={{ flex: 1, overflow: 'auto', padding: 14 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {orderedFiles.map((f, i) => (
                 <div key={f.name} draggable
@@ -319,7 +335,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
                               border: `1px solid ${M.line}`, background: M.bg, cursor: 'grab', userSelect: 'none' }}>
                   <span style={{ color: M.inkFaint, fontSize: 14, lineHeight: 1, cursor: 'grab' }}>⠿</span>
                   <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim, minWidth: 24, textAlign: 'right' }}>{i + 1}</span>
-                  <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
+                  <img src={imgUrl(f)} alt={f.name} loading="lazy"
                        style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
                   <span style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                   <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '1px 6px', flexShrink: 0 }}
@@ -333,7 +349,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
                     {images.filter(f => !orderedFiles.some(o => o.name === f.name)).map(f => (
                       <div key={f.name} onClick={() => setOrderedFiles(prev => [...prev, f])}
                            style={{ cursor: 'pointer', borderRadius: 6, border: `2px dashed ${M.line}`, overflow: 'hidden', background: M.bg, opacity: 0.7 }}>
-                        <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
+                        <img src={imgUrl(f)} alt={f.name} loading="lazy"
                              style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
                         <div style={{ padding: '2px 4px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
                                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{f.name}</div>
@@ -343,30 +359,85 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
                 </div>
               )}
             </div>
-          ) : !loading && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 10 }}>
-              {sortedImages.map(f => {
-                const sel = selected.has(f.name);
-                return (
-                  <div key={f.name} onClick={() => toggle(f.name)}
-                       style={{ cursor: 'pointer', borderRadius: 6, border: `2px solid ${sel ? M.accent : M.line}`, overflow: 'hidden', position: 'relative', background: M.bg }}>
-                    <img src={`/upload/${encodeURIComponent(f.name)}`} alt={f.name} loading="lazy"
-                         style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
-                    <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%',
-                                  background: sel ? M.accent : 'rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center' }}>
-                      {sel && <span style={{ color: '#fff', fontSize: 11, lineHeight: 1 }}>✓</span>}
-                    </div>
-                    <div style={{ padding: '3px 5px', fontSize: 10, fontFamily: M.mono, color: M.inkFaint,
-                                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: M.panel }}>
-                      {f.name}
-                    </div>
-                  </div>
-                );
-              })}
+          </div>
+        ) : (
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: cmd === 3 ? '1fr' : '1fr 1fr', minHeight: 0, overflow: 'hidden' }}>
+            {/* Left pane: upload/ */}
+            {cmd !== 3 && (
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+                <div style={{ padding: '6px 10px', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint }}>upload/</span>
+                  <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }}
+                          onClick={() => setSelected(prev => { const n = new Set(prev); uploadImgs.forEach(f => n.add(f.name)); return n; })}>全选</button>
+                  <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }}
+                          onClick={() => setSelected(prev => { const n = new Set(prev); uploadImgs.forEach(f => n.delete(f.name)); return n; })}>清空</button>
+                  <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, marginLeft: 'auto' }}>{uploadSelCount}/{uploadImgs.length}</span>
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: 6 }}>
+                  {loading ? <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>
+                    : uploadImgs.length === 0 ? <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 11 }}>upload/ 为空</div>
+                    : _renderGrid(uploadImgs)}
+                </div>
+              </div>
+            )}
+            {/* Right pane: xhs_upload/ */}
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', ...(cmd !== 3 ? { borderLeft: `1px solid ${M.line}` } : {}) }}>
+              <div style={{ padding: '6px 10px', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint }}>xhs_upload/</span>
+                <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }}
+                        onClick={() => setSelected(prev => { const n = new Set(prev); xhsImgs.forEach(f => n.add(f.name)); return n; })}>全选</button>
+                <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '2px 8px' }}
+                        onClick={() => setSelected(prev => { const n = new Set(prev); xhsImgs.forEach(f => n.delete(f.name)); return n; })}>清空</button>
+                <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, marginLeft: 'auto' }}>{xhsSelCount}/{xhsImgs.length}</span>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: 6 }}>
+                {loading ? <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 12 }}>加载中…</div>
+                  : xhsImgs.length === 0 ? <div style={{ textAlign: 'center', color: M.inkFaint, padding: 24, fontFamily: M.mono, fontSize: 11 }}>xhs_upload/ 为空</div>
+                  : _renderGrid(xhsImgs)}
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
+        {/* ZONE 2: Selected preview + unified progress bar */}
+        {!isManual && (
+          <div style={{ borderTop: `1px solid ${M.line}`, flexShrink: 0 }}>
+            {cmd !== 3 && (
+              <div style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 10, minHeight: 48 }}>
+                <div className="mn-mono" style={{ fontSize: 10, color: M.inkFaint, minWidth: 76, flexShrink: 0 }}>upload/</div>
+                <div style={{ flex: 1, display: 'flex', gap: 4, overflowX: 'auto', alignItems: 'center', minHeight: 36, padding: '2px 0' }}>
+                  {uploadSelCount === 0
+                    ? <span className="mn-mono" style={{ fontSize: 10, color: M.inkFaint }}>未选图片</span>
+                    : uploadImgs.filter(f => selected.has(f.name)).map(f => (
+                        <img key={f.name} src={imgUrl(f)} style={{ width: 32, height: 32, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+                      ))
+                  }
+                </div>
+                <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, flexShrink: 0, minWidth: 40, textAlign: 'right' }}>{uploadSelCount}</span>
+              </div>
+            )}
+            <div style={{ padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 10, minHeight: 48, ...(cmd !== 3 ? { borderTop: `1px solid ${M.lineSoft}` } : {}) }}>
+              <div className="mn-mono" style={{ fontSize: 10, color: M.inkFaint, minWidth: 76, flexShrink: 0 }}>xhs_upload/</div>
+              <div style={{ flex: 1, display: 'flex', gap: 4, overflowX: 'auto', alignItems: 'center', minHeight: 36, padding: '2px 0' }}>
+                {xhsSelCount === 0
+                  ? <span className="mn-mono" style={{ fontSize: 10, color: M.inkFaint }}>未选图片</span>
+                  : xhsImgs.filter(f => selected.has(f.name)).map(f => (
+                      <img key={f.name} src={imgUrl(f)} style={{ width: 32, height: 32, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+                    ))
+                }
+              </div>
+              <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, flexShrink: 0, minWidth: 40, textAlign: 'right' }}>{xhsSelCount}</span>
+            </div>
+            <div style={{ padding: '8px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ flex: 1, height: 5, borderRadius: 3, background: M.lineSoft, overflow: 'hidden' }}>
+                <div style={{ width: totalAll > 0 ? `${totalSel / totalAll * 100}%` : '0%', height: '100%', borderRadius: 3, background: M.accent, transition: 'width 0.2s ease' }} />
+              </div>
+              <span className="mn-mono" style={{ fontSize: 12, color: M.inkDim, whiteSpace: 'nowrap', minWidth: 44, textAlign: 'right' }}>{totalSel}/{totalAll}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ZONE 3: Controls */}
         <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginRight: 4 }}>发布到</span>
           <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
@@ -1236,6 +1307,8 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
   const [llmReverse,    setLlmReverse]    = React.useState(!!sched.llm_reverse);
   const [llmPersona,    setLlmPersona]    = React.useState(sched.llm_persona || '');
   const [llmContentMode,setLlmContentMode]= React.useState(sched.llm_content_mode || 'sfw');
+  const [xhsLlmPersona,    setXhsLlmPersona]    = React.useState(sched.xhs_llm_persona || '');
+  const [xhsLlmContentMode,setXhsLlmContentMode]= React.useState(sched.xhs_llm_content_mode || '');
   const [saving,        setSaving]        = React.useState(false);
   const [err,           setErr]           = React.useState('');
 
@@ -1255,6 +1328,7 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
       body: JSON.stringify({
         enabled: true, min_hours: min, max_hours: max, count: cnt, targets, sort: sortMode,
         llm_reverse: llmReverse, llm_persona: llmPersona, llm_content_mode: llmContentMode,
+        xhs_llm_persona: xhsLlmPersona, xhs_llm_content_mode: xhsLlmContentMode,
       }),
     })
       .then(r => r.json())
@@ -1329,6 +1403,22 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
                 </select>
               </>}
             </div>
+            {llmReverse && xhs && (
+              <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: '56px 1fr 76px', gap: 6, alignItems: 'center', paddingLeft: 4 }}>
+                <span style={{ fontSize: 11, color: M.inkDim }}>小红书</span>
+                <select className="mn-input" value={xhsLlmPersona} onChange={e => setXhsLlmPersona(e.target.value)}
+                        style={{ fontSize: 12 }}>
+                  <option value="">（同上）</option>
+                  {personas.map(p => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
+                </select>
+                <select className="mn-input" value={xhsLlmContentMode} onChange={e => setXhsLlmContentMode(e.target.value)}
+                        style={{ fontSize: 12 }}>
+                  <option value="">同上</option>
+                  <option value="sfw">SFW</option>
+                  <option value="nsfw">NSFW</option>
+                </select>
+              </div>
+            )}
           </div>
         )}
 
@@ -1687,7 +1777,7 @@ function OperationsStrip({ runCmd, onStartUpload }) {
   const ops = [
     { key: '1', icon: 'split',   title: 'Split post',     sub: '一帖多图 → 多帖单图',    cmd: 1 },
     { key: '2', icon: 'upload',  title: '多站发布',        sub: _t2 || 'Civitai + Pixiv', cmd: 2, upload: true },
-    { key: '3', icon: 'image',   title: 'Pixiv only',     sub: '跳过 Civitai',           cmd: 3, upload: true },
+    { key: '3', icon: 'image',   title: '小红书发布',      sub: 'xhs_upload/',            cmd: 3, upload: true },
     { key: '4', icon: 'shield',  title: 'R-18 mosaic',    sub: '安装 / 检查',         cmd: 4 },
     { key: '5', icon: 'refresh', title: 'Update',         sub: '检查更新',            cmd: 5 },
   ];

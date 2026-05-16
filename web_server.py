@@ -713,6 +713,11 @@ def upload_file(filename):
     return send_from_directory(SCRIPT_DIR / "upload", filename)
 
 
+@app.route("/xhs_upload/<path:filename>")
+def xhs_upload_file(filename):
+    return send_from_directory(SCRIPT_DIR / "xhs_upload", filename)
+
+
 @app.route("/api/add-upload-files", methods=["POST"])
 def api_add_upload_files():
     folder_name = request.form.get("folder", "upload")
