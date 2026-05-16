@@ -1909,10 +1909,13 @@ def build_pixiv_payload(
         if not isinstance(entry, (tuple, list)) or len(entry) != 2 or float(entry[1]) >= TAGGER_SCORE_THRESHOLDS["character"]
     )
 
-    raw_candidates = []
-    raw_candidates.extend(extract_filename_tokens(image_path, filename_drop_tokens))
-    raw_candidates.extend(split_prompt_tokens(prompt_without_lora))
-    raw_candidates.extend(extract_lora_tokens(positive_prompt))
+    # age check only uses prompt/filename — tagger tags excluded (false positive risk)
+    age_candidates = []
+    age_candidates.extend(extract_filename_tokens(image_path, filename_drop_tokens))
+    age_candidates.extend(split_prompt_tokens(prompt_without_lora))
+    age_candidates.extend(extract_lora_tokens(positive_prompt))
+
+    raw_candidates = list(age_candidates)
     raw_candidates.extend(extra_candidates or [])
     for entries in extra_groups.values():
         for entry in entries or []:
@@ -2079,7 +2082,7 @@ def build_pixiv_payload(
     domain = _domain_from_semantics(semantic_entries)
     age_restriction = stronger_age_restriction(
         infer_age_restriction(image_path, age_rules),
-        infer_candidate_age_restriction(dedup_raw, age_rules),
+        infer_candidate_age_restriction(age_candidates, age_rules),
     )
 
     if not any(item["semantic"] == "ai_art" for item in semantic_entries):

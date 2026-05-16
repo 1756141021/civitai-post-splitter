@@ -176,6 +176,11 @@ class PixAITaggerBridge:
         arr = arr.transpose(2, 0, 1)  # HWC → CHW
         return arr[None]  # BCHW
 
+    @staticmethod
+    def _sigmoid(x: float) -> float:
+        import math
+        return 1.0 / (1.0 + math.exp(-x)) if x >= -500 else 0.0
+
     def _decode(self, scores) -> dict[str, Any]:
         if self._tags is None:
             return {"available": False, "status": "mapping_missing", "flat_tags": [], "groups": {}, "details": []}
@@ -190,14 +195,15 @@ class PixAITaggerBridge:
             cat = info.get("category", "")
             if not cat or cat not in self._thresholds:
                 continue
+            prob = self._sigmoid(float(score))
             threshold = self._thresholds[cat]
-            if float(score) < threshold:
+            if prob < threshold:
                 continue
             name = info.get("name", "")
             if not name:
                 continue
-            groups[cat].append((name, round(float(score), 4)))
-            flat.append({"tag": name, "score": round(float(score), 4), "category": cat})
+            groups[cat].append((name, round(prob, 4)))
+            flat.append({"tag": name, "score": round(prob, 4), "category": cat})
 
         flat.sort(key=lambda x: x["score"], reverse=True)
         for cat in groups:

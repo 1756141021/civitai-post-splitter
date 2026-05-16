@@ -195,7 +195,7 @@ _CATEGORY_MAP = {
     "Character": "character",
 }
 _SKIP_CATEGORIES = {"rating", "artist"}
-_THRESHOLDS = {"general": 0.35, "character": 0.85, "copyright": 0.5}
+_THRESHOLDS = {"general": 0.58, "character": 0.70, "copyright": 0.5}
 _DEFAULT_THRESHOLD = 0.5
 
 
@@ -212,6 +212,7 @@ class StandaloneTaggerBridge:
         self._session = None
         self._tags: list[dict] | None = None
         self._status = "uninitialized"
+        self._channel_first = False
         self._model_dir = self._load_model_dir()
 
     # ------------------------------------------------------------------
@@ -283,13 +284,16 @@ class StandaloneTaggerBridge:
             self._status = f"model_load_error:{exc}"
             return False
 
-        # Detect input size from model shape
+        # Detect input layout and size from model shape
         try:
             shape = self._session.get_inputs()[0].shape  # [B, H, W, C] or [B, C, H, W]
-            if len(shape) == 4 and isinstance(shape[1], int) and shape[1] > 3:
-                self._INPUT_SIZE = shape[1]
-            elif len(shape) == 4 and isinstance(shape[2], int) and shape[2] > 3:
-                self._INPUT_SIZE = shape[2]
+            if len(shape) == 4 and isinstance(shape[1], int):
+                if shape[1] == 3:
+                    self._channel_first = True
+                    if isinstance(shape[2], int) and shape[2] > 3:
+                        self._INPUT_SIZE = shape[2]
+                elif shape[1] > 3:
+                    self._INPUT_SIZE = shape[1]
         except Exception:
             pass
 
@@ -364,9 +368,20 @@ class StandaloneTaggerBridge:
         padded.paste(img, ((size - img.width) // 2, (size - img.height) // 2))
 
         resized = padded.resize((self._INPUT_SIZE, self._INPUT_SIZE), Image.BICUBIC)
-        arr = __import__("numpy").array(resized, dtype=__import__("numpy").float32)
-        arr = arr[:, :, ::-1]  # RGB → BGR (WD14 convention)
+        import numpy as np
+        arr = np.array(resized, dtype=np.float32) / 255.0
+        arr = arr[:, :, ::-1]  # RGB → BGR
+        if self._channel_first:
+            arr = arr.transpose(2, 0, 1)  # HWC → CHW
+            mean = np.array([0.5, 0.5, 0.5], dtype=np.float32).reshape(3, 1, 1)
+            std = np.array([0.5, 0.5, 0.5], dtype=np.float32).reshape(3, 1, 1)
+            arr = (arr - mean) / std
         return arr[None]  # add batch dim
+
+    @staticmethod
+    def _sigmoid(x: float) -> float:
+        import math
+        return 1.0 / (1.0 + math.exp(-x)) if x >= -500 else 0.0
 
     def _decode(self, scores) -> dict[str, Any]:
         if self._tags is None:
@@ -383,14 +398,15 @@ class StandaloneTaggerBridge:
             cat = _CATEGORY_MAP.get(cat_raw, cat_raw.lower())
             if cat in _SKIP_CATEGORIES:
                 continue
+            prob = self._sigmoid(float(score))
             threshold = _THRESHOLDS.get(cat, _DEFAULT_THRESHOLD)
-            if float(score) < threshold:
+            if prob < threshold:
                 continue
             name = info.get("name", "")
             if not name:
                 continue
-            groups.setdefault(cat, []).append((name, round(float(score), 4)))
-            flat.append({"tag": name, "score": round(float(score), 4), "category": cat})
+            groups.setdefault(cat, []).append((name, round(prob, 4)))
+            flat.append({"tag": name, "score": round(prob, 4), "category": cat})
 
         flat.sort(key=lambda x: x["score"], reverse=True)
         for cat in groups:
