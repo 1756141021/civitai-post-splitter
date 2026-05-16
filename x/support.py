@@ -119,12 +119,16 @@ def normalize_hashtag(raw: str) -> str:
 
 
 def choose_template(age_restriction: str, base_template: str, templates: dict[str, dict[str, Any]]) -> str:
-    """If image is r18/r18g, switch to the *_nsfw counterpart of base_template."""
+    """Upgrade sfw→nsfw for r18/r18g; downgrade nsfw→sfw for non-r18."""
     is_nsfw = age_restriction in {"r18", "r18g"}
     if is_nsfw and not base_template.endswith("_nsfw"):
         nsfw_name = base_template.replace("_sfw", "_nsfw") if base_template.endswith("_sfw") else f"{base_template}_nsfw"
         if nsfw_name in templates:
             return nsfw_name
+    elif not is_nsfw and base_template.endswith("_nsfw"):
+        sfw_name = base_template.replace("_nsfw", "_sfw")
+        if sfw_name in templates:
+            return sfw_name
     if base_template in templates:
         return base_template
     for candidate in ("en_sfw", "jp_sfw"):
@@ -171,9 +175,10 @@ def pick_x_tags(
 
     has_entity = False
     for ent in entity_tags or []:
+        if len(picked) >= max(1, limit - 1):
+            break
         if _try_add(ent, "character"):
             has_entity = True
-            break  # only the top entity, hard rule
 
     _try_add(template.get("core", ""), "core")
 
@@ -329,7 +334,7 @@ def build_x_payload(
                 if title:
                     break
     if not title:
-        title = str((copy.get("xhs") or {}).get("title", "") or "").strip()
+        title = str(((copy or {}).get("xhs") or {}).get("title", "") or "").strip()
 
     if not caption:
         for _fb in ("zh", "ja", "en"):
@@ -338,7 +343,7 @@ def build_x_payload(
                 if caption:
                     break
     if not caption:
-        caption = str((copy.get("xhs") or {}).get("body", "") or "").strip()
+        caption = str(((copy or {}).get("xhs") or {}).get("body", "") or "").strip()
 
     text = build_text(
         title="",

@@ -74,7 +74,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   const [llmContentMode, setLlmContentMode] = React.useState(ud.llm_content_mode || 'sfw');
   const [llmMode,               setLlmMode]               = React.useState(ud.llm_mode || 'unified');
   const [llmPersonasByPlatform, setLlmPersonasByPlatform] = React.useState(ud.llm_personas_by_platform || { pixiv: '', x: '', xhs: '' });
-  const [llmContentByPlatform,  setLlmContentByPlatform]  = React.useState(ud.llm_content_modes_by_platform || { pixiv: 'sfw', x: 'sfw', xhs: 'sfw' });
+  const [llmContentByPlatform,  setLlmContentByPlatform]  = React.useState(ud.llm_content_modes_by_platform || { pixiv: ud.llm_content_mode || 'sfw', x: ud.llm_content_mode || 'sfw', xhs: ud.llm_content_mode || 'sfw' });
   const [xTemplate,    setXTemplate]    = React.useState(() => ud.x_template   ?? (localStorage.getItem('civitai-splitter:x-template')   || ''));
   const [xhsTemplate,  setXhsTemplate]  = React.useState(() => ud.xhs_template ?? (localStorage.getItem('civitai-splitter:xhs-template') || ''));
   const [saving,    setSaving]    = React.useState(false);

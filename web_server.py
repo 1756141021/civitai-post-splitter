@@ -688,16 +688,23 @@ def api_llm_reverse_config_post():
     return jsonify(mask_llm_config(next_cfg))
 
 
+def _list_upload_dir(folder: Path, source: str) -> list:
+    if not folder.exists():
+        return []
+    exts = {'.jpg', '.jpeg', '.png', '.webp'}
+    return [
+        {"name": f.name, "size": f.stat().st_size, "mtime": f.stat().st_mtime, "source": source}
+        for f in sorted(folder.iterdir())
+        if f.is_file() and f.suffix.lower() in exts
+    ]
+
+
 @app.route("/api/images")
 def api_images():
-    upload_dir = SCRIPT_DIR / "upload"
-    if not upload_dir.exists():
-        return jsonify([])
-    exts = {'.jpg', '.jpeg', '.png', '.webp'}
-    files = []
-    for f in sorted(upload_dir.iterdir()):
-        if f.is_file() and f.suffix.lower() in exts:
-            files.append({"name": f.name, "size": f.stat().st_size, "mtime": f.stat().st_mtime})
+    files = (
+        _list_upload_dir(SCRIPT_DIR / "upload", "upload")
+        + _list_upload_dir(SCRIPT_DIR / "xhs_upload", "xhs_upload")
+    )
     return jsonify(files)
 
 
@@ -708,7 +715,10 @@ def upload_file(filename):
 
 @app.route("/api/add-upload-files", methods=["POST"])
 def api_add_upload_files():
-    upload_dir = SCRIPT_DIR / "upload"
+    folder_name = request.form.get("folder", "upload")
+    if folder_name not in ("upload", "xhs_upload"):
+        folder_name = "upload"
+    upload_dir = SCRIPT_DIR / folder_name
     upload_dir.mkdir(exist_ok=True)
     saved = []
     for f in request.files.getlist("files"):
@@ -717,12 +727,15 @@ def api_add_upload_files():
             dest = upload_dir / fname
             f.save(str(dest))
             saved.append(fname)
-    return jsonify({"saved": saved})
+    return jsonify({"saved": saved, "folder": folder_name})
 
 
 @app.route("/api/open-folder")
 def api_open_folder():
-    upload_dir = SCRIPT_DIR / "upload"
+    folder_name = request.args.get("folder", "upload")
+    if folder_name not in ("upload", "xhs_upload"):
+        folder_name = "upload"
+    upload_dir = SCRIPT_DIR / folder_name
     upload_dir.mkdir(exist_ok=True)
     try:
         os.startfile(str(upload_dir))
@@ -1174,7 +1187,8 @@ def api_xhs_open_login():
 def _sched_default() -> dict:
     return {"enabled": False, "targets": "civitai,pixiv", "count": 1, "sort": "random",
             "min_hours": 0.4, "max_hours": 0.8, "next_fire_at": None,
-            "llm_reverse": False, "llm_persona": "", "llm_account": "", "llm_content_mode": ""}
+            "llm_reverse": False, "llm_persona": "", "llm_account": "", "llm_content_mode": "",
+            "xhs_llm_persona": "", "xhs_llm_content_mode": ""}
 
 
 def _broadcast_scheduler(sched: dict) -> None:
@@ -1244,6 +1258,20 @@ def _scheduler_fire() -> None:
             "llm_account": sched.get("llm_account", ""),
             "llm_content_mode": sched.get("llm_content_mode", ""),
         }
+        xhs_persona = sched.get("xhs_llm_persona", "")
+        xhs_mode = sched.get("xhs_llm_content_mode", "") or sched.get("llm_content_mode", "sfw")
+        if xhs_persona and "xhs" in targets_str.lower():
+            from civitai_splitter import PLATFORM_RULES
+            copy_platforms = [t.strip() for t in targets_str.split(",")
+                              if PLATFORM_RULES.get(t.strip(), {}).get("needs_copy")]
+            params["llm_personas_by_platform"] = {
+                t: (xhs_persona if t == "xhs" else sched.get("llm_persona", ""))
+                for t in copy_platforms
+            }
+            params["llm_content_modes_by_platform"] = {
+                t: (xhs_mode if t == "xhs" else sched.get("llm_content_mode", "sfw"))
+                for t in copy_platforms
+            }
         task_id = uuid.uuid4().hex[:8]
         label, target = CMD_LABELS[cmd]
         task = {
@@ -1295,6 +1323,10 @@ def api_scheduler():
         sched["llm_account"] = str(body["llm_account"])
     if "llm_content_mode" in body:
         sched["llm_content_mode"] = body["llm_content_mode"] if body["llm_content_mode"] in ("sfw", "nsfw", "") else ""
+    if "xhs_llm_persona" in body:
+        sched["xhs_llm_persona"] = str(body["xhs_llm_persona"])
+    if "xhs_llm_content_mode" in body:
+        sched["xhs_llm_content_mode"] = body["xhs_llm_content_mode"] if body["xhs_llm_content_mode"] in ("sfw", "nsfw", "") else ""
     if sched.get("min_hours", 1.0) > sched.get("max_hours", 3.0):
         return jsonify({"error": "min_hours > max_hours"}), 400
     if any(k in body for k in ("enabled", "min_hours", "max_hours")):

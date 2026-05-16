@@ -170,6 +170,18 @@ def account_can_handle_age(account: dict[str, Any] | None, image_age: str) -> bo
     return account_tier >= image_tier
 
 
+def content_mode_can_handle_age(content_mode: str, image_age: str) -> bool:
+    """Check if the requested content_mode covers the image's age level.
+
+    nsfw → handles all ages. sfw → only handles sfw/all_ages (tier 0).
+    This is the user-facing gate: what the user asked to generate determines
+    which images get LLM inference, not the account's backend capability.
+    """
+    if _normalize_content_mode(content_mode) == "nsfw":
+        return True
+    return _NSFW_TIER.get(image_age, 0) == 0
+
+
 def resolve_account(
     config: dict[str, Any] | None,
     account_id: str = "",
@@ -579,14 +591,20 @@ def _render_samples_block(persona: dict[str, Any], mode: str, spec: dict[str, An
 
 
 def _chat_completions_url(base_url: str) -> str:
+    from urllib.parse import urlparse
     base = base_url.strip()
     if base.lower().endswith("/chat/completions"):
         return base
     if not base.endswith("/"):
         base += "/"
-    if base.lower().endswith("v1/"):
-        return urljoin(base, "chat/completions")
-    return urljoin(base, "v1/chat/completions")
+    # If the URL already has a non-root path (e.g. /openai/ or /v1/),
+    # the caller has provided a versioned/prefixed base — just append
+    # chat/completions. Only fall back to v1/chat/completions when the
+    # base path is bare root ("/").
+    parsed_path = urlparse(base).path
+    if parsed_path in ("/", ""):
+        return urljoin(base, "v1/chat/completions")
+    return urljoin(base, "chat/completions")
 
 
 def _parse_data_url(data_url: str) -> tuple[str, str]:

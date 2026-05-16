@@ -291,10 +291,11 @@ def build_xhs_payload(
                 tags.append(norm_ai)
         tag_pick = {"tags": tags, "sources": {"character_tags": [], "template_tag": "", "social_tag": "", "ai_tag": ai_tag}}
     else:
-        # Never pass raw Pixiv entity_tags to XHS — they are almost always Japanese.
-        # Template + ai_tag are sufficient and always Chinese.
+        # Prefer Chinese entity tags; fall back to Japanese form if zh not available.
+        xhs_entity_tags = (pixiv_payload or {}).get("entity_tags_zh") or \
+                          (pixiv_payload or {}).get("entity_tags") or []
         tag_pick = pick_xhs_tags(
-            entity_tags=[],
+            entity_tags=xhs_entity_tags,
             template=template,
             ai_tag=ai_tag,
             limit=tag_limit,

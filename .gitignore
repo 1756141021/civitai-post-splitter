@@ -6,6 +6,7 @@ __pycache__/
 # Personal upload history & queues
 done/
 upload/
+xhs_upload/
 manifests/
 progress/
 pixiv/rule_fit/

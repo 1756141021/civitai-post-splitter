@@ -2192,6 +2192,10 @@ def build_pixiv_payload(
     protected_entity_entries = [item for item in content_entries if is_fanart_entity(item)]
     normal_content_entries = [item for item in content_entries if not is_fanart_entity(item)]
 
+    # Safety net: fanart entities found → domain must be fanart
+    if protected_entity_entries and domain != "fanart":
+        domain = "fanart"
+
     protected_entity_entries.sort(key=fanart_entity_key)
     required_entries.sort(key=lambda item: int(item.get("source_order", 9999)))
     normal_content_entries.sort(key=heat_key)
@@ -2199,6 +2203,7 @@ def build_pixiv_payload(
     final_tags = []
     final_tag_translations = []
     entity_tags: list[str] = []
+    entity_tags_zh: list[str] = []
     seen_display = set()
     _ENTITY_CLASSES = {"character", "franchise", "copyright", "identity"}
 
@@ -2211,6 +2216,7 @@ def build_pixiv_payload(
         final_tag_translations.append(item["zh"])
         if item.get("class") in _ENTITY_CLASSES:
             entity_tags.append(display)
+            entity_tags_zh.append(item.get("zh") or display)
 
     for entries in (protected_entity_entries, required_entries, normal_content_entries):
         for item in entries:
@@ -2244,6 +2250,7 @@ def build_pixiv_payload(
         "final_tags": final_tags,
         "final_tag_translations": final_tag_translations,
         "entity_tags": entity_tags,
+        "entity_tags_zh": entity_tags_zh,
         "domain": domain,
         "title_ja": title_ja,
         "title_zh": title_zh,
