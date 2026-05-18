@@ -28,6 +28,7 @@ X_DIR = Path(__file__).parent
 X_BASE = "https://x.com"
 X_COMPOSE_URL = f"{X_BASE}/compose/post"
 X_PROFILE_DIR = Path.home() / ".civitai_splitter_x_chrome"
+_LAST_PUBLISH_FILE = Path(__file__).parent / ".last_publish_ts"
 
 # Templates: each has `core` (the big-pool AI tag) and `social` (the community
 # connection tag, used only when no entity tag is available).
@@ -50,6 +51,7 @@ DEFAULT_SETTINGS = {
     "default_template": "en_sfw",
     "publish_timeout_sec": 90,
     "post_delay_sec": 4,
+    "min_interval_seconds": 600,
 }
 
 X_SELECTORS = {
@@ -439,21 +441,6 @@ def _load_cookies_into_context(context, cookies_path: Path) -> int:
     return len(cookies)
 
 
-_STEALTH_INIT_JS = """
-Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-window.chrome = window.chrome || { runtime: {} };
-Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en-US', 'en'] });
-Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-const origQuery = window.navigator.permissions && window.navigator.permissions.query;
-if (origQuery) {
-  window.navigator.permissions.query = (parameters) =>
-    parameters && parameters.name === 'notifications'
-      ? Promise.resolve({ state: Notification.permission })
-      : origQuery(parameters);
-}
-"""
-
-
 def open_x_browser(pw, profile_dir: Path | None = None):
     """Launch persistent Chrome context for X with light anti-detection."""
     target_profile = profile_dir or X_PROFILE_DIR
@@ -465,18 +452,9 @@ def open_x_browser(pw, profile_dir: Path | None = None):
             "--start-maximized",
             "--disable-sync",
             "--no-first-run",
-            "--disable-blink-features=AutomationControlled",
         ],
         ignore_default_args=["--enable-automation", "--no-sandbox"],
-        user_agent=(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-        ),
     )
-    try:
-        context.add_init_script(_STEALTH_INIT_JS)
-    except Exception:
-        pass
 
     cookies_path = X_DIR / "cookies.json"
     if cookies_path.exists():
@@ -548,6 +526,82 @@ def _sleep_with_cancel(sec: float, cancel_event) -> None:
         time.sleep(min(0.5, max(0.0, end - time.time())))
 
 
+def _human_type(page, text: str, *, cancel_event=None) -> None:
+    """Keystroke-by-keystroke typing with human-like timing variance."""
+    for i, ch in enumerate(text):
+        _raise_if_canceled(cancel_event)
+        delay_s = max(0.02, random.gauss(0.07, 0.025))
+        if i > 0 and random.random() < 0.06:
+            time.sleep(random.uniform(0.15, 0.4))
+        if random.random() < 0.012 and ch.isascii() and ch.isalpha():
+            wrong = chr(ord(ch) + random.choice([-1, 1]))
+            page.keyboard.type(wrong)
+            time.sleep(random.uniform(0.08, 0.25))
+            page.keyboard.press("Backspace")
+            time.sleep(random.uniform(0.05, 0.12))
+        page.keyboard.type(ch)
+        time.sleep(delay_s)
+
+
+def _human_move_and_click(page, locator, *, cancel_event=None) -> None:
+    """Move mouse along a bezier curve to the element, then click."""
+    _raise_if_canceled(cancel_event)
+    try:
+        box = locator.bounding_box(timeout=3000)
+    except Exception:
+        box = None
+    if not box:
+        locator.click()
+        return
+    target_x = box["x"] + box["width"] / 2 + random.uniform(-3, 3)
+    target_y = box["y"] + box["height"] / 2 + random.uniform(-3, 3)
+    try:
+        current = page.evaluate(
+            "() => ({x: window._lastMouseX || 640, y: window._lastMouseY || 360})"
+        )
+        cx, cy = current["x"], current["y"]
+    except Exception:
+        cx, cy = 640.0, 360.0
+    steps = random.randint(15, 30)
+    cp1x = cx + (target_x - cx) * 0.3 + random.uniform(-50, 50)
+    cp1y = cy + (target_y - cy) * 0.3 + random.uniform(-30, 30)
+    cp2x = cx + (target_x - cx) * 0.7 + random.uniform(-30, 30)
+    cp2y = cy + (target_y - cy) * 0.7 + random.uniform(-20, 20)
+    for i in range(steps + 1):
+        t = i / steps
+        x = (1 - t) ** 3 * cx + 3 * (1 - t) ** 2 * t * cp1x + 3 * (1 - t) * t ** 2 * cp2x + t ** 3 * target_x
+        y = (1 - t) ** 3 * cy + 3 * (1 - t) ** 2 * t * cp1y + 3 * (1 - t) * t ** 2 * cp2y + t ** 3 * target_y
+        page.mouse.move(x, y)
+        time.sleep(random.uniform(0.005, 0.02))
+    page.evaluate(
+        f"() => {{ window._lastMouseX = {target_x}; window._lastMouseY = {target_y}; }}"
+    )
+    time.sleep(random.uniform(0.05, 0.15))
+    page.mouse.click(target_x, target_y)
+
+
+def _enforce_min_interval(settings: dict, cancel_event=None) -> None:
+    """Block until min_interval_seconds have elapsed since last publish."""
+    min_sec = float(settings.get("min_interval_seconds", 600))
+    actual_min = min_sec * random.uniform(0.8, 1.2)
+    try:
+        last_ts = float(_LAST_PUBLISH_FILE.read_text(encoding="utf-8").strip())
+    except (FileNotFoundError, ValueError, OSError):
+        return
+    elapsed = time.time() - last_ts
+    if elapsed < actual_min:
+        wait = actual_min - elapsed
+        log.info(f"    X: 距上次发布 {elapsed:.0f}s，需等待 {wait:.0f}s")
+        _sleep_with_cancel(wait, cancel_event)
+
+
+def _record_publish_time() -> None:
+    try:
+        _LAST_PUBLISH_FILE.write_text(str(time.time()), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def create_x_post(
     page,
     payload: dict[str, Any],
@@ -561,13 +615,14 @@ def create_x_post(
     """Post one tweet with 1..4 images. Returns the tweet URL or None."""
     settings = settings or DEFAULT_SETTINGS
     _raise_if_canceled(cancel_event)
+    _enforce_min_interval(settings, cancel_event)
 
     try:
         page.goto(X_COMPOSE_URL, wait_until="commit", timeout=30000)
     except Exception as exc:
         log.error(f"    X: compose 跳转失败: {exc}")
         return None
-    _sleep_with_cancel(3, cancel_event)
+    _sleep_with_cancel(random.uniform(2, 5), cancel_event)
 
     file_input = None
     for _ in range(12):
@@ -595,11 +650,10 @@ def create_x_post(
     if payload.get("text"):
         try:
             ta = page.locator(X_SELECTORS["compose_textarea"]).first
-            ta.click()
-            ta.type(payload["text"], delay=15)
-            # Space after last hashtag closes the autocomplete dropdown
+            _human_move_and_click(page, ta, cancel_event=cancel_event)
+            _human_type(page, payload["text"], cancel_event=cancel_event)
             page.keyboard.press("Space")
-            _sleep_with_cancel(0.5, cancel_event)
+            _sleep_with_cancel(random.uniform(0.3, 1.0), cancel_event)
         except Exception as exc:
             log.warning(f"    X: 写正文失败: {exc}")
 
@@ -608,11 +662,14 @@ def create_x_post(
         try:
             alt_btns = page.locator(X_SELECTORS["alt_button"])
             for i in range(min(alt_btns.count(), len(image_paths))):
-                alt_btns.nth(i).click()
-                _sleep_with_cancel(1, cancel_event)
+                _human_move_and_click(page, alt_btns.nth(i), cancel_event=cancel_event)
+                _sleep_with_cancel(random.uniform(0.8, 2.0), cancel_event)
                 page.locator(X_SELECTORS["alt_textarea"]).fill(alt)
-                page.locator(X_SELECTORS["alt_save_button"]).click()
-                _sleep_with_cancel(1, cancel_event)
+                _human_move_and_click(
+                    page, page.locator(X_SELECTORS["alt_save_button"]).first,
+                    cancel_event=cancel_event,
+                )
+                _sleep_with_cancel(random.uniform(0.8, 2.0), cancel_event)
         except Exception as exc:
             log.warning(f"    X: alt 文本填充失败（跳过）: {exc}")
 
@@ -627,13 +684,16 @@ def create_x_post(
                     break
             except Exception:
                 pass
-            _sleep_with_cancel(1, cancel_event)
+            _sleep_with_cancel(random.uniform(0.8, 1.5), cancel_event)
     except Exception:
         pass
 
     posted = False
     try:
-        page.locator(X_SELECTORS["post_button"]).first.click(timeout=10000)
+        _human_move_and_click(
+            page, page.locator(X_SELECTORS["post_button"]).first,
+            cancel_event=cancel_event,
+        )
         log.info("    X: 点击 Post 按钮")
         posted = True
     except Exception as exc:
@@ -642,7 +702,7 @@ def create_x_post(
     if not posted:
         try:
             ta = page.locator(X_SELECTORS["compose_textarea"]).first
-            ta.click()
+            _human_move_and_click(page, ta, cancel_event=cancel_event)
             page.keyboard.press("Control+Enter")
             log.info("    X: 已发送 Ctrl+Enter")
             posted = True
@@ -654,15 +714,16 @@ def create_x_post(
     for _ in range(int(settings.get("publish_timeout_sec", 90)) // 2):
         _sleep_with_cancel(2, cancel_event)
         try:
-            # Post button is modal-specific; disappears when compose closes after send
             if page.locator(X_SELECTORS["post_button"]).count() == 0:
-                time.sleep(float(delay) + random.uniform(1, 3))
+                _record_publish_time()
+                _sleep_with_cancel(float(delay) + random.uniform(1, 3), cancel_event)
                 return page.url or "https://x.com/"
         except Exception:
             pass
         m = status_re.search(page.url or "")
         if m:
-            time.sleep(float(delay) + random.uniform(1, 3))
+            _record_publish_time()
+            _sleep_with_cancel(float(delay) + random.uniform(1, 3), cancel_event)
             return m.group(0)
 
     log.error("    X: 发布超时未确认")

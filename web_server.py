@@ -784,6 +784,7 @@ def api_status():
         "civitai_logged_in": CIVITAI_PROFILE_DIR.exists(),
         "x_logged_in":       (X_DIR / "cookies.json").exists(),
         "xhs_logged_in":     XHS_PROFILE_DIR.exists(),
+        "xhs_cdp_url":       cfg.get("xhs_cdp_url") or "",
         "scheduler":         {**_sched_default(), **(cfg.get("scheduler") or {})},
         "llm_reverse_enabled": bool(llm_cfg.get("enabled")),
         "llm_reverse_configured": bool(llm_cfg.get("base_url") and llm_cfg.get("api_key") and llm_cfg.get("model")),
@@ -1019,27 +1020,23 @@ def api_civitai_logout():
 def api_pixiv_open_login():
     def _launch():
         try:
-            from playwright.sync_api import sync_playwright
+            from patchright.sync_api import sync_playwright
             with sync_playwright() as pw:
                 context = pw.chromium.launch_persistent_context(
                     str(PIXIV_PROFILE_DIR),
                     channel="chrome",
                     headless=False,
-                    args=["--start-maximized", "--disable-sync", "--no-first-run",
-                          "--disable-blink-features=AutomationControlled"],
+                    args=["--start-maximized", "--disable-sync", "--no-first-run"],
                     ignore_default_args=["--enable-automation", "--no-sandbox"],
-                    user_agent=(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-                    ),
                 )
                 page = context.pages[0] if context.pages else context.new_page()
                 try:
                     page.goto("https://www.pixiv.net/", wait_until="commit", timeout=30000)
                 except Exception:
                     pass
+                deadline = time.time() + 600
                 try:
-                    while context.pages:
+                    while context.pages and time.time() < deadline:
                         time.sleep(1)
                 except Exception:
                     pass
@@ -1057,27 +1054,23 @@ def api_pixiv_open_login():
 def api_civitai_open_login():
     def _launch():
         try:
-            from playwright.sync_api import sync_playwright
+            from patchright.sync_api import sync_playwright
             with sync_playwright() as pw:
                 context = pw.chromium.launch_persistent_context(
                     str(CIVITAI_PROFILE_DIR),
                     channel="chrome",
                     headless=False,
-                    args=["--start-maximized", "--disable-sync", "--no-first-run",
-                          "--disable-blink-features=AutomationControlled"],
+                    args=["--start-maximized", "--disable-sync", "--no-first-run"],
                     ignore_default_args=["--enable-automation", "--no-sandbox"],
-                    user_agent=(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-                    ),
                 )
                 page = context.pages[0] if context.pages else context.new_page()
                 try:
                     page.goto("https://civitai.com/", wait_until="commit", timeout=30000)
                 except Exception:
                     pass
+                deadline = time.time() + 600
                 try:
-                    while context.pages:
+                    while context.pages and time.time() < deadline:
                         time.sleep(1)
                 except Exception:
                     pass
@@ -1155,31 +1148,39 @@ def api_xhs_logout():
 def api_xhs_open_login():
     def _launch():
         try:
-            from playwright.sync_api import sync_playwright
+            from patchright.sync_api import sync_playwright
+            from xhs.stealth_scripts import FINGERPRINT_INIT_SCRIPT
+            from xhs.support import _ensure_chrome_cdp, _DEFAULT_CDP_URL, XHS_PROFILE_DIR as _XHS_PROF
+            from civitai_splitter import load_app_config
+            cdp_url = load_app_config().get("xhs_cdp_url") or _DEFAULT_CDP_URL
+            _ensure_chrome_cdp(cdp_url, _XHS_PROF)
             with sync_playwright() as pw:
-                context = pw.chromium.launch_persistent_context(
-                    str(XHS_PROFILE_DIR),
-                    channel="chrome",
-                    headless=False,
-                    args=["--start-maximized", "--disable-sync", "--no-first-run",
-                          "--disable-blink-features=AutomationControlled"],
-                    ignore_default_args=["--enable-automation", "--no-sandbox"],
-                    user_agent=(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-                    ),
-                )
-                page = context.pages[0] if context.pages else context.new_page()
+                browser = pw.chromium.connect_over_cdp(cdp_url)
+                context = browser.contexts[0] if browser.contexts else None
+                if not context:
+                    raise RuntimeError("CDP 连接成功但没有 context")
+                context.add_init_script(FINGERPRINT_INIT_SCRIPT)
+                page = context.new_page()
                 try:
                     page.goto("https://www.xiaohongshu.com/", wait_until="commit", timeout=30000)
                 except Exception:
                     pass
+                deadline = time.time() + 600
                 try:
-                    while context.pages:
+                    while not page.is_closed() and time.time() < deadline:
                         time.sleep(1)
                 except Exception:
                     pass
-                _broadcast_sse("status_update", {"xhs_logged_in": XHS_PROFILE_DIR.exists()})
+                try:
+                    if not page.is_closed():
+                        page.close()
+                except Exception:
+                    pass
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+                _broadcast_sse("status_update", {"xhs_logged_in": True})
         except Exception as exc:
             import logging as _log
             _log.getLogger(__name__).warning(f"xhs login browser: {exc}")

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImagePickerDialog — v4 Three Zones</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0e0d; --bg2: #191816; --panel: #141312;
+    --ink: #ede8e0; --ink2: #c4bdb3; --inkDim: #7d7570; --inkFaint: #4d4843;
+    --line: #282521; --lineSoft: #1f1d1b;
+    --accent: #e2552b; --accentSoft: #3d1a0a;
+    --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+    --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  body {
+    background: rgba(0,0,0,0.55); font-family: var(--sans); color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 20px;
+  }
+
+  .dialog {
+    background: var(--panel); border-radius: 8px; border: 1px solid var(--line);
+    width: 920px; max-height: 90vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .dialog-header {
+    padding: 14px 18px 10px; border-bottom: 1px solid var(--line); flex-shrink: 0;
+  }
+  .dialog-header h1 { font-size: 13.5px; font-weight: 600; margin-bottom: 2px; }
+  .dialog-header .sub { font-family: var(--mono); font-size: 11px; color: var(--inkDim); }
+
+  /* ── Shared ── */
+  .mn-input {
+    font-family: var(--mono); background: var(--panel); border: 1px solid var(--line);
+    color: var(--ink); padding: 5px 8px; border-radius: 6px; font-size: 12px; outline: none;
+  }
+  .mn-btn {
+    font-family: var(--sans); font-size: 12px; padding: 5px 12px; border-radius: 6px;
+    border: 1px solid var(--line); background: transparent; color: var(--inkDim);
+    cursor: pointer; white-space: nowrap;
+  }
+  .mn-btn:hover { border-color: var(--inkDim); color: var(--ink); }
+  .mn-btn-accent { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .mn-btn-accent:hover { filter: brightness(1.1); }
+  .mn-btn-sm { font-size: 11px; padding: 2px 8px; }
+
+  /* ═══ ZONE 1: Two-pane image selection ═══ */
+  .dual-pane {
+    flex: 1; display: grid; grid-template-columns: 1fr 1fr;
+    min-height: 0; overflow: hidden;
+  }
+  .pane {
+    display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  }
+  .pane + .pane { border-left: 1px solid var(--line); }
+
+  .pane-header {
+    padding: 6px 10px; border-bottom: 1px solid var(--lineSoft);
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .pane-label { font-family: var(--mono); font-size: 10.5px; color: var(--inkFaint); letter-spacing: 0.03em; }
+  .pane-count { font-family: var(--mono); font-size: 10.5px; color: var(--inkDim); margin-left: auto; }
+
+  .pane-scroll {
+    flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px;
+  }
+  .pane-scroll::-webkit-scrollbar { width: 3px; }
+  .pane-scroll::-webkit-scrollbar-thumb { background: var(--inkFaint); border-radius: 2px; }
+
+  .img-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px;
+  }
+  .img-cell {
+    cursor: pointer; border-radius: 5px; border: 2px solid var(--line);
+    overflow: hidden; position: relative; background: var(--bg); transition: border-color 0.1s;
+  }
+  .img-cell.selected { border-color: var(--accent); }
+  .img-cell .ph { width: 100%; aspect-ratio: 1; display: block; }
+  .img-cell .check {
+    position: absolute; top: 3px; right: 3px; width: 14px; height: 14px;
+    border-radius: 50%; background: rgba(0,0,0,0.45);
+    display: grid; place-items: center; transition: background 0.1s;
+  }
+  .img-cell.selected .check { background: var(--accent); }
+  .img-cell .check span { color: #fff; font-size: 9px; line-height: 1; display: none; }
+  .img-cell.selected .check span { display: block; }
+  .img-cell .fname {
+    padding: 1px 3px; font-size: 8.5px; font-family: var(--mono); color: var(--inkFaint);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--panel);
+  }
+
+  /* ═══ ZONE 2: Selected preview + progress ═══ */
+  .selected-zone {
+    border-top: 1px solid var(--line);
+    flex-shrink: 0;
+    max-height: 180px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sel-row {
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+  }
+  .sel-row + .sel-row {
+    border-top: 1px solid var(--lineSoft);
+  }
+
+  .sel-row-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--inkFaint);
+    letter-spacing: 0.03em;
+    min-width: 76px;
+    flex-shrink: 0;
+  }
+
+  .sel-thumbs {
+    flex: 1;
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    align-items: center;
+    min-height: 40px;
+    padding: 2px 0;
+  }
+  .sel-thumbs::-webkit-scrollbar { height: 3px; }
+  .sel-thumbs::-webkit-scrollbar-thumb { background: var(--inkFaint); border-radius: 2px; }
+
+  .sel-thumb {
+    width: 36px; height: 36px; border-radius: 4px; flex-shrink: 0;
+    object-fit: cover; display: block;
+  }
+  .sel-empty {
+    font-family: var(--mono); font-size: 10px; color: var(--inkFaint);
+  }
+
+  .sel-progress {
+    display: flex; align-items: center; gap: 8px; min-width: 120px; flex-shrink: 0;
+  }
+  .sel-bar {
+    width: 60px; height: 4px; border-radius: 2px; background: var(--lineSoft); overflow: hidden;
+  }
+  .sel-bar-fill {
+    height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.2s ease;
+  }
+  .sel-count {
+    font-family: var(--mono); font-size: 11px; color: var(--inkDim); white-space: nowrap;
+  }
+
+  /* ═══ ZONE 3: Controls ═══ */
+  .targets-row {
+    padding: 8px 18px; border-top: 1px solid var(--line);
+    display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+    font-size: 12px; flex-shrink: 0;
+  }
+  .targets-row .row-label { font-family: var(--mono); font-size: 11px; color: var(--inkDim); margin-right: 4px; }
+  .targets-row label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+  .nsfw-hint { font-family: var(--mono); font-size: 10px; color: var(--inkDim); margin-left: 2px; }
+
+  .llm-row {
+    padding: 8px 18px; border-top: 1px solid var(--lineSoft);
+    display: flex; gap: 8px; align-items: center; font-size: 12px; flex-shrink: 0;
+  }
+  .llm-row label { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+
+  .actions-row {
+    padding: 10px 18px 14px; border-top: 1px solid var(--line);
+    display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="dialog">
+  <!-- Header -->
+  <div class="dialog-header">
+    <h1>Upload to selected platforms</h1>
+    <div class="sub" id="hdr-sub">已选 0 张</div>
+  </div>
+
+  <!-- ZONE 1: Two panes -->
+  <div class="dual-pane">
+    <div class="pane">
+      <div class="pane-header">
+        <span class="pane-label">upload/</span>
+        <button class="mn-btn mn-btn-sm" onclick="selGroup('upload')">全选</button>
+        <button class="mn-btn mn-btn-sm" onclick="clrGroup('upload')">清空</button>
+        <span class="pane-count" id="cnt-upload">0/35</span>
+      </div>
+      <div class="pane-scroll"><div class="img-grid" id="grid-upload"></div></div>
+    </div>
+    <div class="pane">
+      <div class="pane-header">
+        <span class="pane-label">xhs_upload/</span>
+        <button class="mn-btn mn-btn-sm" onclick="selGroup('xhs')">全选</button>
+        <button class="mn-btn mn-btn-sm" onclick="clrGroup('xhs')">清空</button>
+        <span class="pane-count" id="cnt-xhs">0/12</span>
+      </div>
+      <div class="pane-scroll"><div class="img-grid" id="grid-xhs"></div></div>
+    </div>
+  </div>
+
+  <!-- ZONE 2: Selected preview + progress bars -->
+  <div class="selected-zone">
+    <!-- upload row -->
+    <div class="sel-row">
+      <div class="sel-row-label">upload/</div>
+      <div class="sel-thumbs" id="thumbs-upload">
+        <span class="sel-empty">未选图片</span>
+      </div>
+      <div class="sel-progress">
+        <div class="sel-bar"><div class="sel-bar-fill" id="bar-upload" style="width:0%"></div></div>
+        <span class="sel-count" id="pcnt-upload">0/35</span>
+      </div>
+    </div>
+    <!-- xhs row -->
+    <div class="sel-row">
+      <div class="sel-row-label">xhs_upload/</div>
+      <div class="sel-thumbs" id="thumbs-xhs">
+        <span class="sel-empty">未选图片</span>
+      </div>
+      <div class="sel-progress">
+        <div class="sel-bar"><div class="sel-bar-fill" id="bar-xhs" style="width:0%"></div></div>
+        <span class="sel-count" id="pcnt-xhs">0/12</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZONE 3: Controls -->
+  <div class="targets-row">
+    <span class="row-label">发布到</span>
+    <label><input type="checkbox" checked> Civitai</label>
+    <label><input type="checkbox" checked> Pixiv</label>
+    <label><input type="checkbox" checked> X</label>
+    <label><input type="checkbox" checked> 小红书 <span class="nsfw-hint">(NSFW 跳过)</span></label>
+  </div>
+  <div class="llm-row">
+    <label><input type="checkbox" checked> LLM 标题/简介</label>
+    <button class="mn-btn mn-btn-sm">统一</button>
+    <select class="mn-input" style="flex:1"><option>测试软系</option></select>
+    <select class="mn-input" style="width:70px"><option>NSFW</option><option>SFW</option></select>
+  </div>
+  <div class="actions-row">
+    <button class="mn-btn" style="margin-right:auto">随机 1-5</button>
+    <button class="mn-btn">取消</button>
+    <button class="mn-btn" style="min-width:64px">保存</button>
+    <button class="mn-btn mn-btn-accent" id="btn-go">上传 0 张</button>
+  </div>
+</div>
+
+<script>
+const UP_N = 35, XHS_N = 12;
+const upPal = [
+  ['#1a3a5a','#2d5a8a'],['#3a1a5a','#5a2d8a'],['#5a3a1a','#8a5a2d'],
+  ['#1a5a3a','#2d8a5a'],['#5a1a3a','#8a2d5a'],['#1a4a5a','#2d708a'],
+  ['#4a4a1a','#6a6a2d'],['#3a3a5a','#5a5a8a'],['#5a5a1a','#8a8a2d'],
+  ['#1a1a5a','#2d2d8a'],['#4a2a1a','#7a4a2d'],['#1a5a5a','#2d8a8a'],
+];
+const xhsPal = [
+  ['#5a1a1a','#8a3030'],['#5a2020','#8a4040'],['#5a3030','#8a5050'],
+  ['#4a1a1a','#6a3030'],['#5a2828','#8a4848'],['#4a2020','#7a3838'],
+];
+
+const st = { upload: new Map(), xhs: new Map() };
+
+function mkCell(id, grad, group) {
+  const d = document.createElement('div');
+  d.className = 'img-cell';
+  d.dataset.id = id; d.dataset.group = group;
+  d.innerHTML = `<div class="ph" style="background:linear-gradient(135deg,${grad[0]},${grad[1]})"></div><div class="check"><span>✓</span></div><div class="fname">${id}</div>`;
+  d.onclick = () => {
+    if (st[group].has(id)) { st[group].delete(id); d.classList.remove('selected'); }
+    else { st[group].set(id, grad); d.classList.add('selected'); }
+    upd();
+  };
+  return d;
+}
+
+function renderThumbs(group) {
+  const container = document.getElementById('thumbs-' + group);
+  container.innerHTML = '';
+  if (st[group].size === 0) {
+    container.innerHTML = '<span class="sel-empty">未选图片</span>';
+    return;
+  }
+  for (const [id, grad] of st[group]) {
+    const t = document.createElement('div');
+    t.className = 'sel-thumb';
+    t.style.background = `linear-gradient(135deg,${grad[0]},${grad[1]})`;
+    t.title = id;
+    container.appendChild(t);
+  }
+}
+
+function upd() {
+  const uS = st.upload.size, xS = st.xhs.size, tot = uS + xS;
+  document.getElementById('cnt-upload').textContent = `${uS}/${UP_N}`;
+  document.getElementById('cnt-xhs').textContent = `${xS}/${XHS_N}`;
+  document.getElementById('pcnt-upload').textContent = `${uS}/${UP_N}`;
+  document.getElementById('pcnt-xhs').textContent = `${xS}/${XHS_N}`;
+  document.getElementById('bar-upload').style.width = UP_N > 0 ? (uS/UP_N*100)+'%' : '0%';
+  document.getElementById('bar-xhs').style.width = XHS_N > 0 ? (xS/XHS_N*100)+'%' : '0%';
+  document.getElementById('btn-go').textContent = `上传 ${tot} 张`;
+  document.getElementById('hdr-sub').textContent = `已选 ${tot} 张`;
+  renderThumbs('upload');
+  renderThumbs('xhs');
+}
+
+function selGroup(g) {
+  const grid = document.getElementById(g === 'upload' ? 'grid-upload' : 'grid-xhs');
+  grid.querySelectorAll('.img-cell').forEach(c => {
+    const id = c.dataset.id;
+    const ph = c.querySelector('.ph');
+    const bg = ph.style.background;
+    const m = bg.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/g);
+    const grad = c._grad || upPal[0];
+    st[g].set(id, grad);
+    c.classList.add('selected');
+  });
+  upd();
+}
+function clrGroup(g) {
+  const grid = document.getElementById(g === 'upload' ? 'grid-upload' : 'grid-xhs');
+  grid.querySelectorAll('.img-cell').forEach(c => { st[g].delete(c.dataset.id); c.classList.remove('selected'); });
+  upd();
+}
+
+const gU = document.getElementById('grid-upload'), gX = document.getElementById('grid-xhs');
+for (let i = 0; i < UP_N; i++) {
+  const p = upPal[i % upPal.length];
+  const n = `${String(23-Math.floor(i/5)).padStart(2,'0')}-${String(37-(i%5)*8).padStart(2,'0')}-${(Math.random()*9e5+1e5|0)}.png`;
+  const cell = mkCell(n, p, 'upload');
+  cell._grad = p;
+  gU.appendChild(cell);
+}
+for (let i = 0; i < XHS_N; i++) {
+  const p = xhsPal[i % xhsPal.length];
+  const n = `xhs-${String(i+1).padStart(2,'0')}-${(Math.random()*9e4+1e4|0)}.png`;
+  const cell = mkCell(n, p, 'xhs');
+  cell._grad = p;
+  gX.appendChild(cell);
+}
+
+// Fix selGroup to use stored gradients
+selGroup = function(g) {
+  const grid = document.getElementById(g === 'upload' ? 'grid-upload' : 'grid-xhs');
+  grid.querySelectorAll('.img-cell').forEach(c => {
+    st[g].set(c.dataset.id, c._grad);
+    c.classList.add('selected');
+  });
+  upd();
+};
+
+selGroup('upload');
+selGroup('xhs');
+</script>
+</body>
+</html>

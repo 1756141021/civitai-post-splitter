@@ -251,11 +251,12 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
       .catch(() => setSaving(false));
   };
 
-  const go = () => {
+  const go = async () => {
     const targetsList = _currentTargets();
     if (targetsList.length === 0) return;
     _savePersistedTargets(targetsList);
-    _postDefaults().catch(() => {});
+    try { await _postDefaults(); } catch {}
+    onReloadDefaults && onReloadDefaults();
     const targets = targetsList.join(',');
     const llmOpts = buildLlmOpts();
     if (sortMode === 'manual') {
@@ -518,11 +519,12 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
         <div style={{ padding: '10px 18px 14px', borderTop: `1px solid ${M.line}`, display: 'flex', gap: 8, alignItems: 'center' }}>
           {!isManual && (
             <button className="mn-btn mn-btn-ghost" style={{ fontSize: 12, marginRight: 'auto' }}
-                    onClick={() => {
+                    onClick={async () => {
                       const targetsList = _currentTargets();
                       if (targetsList.length === 0) return;
                       _savePersistedTargets(targetsList);
-                      _postDefaults().catch(() => {});
+                      try { await _postDefaults(); } catch {}
+                      onReloadDefaults && onReloadDefaults();
                       onConfirm(cmd, [], { sort: sortMode, targets: targetsList.join(','), ...buildLlmOpts() });
                     }} title="随机从 upload/ 选 1-5 张，排序方式遵循当前选项">
               随机 1-5
@@ -2239,43 +2241,41 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
             {xhsMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{xhsMsg}</span>}
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.xhs_logged_in ? M.ok : M.inkFaint }} />
-            <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.xhs_logged_in ? '已登录' : '未设置'}</span>
-            {status.xhs_logged_in ? (
-              <button className="mn-btn mn-btn-ghost"
-                      onClick={() => { setXhsMsg(''); fetch('/api/xhs-logout', { method: 'POST' }).then(() => onStatusReload && onStatusReload()).catch(() => setXhsMsg('请求失败')); }}
-                      style={{ padding: '2px 8px', fontSize: 11 }}>切换账号</button>
-            ) : (
-              <button className="mn-btn mn-btn-ghost" onClick={() => setXhsGuideOpen(v => !v)}
-                      style={{ padding: '2px 8px', fontSize: 11 }}>
-                {xhsGuideOpen ? '设置 ▴' : '设置 ▾'}
-              </button>
-            )}
+            <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>
+              {status.xhs_logged_in ? '已登录' : '未登录'}
+            </span>
+            <button className="mn-btn mn-btn-ghost" onClick={() => setXhsGuideOpen(v => !v)}
+                    style={{ padding: '2px 8px', fontSize: 11 }}>
+              {xhsGuideOpen ? '说明 ▴' : '说明 ▾'}
+            </button>
           </div>
         </div>
-        {!status.xhs_logged_in && xhsGuideOpen && (
+        {xhsGuideOpen && (
           <div style={{ marginTop: 8, fontSize: 11.5, color: M.inkDim, lineHeight: 1.7 }}>
-            <div>1. 点击「打开登录窗口」，Chrome 窗口会弹出</div>
-            <div>2. 在窗口里完成小红书登录（账号 / 手机 / 二维码均可）</div>
-            <div>3. 登录成功后关闭浏览器窗口，状态自动更新</div>
-            <div style={{ marginTop: 8 }}>
-              <button className="mn-btn mn-btn-accent" disabled={xhsOpening}
-                      onClick={() => {
-                        setXhsOpening(true); setXhsMsg('');
-                        fetch('/api/xhs-open-login', { method: 'POST' })
-                          .then(() => {
-                            const poll = setInterval(() => {
-                              fetch('/api/status').then(r => r.json()).then(s => {
-                                if (s.xhs_logged_in) { clearInterval(poll); setXhsOpening(false); onStatusReload && onStatusReload(); }
-                              }).catch(() => {});
-                            }, 3000);
-                            setTimeout(() => { clearInterval(poll); setXhsOpening(false); }, 60000);
-                          })
-                          .catch(() => { setXhsOpening(false); setXhsMsg('请求失败'); });
-                      }}
-                      style={{ padding: '4px 12px', fontSize: 11 }}>
-                {xhsOpening ? '正在打开…' : '打开登录窗口'}
-              </button>
-            </div>
+            <div>发布时程序会自动启动 Chrome 并连接，首次需要在弹出的 Chrome 里登录小红书。</div>
+            <div>登录一次后会记住，下次直接发布。</div>
+            {!status.xhs_logged_in && (
+              <div style={{ marginTop: 8 }}>
+                <button className="mn-btn mn-btn-accent" disabled={xhsOpening}
+                        onClick={() => {
+                          setXhsOpening(true); setXhsMsg('');
+                          fetch('/api/xhs-open-login', { method: 'POST' })
+                            .then(() => {
+                              const poll = setInterval(() => {
+                                fetch('/api/status').then(r => r.json()).then(s => {
+                                  if (s.xhs_logged_in) { clearInterval(poll); setXhsOpening(false); onStatusReload && onStatusReload(); }
+                                }).catch(() => {});
+                              }, 3000);
+                              setTimeout(() => { clearInterval(poll); setXhsOpening(false); }, 60000);
+                            })
+                            .catch(() => { setXhsOpening(false); setXhsMsg('请求失败'); });
+                        }}
+                        style={{ padding: '4px 12px', fontSize: 11 }}>
+                  {xhsOpening ? '正在打开…' : '提前登录'}
+                </button>
+                <span style={{ marginLeft: 8, fontSize: 10.5, color: M.inkFaint }}>或者直接上传，首次会弹窗让你登录</span>
+              </div>
+            )}
           </div>
         )}
       </div>

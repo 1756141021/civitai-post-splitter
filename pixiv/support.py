@@ -2344,6 +2344,10 @@ def open_pixiv_browser(pw, profile_dir: Path | None = None):
     )
     page = context.pages[0] if context.pages else context.new_page()
     page.set_viewport_size({"width": 1920, "height": 1080})
+    try:
+        page.goto("https://www.pixiv.net/", wait_until="commit", timeout=15000)
+    except Exception:
+        pass
     return context, page
 
 
@@ -3126,6 +3130,9 @@ def _wait_for_file_input(page, timeout: float = 30.0) -> bool:
 
 
 def ensure_on_pixiv_upload_page(page) -> None:
+    if "upload.php" in page.url:
+        if _wait_for_file_input(page, timeout=5.0):
+            return
     safe_goto(page, PIXIV_UPLOAD_URL, wait=4)
 
     # If redirected to login page, ask user to log in first.
@@ -3214,6 +3221,44 @@ def _typing_delay() -> int:
     return random.randint(25, 75)
 
 
+def _human_move_and_click(page, locator, *, cancel_event=None) -> None:
+    """Move mouse along a bezier curve to the element, then click."""
+    if cancel_event is not None and cancel_event.is_set():
+        raise InterruptedError("task canceled")
+    try:
+        box = locator.bounding_box(timeout=3000)
+    except Exception:
+        box = None
+    if not box:
+        locator.click()
+        return
+    target_x = box["x"] + box["width"] / 2 + random.uniform(-3, 3)
+    target_y = box["y"] + box["height"] / 2 + random.uniform(-3, 3)
+    try:
+        current = page.evaluate(
+            "() => ({x: window._lastMouseX || 640, y: window._lastMouseY || 360})"
+        )
+        cx, cy = current["x"], current["y"]
+    except Exception:
+        cx, cy = 640.0, 360.0
+    steps = random.randint(15, 30)
+    cp1x = cx + (target_x - cx) * 0.3 + random.uniform(-50, 50)
+    cp1y = cy + (target_y - cy) * 0.3 + random.uniform(-30, 30)
+    cp2x = cx + (target_x - cx) * 0.7 + random.uniform(-30, 30)
+    cp2y = cy + (target_y - cy) * 0.7 + random.uniform(-20, 20)
+    for i in range(steps + 1):
+        t = i / steps
+        x = (1 - t) ** 3 * cx + 3 * (1 - t) ** 2 * t * cp1x + 3 * (1 - t) * t ** 2 * cp2x + t ** 3 * target_x
+        y = (1 - t) ** 3 * cy + 3 * (1 - t) ** 2 * t * cp1y + 3 * (1 - t) * t ** 2 * cp2y + t ** 3 * target_y
+        page.mouse.move(x, y)
+        time.sleep(random.uniform(0.005, 0.02))
+    page.evaluate(
+        f"() => {{ window._lastMouseX = {target_x}; window._lastMouseY = {target_y}; }}"
+    )
+    time.sleep(random.uniform(0.05, 0.15))
+    page.mouse.click(target_x, target_y)
+
+
 def _first_visible_locator(page, selectors: list[str]):
     for selector in selectors:
         locator = page.locator(selector)
@@ -3225,12 +3270,12 @@ def _first_visible_locator(page, selectors: list[str]):
     return None
 
 
-def _click_first(page, selectors: list[str]) -> bool:
+def _click_first(page, selectors: list[str], cancel_event=None) -> bool:
     locator = _first_visible_locator(page, selectors)
     if locator is None:
         return False
     try:
-        locator.click()
+        _human_move_and_click(page, locator, cancel_event=cancel_event)
         return True
     except Exception:
         return False
@@ -3266,12 +3311,12 @@ def _capture_failure(page, log_dir: Path | None, step_name: str) -> str:
         return ""
 
 
-def _fill_if_found(page, name: str, selectors: list[str], value: str) -> PixivStep:
+def _fill_if_found(page, name: str, selectors: list[str], value: str, cancel_event=None) -> PixivStep:
     locator = _first_visible_locator(page, selectors)
     if locator is None:
         return PixivStep(name, False, "selector_miss", f"none of: {selectors}")
     try:
-        locator.click()
+        _human_move_and_click(page, locator, cancel_event=cancel_event)
         locator.fill(value)
         return PixivStep(name, True)
     except Exception as exc1:
@@ -3343,7 +3388,7 @@ def _set_checkbox_by_text(page, name: str, texts: list[str], desired: bool, canc
         if current == desired:
             return PixivStep(name, True, detail=f"already={current}, text='{text}'")
         try:
-            locator.click()
+            _human_move_and_click(page, locator, cancel_event=cancel_event)
         except Exception as exc:
             last_detail = f"click failed for '{text}': {type(exc).__name__}: {exc}"
             continue
@@ -3356,6 +3401,7 @@ def _set_checkbox_by_text(page, name: str, texts: list[str], desired: bool, canc
 
 
 def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], cancel_event=None) -> PixivStep:
+    tags = tags[:10]
     failed: list[str] = []
     not_committed: list[str] = []
     autocomplete_used = 0
@@ -3371,10 +3417,8 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], canc
             last_exc = f"none of: {selectors}"
             continue
         try:
-            locator.click()
+            _human_move_and_click(page, locator, cancel_event=cancel_event)
             _jsleep(0.3, cancel_event=cancel_event)
-            # Clear any leftover input via select-all + delete instead of fill(""),
-            # which on Pixiv's React tag input can rewrite the previously committed chip.
             try:
                 value_now = locator.input_value()
             except Exception:
@@ -3419,7 +3463,7 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], canc
                     log.warning(f"    autocomplete exact-match lookup 失败 tag={tag!r}: {type(exc).__name__}: {exc}")
                 if exact_option is not None:
                     try:
-                        exact_option.click()
+                        _human_move_and_click(page, exact_option, cancel_event=cancel_event)
                         clicked = True
                     except Exception as exc:
                         log.warning(f"    autocomplete exact-option click 失败 tag={tag!r}: {type(exc).__name__}: {exc}")
@@ -3475,7 +3519,7 @@ def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str, cancel_
         return PixivStep(name, False, "selector_miss", selector)
     try:
         try:
-            locator.check()
+            _human_move_and_click(page, locator, cancel_event=cancel_event)
         except Exception:
             locator.click()
         _jsleep(0.2, cancel_event=cancel_event)
@@ -3545,7 +3589,7 @@ def _set_checkbox_by_attr(page, name: str, attr_name: str, desired: bool, cancel
     if current == desired:
         return PixivStep(name, True, detail=f"already={current}")
     try:
-        locator.click()
+        _human_move_and_click(page, locator, cancel_event=cancel_event)
     except Exception as exc:
         return PixivStep(name, False, "exception", f"{type(exc).__name__}: {exc}")
     _jsleep(0.4, cancel_event=cancel_event)
@@ -3706,7 +3750,7 @@ def create_pixiv_post(
     record(PixivStep("publish_enable", True))
 
     try:
-        publish_locator.click()
+        _human_move_and_click(page, publish_locator, cancel_event=cancel_event)
         record(PixivStep("publish_click", True))
     except Exception as exc:
         record(PixivStep("publish_click", False, "exception", f"{type(exc).__name__}: {exc}"))

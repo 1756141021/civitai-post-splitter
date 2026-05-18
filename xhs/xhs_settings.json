@@ -13,6 +13,8 @@
   "topic_dropdown_wait_sec": 3,
   "default_template": "default",
   "jpg_quality": 90,
-  "png_size_threshold_mb": 8
+  "png_size_threshold_mb": 8,
+  "active_hours_start": 8,
+  "active_hours_end": 23
 }
 

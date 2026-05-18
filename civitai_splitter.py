@@ -15,7 +15,7 @@ from pathlib import Path
 
 import httpx
 from PIL import Image, PngImagePlugin
-from playwright.sync_api import sync_playwright
+from patchright.sync_api import sync_playwright
 
 from pixiv.censor import CensorEngine, DEFAULT_CENSOR_CLASSES, parse_class_set
 from pixiv.llm_reverse import (
@@ -50,21 +50,33 @@ def _targets_need_copy(targets) -> bool:
     return any(PLATFORM_RULES.get(t, {}).get("needs_copy") for t in targets)
 
 
-def _build_llm_extra_context(pixiv_payload: dict | None) -> str:
-    if not pixiv_payload:
+def _build_llm_extra_context(
+    pixiv_payload: dict | None,
+    source_meta: dict | None = None,
+) -> str:
+    if not pixiv_payload and not source_meta:
         return ""
     parts: list[str] = []
-    domain = str(pixiv_payload.get("domain", "") or "").strip()
-    if domain:
-        parts.append(f"domain={domain}")
-    entity_tags = pixiv_payload.get("entity_tags") or []
-    if entity_tags:
-        parts.append("entity tags: " + ", ".join(str(t) for t in entity_tags[:10]))
-    hits = pixiv_payload.get("metadata_entity_hits") or []
-    if hits:
-        hit_names = [str(h.get("name") or h) for h in hits[:5] if h]
-        if hit_names:
-            parts.append("metadata entities: " + ", ".join(hit_names))
+    if pixiv_payload:
+        domain = str(pixiv_payload.get("domain", "") or "").strip()
+        if domain:
+            parts.append(f"domain={domain}")
+        entity_tags = pixiv_payload.get("entity_tags") or []
+        if entity_tags:
+            parts.append("entity tags: " + ", ".join(str(t) for t in entity_tags[:10]))
+        hits = pixiv_payload.get("metadata_entity_hits") or []
+        if hits:
+            hit_names = [str(h.get("name") or h) for h in hits[:5] if h]
+            if hit_names:
+                parts.append("metadata entities: " + ", ".join(hit_names))
+    if source_meta:
+        metadata = source_meta.get("metadata")
+        if metadata:
+            raw_prompt = re.sub(r",\s*,", ",", _LORA_RE.sub("", getattr(metadata, "positive_prompt", "") or "")).strip().strip(",")
+            if raw_prompt:
+                parts.append(
+                    "generation prompt (identify characters from this): " + raw_prompt
+                )
     return "; ".join(parts)
 
 
@@ -374,8 +386,9 @@ def strip_prompts_keep_lora(image_path: Path, dest_dir: Path) -> Path:
     pil_img = Image.open(image_path)
     old_params = pil_img.info.get("parameters", "")
     if not old_params:
-        dest = dest_dir / image_path.name
-        shutil.copy2(str(image_path), str(dest))
+        dest = dest_dir / f"{image_path.stem}.png"
+        pnginfo = PngImagePlugin.PngInfo()
+        pil_img.save(dest, "PNG", pnginfo=pnginfo)
         return dest
 
     steps_idx = old_params.rfind("\nSteps:")
@@ -533,6 +546,10 @@ def open_civitai_browser(pw):
         ignore_default_args=["--enable-automation", "--no-sandbox"],
     )
     page = context.pages[0] if context.pages else context.new_page()
+    try:
+        page.goto(f"{CIVITAI_BASE}/", wait_until="commit", timeout=15000)
+    except Exception:
+        pass
     return context, page
 
 
@@ -831,7 +848,7 @@ def create_upload_manifest(
                 # Per-platform mode: independent LLM call per copy platform
                 image_path_for_llm = Path(pixiv_clean.output_path) if pixiv_clean else image_path
                 image_age = (pixiv_payload or {}).get("age_restriction", "all_ages")
-                _llm_extra_ctx = _build_llm_extra_context(pixiv_payload)
+                _llm_extra_ctx = _build_llm_extra_context(pixiv_payload, source_meta=source_meta)
                 copy_targets = [t for t in targets if PLATFORM_RULES.get(t, {}).get("needs_copy")]
                 for plat in copy_targets:
                     per_persona_id = llm_personas_by_platform.get(plat, "")
@@ -886,7 +903,7 @@ def create_upload_manifest(
                     )
                 else:
                     _raise_if_canceled(cancel_event)
-                    _ctx = _build_llm_extra_context(pixiv_payload)
+                    _ctx = _build_llm_extra_context(pixiv_payload, source_meta=source_meta)
                     log.info(f"    LLM 反推: extra_context={_ctx!r}")
                     llm_reverse_result = infer_image_copy(
                         image_path=Path(pixiv_clean.output_path) if pixiv_clean else image_path,
@@ -1182,6 +1199,8 @@ def cmd_upload(args):
     XHS_UPLOAD_DIR.mkdir(exist_ok=True)
     DONE_DIR.mkdir(exist_ok=True)
 
+    targets = parse_targets(args.targets)
+
     all_images = sorted(
         file for file in UPLOAD_DIR.iterdir()
         if file.is_file() and file.suffix.lower() in IMAGE_EXTENSIONS
@@ -1189,12 +1208,11 @@ def cmd_upload(args):
     xhs_only = sorted(
         f for f in XHS_UPLOAD_DIR.iterdir()
         if f.is_file() and f.suffix.lower() in IMAGE_EXTENSIONS
-    )
+    ) if "xhs" in targets else []
     if not all_images and not xhs_only:
         log.info(f"upload/ 和 xhs_upload/ 目录都没有图片。\n  {UPLOAD_DIR}\n  {XHS_UPLOAD_DIR}")
         return
 
-    targets = parse_targets(args.targets)
     needs_xhs = "xhs" in targets or bool(xhs_only)
 
     # Auto-censor: model file at models/auto_censor.pt opts in. Config tunables
@@ -1289,6 +1307,7 @@ def cmd_upload(args):
 
     civitai_context = pixiv_context = x_context = xhs_context = None
     civitai_page = pixiv_page = x_page = xhs_page = None
+    xhs_browser = None
     success_count = 0
     fail_count = 0
     consecutive_failures = 0
@@ -1309,7 +1328,13 @@ def cmd_upload(args):
             x_context, x_page = open_x_browser(playwright)
         if playwright is not None and needs_xhs:
             from xhs.support import open_xhs_browser
-            xhs_context, xhs_page = open_xhs_browser(playwright)
+            try:
+                xhs_context, xhs_page, xhs_browser = open_xhs_browser(
+                    playwright, cdp_url=load_app_config().get("xhs_cdp_url")
+                )
+            except Exception as exc:
+                log.warning(f"XHS 浏览器启动失败，跳过小红书: {exc}")
+                log.debug(traceback.format_exc())
 
         _cancel_ev = getattr(args, "cancel_event", None)
         for index, (orig_path, effective_targets) in enumerate(image_queue, 1):
@@ -1465,6 +1490,14 @@ def cmd_upload(args):
                         if already_clicked:
                             log.warning("    publish 已点击，疑似已发布，跳过重试")
                             break
+                        captcha_timeout = any(
+                            getattr(s, "name", "") == "redirect" and not getattr(s, "ok", False)
+                            and "人机验证" in getattr(s, "detail", "")
+                            for s in pixiv_steps
+                        )
+                        if captcha_timeout:
+                            log.warning("    pixiv: 人机验证超时，跳过重试（请完成验证后重新上传）")
+                            break
                         if attempt < max_retries:
                             log.info(f"    Pixiv 失败，{(attempt + 1) * 3} 秒后重试 ({attempt + 2}/{max_retries + 1})...")
                             _sleep_with_cancel((attempt + 1) * 3, _cancel_ev)
@@ -1557,7 +1590,11 @@ def cmd_upload(args):
                         all_succeeded = False
 
             if "xhs" in effective_targets:
-                if "xhs" in skip_targets:
+                if xhs_page is None:
+                    manifest["status_by_target"]["xhs"] = "failed"
+                    manifest["errors"].append("xhs browser not available")
+                    all_succeeded = False
+                elif "xhs" in skip_targets:
                     inherited_url = prior_successes["xhs"]
                     manifest["xhs"]["post_url"] = inherited_url
                     manifest["status_by_target"]["xhs"] = "skipped_already_done"
@@ -1636,7 +1673,13 @@ def cmd_upload(args):
                         target_summaries.append(f"{target} {status}")
                 log.error(f"    {'，'.join(target_summaries)}，文件保留在 upload/")
                 fail_count += 1
-                consecutive_failures += 1
+                _ok_statuses = {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted", "skipped_max_age"}
+                core_targets = [t for t in effective_targets if t != "xhs"]
+                core_any_ok = any(manifest["status_by_target"].get(t) in _ok_statuses for t in core_targets) if core_targets else False
+                if core_any_ok:
+                    consecutive_failures = 0
+                else:
+                    consecutive_failures += 1
                 if consecutive_failures >= abort_threshold:
                     log.error(f"\n连续 {consecutive_failures} 张失败，中断本次批次（避免触发风控）")
                     break
@@ -1652,13 +1695,30 @@ def cmd_upload(args):
                 )
     finally:
         if civitai_context is not None:
-            civitai_context.close()
+            try:
+                civitai_context.close()
+            except Exception:
+                pass
         if pixiv_context is not None:
-            pixiv_context.close()
+            try:
+                pixiv_context.close()
+            except Exception:
+                pass
         if x_context is not None:
-            x_context.close()
-        if xhs_context is not None:
-            xhs_context.close()
+            try:
+                x_context.close()
+            except Exception:
+                pass
+        if xhs_browser is not None:
+            try:
+                xhs_browser.close()
+            except Exception:
+                pass
+        elif xhs_context is not None:
+            try:
+                xhs_context.close()
+            except Exception:
+                pass
         if playwright is not None:
             playwright.stop()
         shutil.rmtree(temp_dir, ignore_errors=True)

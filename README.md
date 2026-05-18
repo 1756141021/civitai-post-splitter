@@ -29,7 +29,7 @@
 
 ```bash
 pip install -r requirements.txt
-playwright install chromium
+patchright install chromium
 ```
 
 R-18 打码（可选）：
@@ -166,7 +166,7 @@ MIT
 
 ```bash
 pip install -r requirements.txt
-playwright install chromium
+patchright install chromium
 ```
 
 Censoring (optional):

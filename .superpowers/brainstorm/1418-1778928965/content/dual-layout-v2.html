@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ImagePickerDialog — Dual Display Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0e0d;
+    --bg2: #191816;
+    --panel: #141312;
+    --ink: #ede8e0;
+    --ink2: #c4bdb3;
+    --inkDim: #7d7570;
+    --inkFaint: #4d4843;
+    --line: #282521;
+    --lineSoft: #1f1d1b;
+    --accent: #e2552b;
+    --accentSoft: #3d1a0a;
+    --ok: #3ab54d;
+    --red: #d04535;
+    --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace;
+    --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+
+  body {
+    background: rgba(0,0,0,0.55);
+    font-family: var(--sans);
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .dialog {
+    background: var(--panel);
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    width: 640px;
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .dialog-header {
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .dialog-header h1 {
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .dialog-header .sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--inkDim);
+  }
+
+  .toolbar {
+    padding: 8px 18px;
+    border-bottom: 1px solid var(--lineSoft);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .mn-input {
+    font-family: var(--mono);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    outline: none;
+  }
+  .mn-input:focus { border-color: var(--inkDim); }
+
+  .mn-btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--inkDim);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .mn-btn:hover { border-color: var(--inkDim); color: var(--ink); }
+  .mn-btn-accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  .mn-btn-accent:hover { filter: brightness(1.1); }
+
+  /* ── Scrollable content area ── */
+  .scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0;
+  }
+  .scroll-area::-webkit-scrollbar { width: 4px; }
+  .scroll-area::-webkit-scrollbar-thumb { background: var(--inkFaint); border-radius: 2px; }
+  .scroll-area::-webkit-scrollbar-track { background: transparent; }
+
+  /* ── Section inside scroll area ── */
+  .img-section {
+    padding: 10px 14px 8px;
+  }
+  .img-section + .img-section {
+    border-top: 1px solid var(--line);
+  }
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--inkFaint);
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label .count {
+    color: var(--inkDim);
+  }
+
+  .img-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+
+  .img-cell {
+    cursor: pointer;
+    border-radius: 6px;
+    border: 2px solid var(--line);
+    overflow: hidden;
+    position: relative;
+    background: var(--bg);
+    transition: border-color 0.12s;
+  }
+  .img-cell.selected { border-color: var(--accent); }
+  .img-cell.selected.xhs-sel { border-color: var(--accent); }
+
+  .img-cell .thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    display: block;
+    object-fit: cover;
+  }
+
+  .img-cell .check {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.45);
+    display: grid;
+    place-items: center;
+    transition: background 0.12s;
+  }
+  .img-cell.selected .check {
+    background: var(--accent);
+  }
+  .img-cell .check span {
+    color: #fff;
+    font-size: 10px;
+    line-height: 1;
+    display: none;
+  }
+  .img-cell.selected .check span { display: block; }
+
+  .img-cell .fname {
+    padding: 2px 5px;
+    font-size: 9.5px;
+    font-family: var(--mono);
+    color: var(--inkFaint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--panel);
+  }
+
+  /* ── Progress bar (unified) ── */
+  .progress-strip {
+    padding: 8px 18px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--lineSoft);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.25s ease;
+  }
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--inkDim);
+    white-space: nowrap;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* ── Footer rows ── */
+  .targets-row {
+    padding: 8px 18px;
+    border-top: 1px solid var(--lineSoft);
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 12px;
+  }
+  .targets-row .row-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--inkDim);
+    margin-right: 4px;
+  }
+  .targets-row label {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    cursor: pointer;
+  }
+  .targets-row .nsfw-hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--inkDim);
+    margin-left: 2px;
+  }
+
+  .llm-row {
+    padding: 8px 18px;
+    border-top: 1px solid var(--lineSoft);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+  }
+  .llm-row label {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    white-space: nowrap;
+  }
+  .llm-mode-btn {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
+
+  .actions-row {
+    padding: 10px 18px 14px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* ── Placeholder thumbnails ── */
+  .ph {
+    width: 100%;
+    aspect-ratio: 1;
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div class="dialog" id="app">
+  <!-- Header -->
+  <div class="dialog-header">
+    <h1>Upload to selected platforms</h1>
+    <div class="sub">upload/ <span id="hdr-upload-n">35</span> 张 + xhs_upload/ <span id="hdr-xhs-n">12</span> 张</div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <select class="mn-input" style="width:110px">
+      <option>最新优先</option>
+      <option>随机</option>
+      <option>文件名 A→Z</option>
+    </select>
+    <button class="mn-btn" onclick="selectAll()">全选</button>
+    <button class="mn-btn" onclick="clearAll()">清空</button>
+    <input class="mn-input" style="width:36px;text-align:center" placeholder="N">
+    <button class="mn-btn">选前N</button>
+    <div style="margin-left:auto">
+      <button class="mn-btn">+ 添加文件</button>
+    </div>
+  </div>
+
+  <!-- Scrollable: two image sections -->
+  <div class="scroll-area">
+    <!-- upload/ section -->
+    <div class="img-section" id="sec-upload">
+      <div class="section-label">
+        upload/
+        <span class="count" id="label-upload">— 已选 0/35</span>
+      </div>
+      <div class="img-grid" id="grid-upload"></div>
+    </div>
+
+    <!-- xhs_upload/ section -->
+    <div class="img-section" id="sec-xhs">
+      <div class="section-label">
+        xhs_upload/
+        <span class="count" id="label-xhs">— 已选 0/12</span>
+      </div>
+      <div class="img-grid" id="grid-xhs"></div>
+    </div>
+  </div>
+
+  <!-- Unified progress bar -->
+  <div class="progress-strip">
+    <div class="progress-track">
+      <div class="progress-fill" id="prog-fill" style="width:0%"></div>
+    </div>
+    <div class="progress-label" id="prog-label">0/47</div>
+  </div>
+
+  <!-- Targets -->
+  <div class="targets-row">
+    <span class="row-label">发布到</span>
+    <label><input type="checkbox" checked> Civitai</label>
+    <label><input type="checkbox" checked> Pixiv</label>
+    <label><input type="checkbox" checked> X</label>
+    <label>
+      <input type="checkbox" checked> 小红书
+      <span class="nsfw-hint">(NSFW 跳过)</span>
+    </label>
+  </div>
+
+  <!-- LLM -->
+  <div class="llm-row">
+    <label><input type="checkbox" checked> LLM 标题/简介</label>
+    <button class="mn-btn llm-mode-btn">统一</button>
+    <select class="mn-input" style="flex:1">
+      <option>测试软系</option>
+    </select>
+    <select class="mn-input" style="width:70px">
+      <option>NSFW</option>
+      <option>SFW</option>
+    </select>
+  </div>
+
+  <!-- Bottom actions -->
+  <div class="actions-row">
+    <button class="mn-btn" style="margin-right:auto">随机 1-5</button>
+    <button class="mn-btn">取消</button>
+    <button class="mn-btn" style="min-width:64px">保存</button>
+    <button class="mn-btn mn-btn-accent" id="btn-go">上传 0 张</button>
+  </div>
+</div>
+
+<script>
+// ── Generate placeholder thumbnails ──
+const UPLOAD_COUNT = 35;
+const XHS_COUNT = 12;
+const TOTAL = UPLOAD_COUNT + XHS_COUNT;
+
+// Color palettes for variety
+const uploadPalette = [
+  ['#1a3a5a','#2d5a8a'], ['#3a1a5a','#5a2d8a'], ['#5a3a1a','#8a5a2d'],
+  ['#1a5a3a','#2d8a5a'], ['#5a1a3a','#8a2d5a'], ['#1a4a5a','#2d708a'],
+  ['#4a4a1a','#6a6a2d'], ['#3a3a5a','#5a5a8a'], ['#5a5a1a','#8a8a2d'],
+  ['#1a1a5a','#2d2d8a'], ['#4a2a1a','#7a4a2d'], ['#1a5a5a','#2d8a8a'],
+];
+const xhsPalette = [
+  ['#5a1a1a','#8a3030'], ['#5a2020','#8a4040'], ['#5a3030','#8a5050'],
+  ['#4a1a1a','#6a3030'], ['#5a2828','#8a4848'], ['#4a2020','#7a3838'],
+];
+
+const state = {
+  upload: new Set(),
+  xhs: new Set(),
+};
+
+function makeCell(id, gradient, group) {
+  const cell = document.createElement('div');
+  cell.className = 'img-cell';
+  cell.dataset.id = id;
+  cell.dataset.group = group;
+  cell.innerHTML = `
+    <div class="ph" style="background:linear-gradient(135deg,${gradient[0]},${gradient[1]})"></div>
+    <div class="check"><span>✓</span></div>
+    <div class="fname">${id}</div>
+  `;
+  cell.addEventListener('click', () => toggleCell(cell, group, id));
+  return cell;
+}
+
+function toggleCell(cell, group, id) {
+  const set = state[group];
+  if (set.has(id)) {
+    set.delete(id);
+    cell.classList.remove('selected');
+  } else {
+    set.add(id);
+    cell.classList.add('selected');
+  }
+  updateCounts();
+}
+
+function updateCounts() {
+  const uSel = state.upload.size;
+  const xSel = state.xhs.size;
+  const total = uSel + xSel;
+  const totalAll = UPLOAD_COUNT + XHS_COUNT;
+
+  document.getElementById('label-upload').textContent = `— 已选 ${uSel}/${UPLOAD_COUNT}`;
+  document.getElementById('label-xhs').textContent = `— 已选 ${xSel}/${XHS_COUNT}`;
+  document.getElementById('prog-label').textContent = `${total}/${totalAll}`;
+  document.getElementById('prog-fill').style.width = totalAll > 0 ? (total / totalAll * 100) + '%' : '0%';
+  document.getElementById('btn-go').textContent = `上传 ${total} 张`;
+}
+
+function selectAll() {
+  document.querySelectorAll('.img-cell').forEach(c => {
+    const g = c.dataset.group;
+    const id = c.dataset.id;
+    state[g].add(id);
+    c.classList.add('selected');
+  });
+  updateCounts();
+}
+
+function clearAll() {
+  document.querySelectorAll('.img-cell').forEach(c => {
+    c.classList.remove('selected');
+  });
+  state.upload.clear();
+  state.xhs.clear();
+  updateCounts();
+}
+
+// Build grids
+const gridUpload = document.getElementById('grid-upload');
+const gridXhs = document.getElementById('grid-xhs');
+
+for (let i = 0; i < UPLOAD_COUNT; i++) {
+  const pal = uploadPalette[i % uploadPalette.length];
+  const name = `${String(23 - Math.floor(i / 5)).padStart(2,'0')}-${String(37 - (i % 5) * 8).padStart(2,'0')}-${String(Math.floor(Math.random()*900000+100000))}.png`;
+  gridUpload.appendChild(makeCell(name, pal, 'upload'));
+}
+for (let i = 0; i < XHS_COUNT; i++) {
+  const pal = xhsPalette[i % xhsPalette.length];
+  const name = `xhs-${String(i+1).padStart(2,'0')}-${String(Math.floor(Math.random()*90000+10000))}.png`;
+  gridXhs.appendChild(makeCell(name, pal, 'xhs'));
+}
+
+// Start with all selected
+selectAll();
+</script>
+</body>
+</html>

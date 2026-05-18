@@ -1,0 +1,169 @@
+<h2>ImagePickerDialog 双区域设计</h2>
+<p class="subtitle">upload/ 和 xhs_upload/ 分开展示，底部进度条计数</p>
+
+<div class="mockup" style="max-width: 640px; margin: 0 auto;">
+  <div class="mockup-header">Upload to selected platforms</div>
+  <div class="mockup-body" style="padding: 0; background: #1a1a1a; color: #ccc; font-family: -apple-system, sans-serif;">
+
+    <!-- Toolbar -->
+    <div style="padding: 8px 14px; border-bottom: 1px solid #333; display: flex; gap: 8px; align-items: center; font-size: 12px;">
+      <select style="background: #2a2a2a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 4px 8px; font-size: 12px;">
+        <option>最新优先</option>
+      </select>
+      <button style="background: transparent; color: #999; border: 1px solid #444; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer;">全选</button>
+      <button style="background: transparent; color: #999; border: 1px solid #444; border-radius: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer;">清空</button>
+      <div style="margin-left: auto; color: #666; font-size: 11px; font-family: monospace;">
+        upload/ 35 张 · xhs/ 12 张 · 已选 28 张
+      </div>
+    </div>
+
+    <!-- upload/ section -->
+    <div style="padding: 10px 14px 6px;">
+      <div style="font-size: 11px; color: #666; font-family: monospace; margin-bottom: 8px;">upload/</div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #2d5a8a, #1a3a5a); border-radius: 4px; border: 2px solid #e86530; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e86530; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #5a2d8a, #3a1a5a); border-radius: 4px; border: 2px solid #e86530; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e86530; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #8a5a2d, #5a3a1a); border-radius: 4px; border: 2px solid #e86530; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e86530; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #2d8a5a, #1a5a3a); border-radius: 4px; border: 2px solid #444; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: rgba(0,0,0,0.4);"></div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #8a2d5a, #5a1a3a); border-radius: 4px; border: 2px solid #e86530; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e86530; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #2d708a, #1a4a5a); border-radius: 4px; border: 2px solid #e86530; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e86530; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #6a6a2d, #4a4a1a); border-radius: 4px; border: 2px solid #e86530; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e86530; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #5a5a8a, #3a3a5a); border-radius: 4px; border: 2px solid #444; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: rgba(0,0,0,0.4);"></div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #8a8a2d, #5a5a1a); border-radius: 4px; border: 2px solid #e86530; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e86530; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #2d2d8a, #1a1a5a); border-radius: 4px; border: 2px solid #e86530; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e86530; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- xhs_upload/ section -->
+    <div style="padding: 10px 14px 6px; border-top: 1px dashed #333; margin-top: 6px;">
+      <div style="font-size: 11px; color: #666; font-family: monospace; margin-bottom: 8px;">xhs_upload/</div>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #8a3030, #5a1a1a); border-radius: 4px; border: 2px solid #e6533c; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e6533c; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #8a5050, #5a3030); border-radius: 4px; border: 2px solid #e6533c; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e6533c; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #8a6060, #5a4040); border-radius: 4px; border: 2px solid #e6533c; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e6533c; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #8a4040, #5a2020); border-radius: 4px; border: 2px solid #444; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: rgba(0,0,0,0.4);"></div>
+        </div>
+        <div style="aspect-ratio: 1; background: linear-gradient(135deg, #6a3030, #4a1a1a); border-radius: 4px; border: 2px solid #e6533c; position: relative;">
+          <div style="position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: #e6533c; display: grid; place-items: center;">
+            <span style="color: white; font-size: 9px;">✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress bars -->
+    <div style="padding: 10px 14px; border-top: 1px solid #333; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="flex: 1; height: 6px; border-radius: 3px; background: #333; overflow: hidden;">
+          <div style="width: 80%; height: 100%; border-radius: 3px; background: #e86530; transition: width 0.3s;"></div>
+        </div>
+        <span style="font-size: 11px; font-family: monospace; color: #888; white-space: nowrap; min-width: 100px;">upload/ 20/25</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="flex: 1; height: 6px; border-radius: 3px; background: #333; overflow: hidden;">
+          <div style="width: 66%; height: 100%; border-radius: 3px; background: #e6533c; transition: width 0.3s;"></div>
+        </div>
+        <span style="font-size: 11px; font-family: monospace; color: #888; white-space: nowrap; min-width: 100px;">xhs/ 8/12</span>
+      </div>
+    </div>
+
+    <!-- Targets -->
+    <div style="padding: 8px 14px; border-top: 1px solid #333; display: flex; gap: 14px; align-items: center; font-size: 12px; flex-wrap: wrap;">
+      <span style="font-size: 11px; font-family: monospace; color: #666;">发布到</span>
+      <label style="display: flex; gap: 4px; align-items: center; cursor: pointer;">
+        <input type="checkbox" checked disabled> Civitai
+      </label>
+      <label style="display: flex; gap: 4px; align-items: center; cursor: pointer;">
+        <input type="checkbox" checked disabled> Pixiv
+      </label>
+      <label style="display: flex; gap: 4px; align-items: center; cursor: pointer;">
+        <input type="checkbox" checked disabled> X
+      </label>
+      <label style="display: flex; gap: 4px; align-items: center; cursor: pointer;">
+        <input type="checkbox" checked disabled> 小红书
+        <span style="font-size: 10px; font-family: monospace; color: #666;">(NSFW 跳过)</span>
+      </label>
+    </div>
+
+    <!-- LLM row -->
+    <div style="padding: 8px 14px; border-top: 1px solid #2a2a2a; display: flex; gap: 8px; align-items: center; font-size: 12px;">
+      <label style="display: flex; gap: 4px; align-items: center; white-space: nowrap;">
+        <input type="checkbox" checked disabled> LLM 标题/简介
+      </label>
+      <span style="font-size: 11px; color: #666; border: 1px solid #444; border-radius: 3px; padding: 1px 6px;">统一</span>
+      <select style="background: #2a2a2a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 3px 6px; font-size: 12px; flex: 1;">
+        <option>测试软系</option>
+      </select>
+      <select style="background: #2a2a2a; color: #ccc; border: 1px solid #444; border-radius: 4px; padding: 3px 6px; font-size: 12px; width: 70px;">
+        <option>NSFW</option>
+      </select>
+    </div>
+
+    <!-- Bottom bar -->
+    <div style="padding: 10px 14px; border-top: 1px solid #333; display: flex; gap: 8px; align-items: center; justify-content: flex-end;">
+      <button style="background: transparent; color: #999; border: 1px solid #444; border-radius: 4px; padding: 4px 14px; font-size: 12px; margin-right: auto; cursor: pointer;">随机 1-5</button>
+      <button style="background: transparent; color: #999; border: 1px solid #444; border-radius: 4px; padding: 4px 14px; font-size: 12px; cursor: pointer;">取消</button>
+      <button style="background: transparent; color: #999; border: 1px solid #444; border-radius: 4px; padding: 4px 14px; font-size: 12px; cursor: pointer;">保存</button>
+      <button style="background: #e86530; color: white; border: none; border-radius: 4px; padding: 4px 16px; font-size: 12px; font-weight: 600; cursor: pointer;">上传 28 张</button>
+    </div>
+  </div>
+</div>
+
+<div style="max-width: 640px; margin: 20px auto 0;">
+  <p style="font-size: 13px; color: #999;">
+    <strong>设计要点：</strong><br>
+    · upload/ 和 xhs_upload/ 用虚线分隔，各自带区域标签<br>
+    · XHS 区域用小红书红 (#e6533c) 作为选中色，和 upload 的橙色区分<br>
+    · 两条进度条在图片网格下方，实时显示各区域已选/总数<br>
+    · cmd === 3（小红书发布）时只显示 xhs_upload/ 区域
+  </p>
+</div>

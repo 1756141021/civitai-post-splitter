@@ -366,7 +366,7 @@ def cmd_tagger_menu() -> None:
 
 def cmd_pixiv_logout() -> None:
     import shutil
-    from playwright.sync_api import sync_playwright
+    from patchright.sync_api import sync_playwright
     from pixiv.support import PIXIV_PROFILE_DIR
     shutil.rmtree(PIXIV_PROFILE_DIR, ignore_errors=True)
     print(f"已清除旧登录状态（{PIXIV_PROFILE_DIR}）。")
@@ -391,7 +391,7 @@ def cmd_pixiv_logout() -> None:
 
 def cmd_civitai_login() -> None:
     import shutil
-    from playwright.sync_api import sync_playwright
+    from patchright.sync_api import sync_playwright
     profile = Path.home() / ".civitai_splitter_chrome"
     shutil.rmtree(profile, ignore_errors=True)
     print(f"已清除旧登录状态（{profile}）。")

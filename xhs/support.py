@@ -17,6 +17,7 @@ import random
 import re
 import time
 import traceback
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -29,6 +30,7 @@ XHS_BASE = "https://www.xiaohongshu.com"
 # Web 版发布入口；creator.xiaohongshu.com 改版频繁，先用 web 端 explore 的发布。
 XHS_PUBLISH_URL = "https://creator.xiaohongshu.com/publish/publish?source=official"
 XHS_PROFILE_DIR = Path.home() / ".civitai_splitter_xhs_chrome"
+_LAST_PUBLISH_FILE = Path(__file__).parent / ".last_publish_ts"
 
 DEFAULT_TEMPLATES = {
     "default": {"core": "#插画", "lang": "zh", "social": "#治愈系插画"},
@@ -59,6 +61,8 @@ DEFAULT_SETTINGS = {
     "default_template": "default",
     "jpg_quality": 90,
     "png_size_threshold_mb": 8,
+    "active_hours_start": 8,
+    "active_hours_end": 23,
 }
 
 # Selectors confirmed at run time. xhs creator UI uses Element Plus
@@ -399,49 +403,100 @@ def _load_cookies_into_context(context, cookies_path: Path) -> int:
     return len(cookies)
 
 
-_STEALTH_INIT_JS = """
-Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-window.chrome = window.chrome || { runtime: {} };
-Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en-US', 'en'] });
-Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-"""
-
-
-def open_xhs_browser(pw, profile_dir: Path | None = None):
-    """Launch persistent Chrome context for xhs."""
-    target_profile = profile_dir or XHS_PROFILE_DIR
-    context = pw.chromium.launch_persistent_context(
-        str(target_profile),
-        channel="chrome",
-        headless=False,
-        args=[
-            "--start-maximized",
-            "--disable-sync",
-            "--no-first-run",
-            "--disable-blink-features=AutomationControlled",
-        ],
-        ignore_default_args=["--enable-automation", "--no-sandbox"],
-        user_agent=(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-        ),
-    )
+def _find_chrome() -> str | None:
+    """Find Chrome executable on Windows."""
+    import os, winreg
     try:
-        context.add_init_script(_STEALTH_INIT_JS)
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                             r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe")
+        val, _ = winreg.QueryValueEx(key, "")
+        winreg.CloseKey(key)
+        if val and Path(val).exists():
+            return val
+    except Exception:
+        pass
+    for candidate in [
+        Path(os.environ.get("PROGRAMFILES", "")) / "Google/Chrome/Application/chrome.exe",
+        Path(os.environ.get("PROGRAMFILES(X86)", "")) / "Google/Chrome/Application/chrome.exe",
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Google/Chrome/Application/chrome.exe",
+    ]:
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+_cdp_chrome_proc = None
+
+
+def _ensure_chrome_cdp(cdp_url: str, profile_dir: Path) -> None:
+    """If no Chrome is listening on *cdp_url*, launch one."""
+    global _cdp_chrome_proc
+    import subprocess, urllib.request
+    try:
+        resp = urllib.request.urlopen(cdp_url + "/json/version", timeout=2)
+        data = json.loads(resp.read())
+        if "webSocketDebuggerUrl" in data:
+            log.info("xhs: CDP 端口已有 Chrome 在监听")
+            return
+        port = cdp_url.rsplit(":", 1)[-1].split("/")[0]
+        raise RuntimeError(f"端口 {port} 已被其他服务占用（不是 Chrome CDP），请关闭占用该端口的程序")
+    except RuntimeError:
+        raise
     except Exception:
         pass
 
-    cookies_path = XHS_DIR / "cookies.json"
-    if cookies_path.exists():
-        n = _load_cookies_into_context(context, cookies_path)
-        if n > 0:
-            log.info(f"xhs: 注入 {n} 条 cookies（来自 xhs/cookies.json）")
+    chrome = _find_chrome()
+    if not chrome:
+        raise RuntimeError("找不到 Chrome，请安装 Chrome 浏览器")
 
+    port = cdp_url.rsplit(":", 1)[-1].split("/")[0]
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    log.info(f"xhs: 自动启动 Chrome (CDP :{port}) ...")
+    _cdp_chrome_proc = subprocess.Popen([
+        chrome,
+        f"--remote-debugging-port={port}",
+        f"--user-data-dir={profile_dir}",
+        "--no-first-run",
+        "--disable-sync",
+        "--start-maximized",
+    ])
+    for i in range(20):
+        time.sleep(1)
+        if _cdp_chrome_proc.poll() is not None:
+            raise RuntimeError(f"Chrome 启动后立即退出 (exit code {_cdp_chrome_proc.returncode})")
+        try:
+            urllib.request.urlopen(cdp_url + "/json/version", timeout=2)
+            log.info("xhs: Chrome CDP 就绪")
+            return
+        except Exception:
+            pass
+    raise RuntimeError(f"Chrome 启动后 CDP 端口 {port} 未就绪，等了 20 秒")
+
+
+_DEFAULT_CDP_URL = "http://localhost:9222"
+
+
+def open_xhs_browser(pw, profile_dir: Path | None = None, *, cdp_url: str | None = None):
+    """Auto-launch Chrome with CDP and connect for xhs.
+
+    Chrome is started as a clean process (not via Playwright), then
+    connected over CDP using Patchright — minimal automation fingerprint.
+    """
+    from xhs.stealth_scripts import FINGERPRINT_INIT_SCRIPT
+
+    target_profile = profile_dir or XHS_PROFILE_DIR
+    url = cdp_url or _DEFAULT_CDP_URL
+    _ensure_chrome_cdp(url, target_profile)
+    log.info(f"xhs: CDP 连接 → {url}")
+    browser = pw.chromium.connect_over_cdp(url)
+    if not browser.contexts:
+        raise RuntimeError("CDP 连接成功但没有 context，浏览器可能没打开页面")
+    context = browser.contexts[0]
+    context.add_init_script(FINGERPRINT_INIT_SCRIPT)
     page = context.pages[0] if context.pages else context.new_page()
-    # Do NOT force viewport size — --start-maximized owns the window geometry.
-    # Forcing 1920x1080 on a differently-scaled screen breaks coordinate clicks.
     ensure_xhs_logged_in(page)
-    return context, page
+    _warmup_browse(page)
+    return context, page, browser
 
 
 def ensure_xhs_logged_in(page) -> None:
@@ -494,6 +549,187 @@ def _sleep_with_cancel(sec: float, cancel_event) -> None:
         time.sleep(min(0.5, max(0.0, end - time.time())))
 
 
+_DETECTION_PHRASES = [
+    "检测到第三方",
+    "第三方脚本",
+    "操作异常",
+    "请完成验证",
+    "操作过于频繁",
+    "账号存在异常",
+    "安全验证",
+]
+
+_detection_triggered = False
+
+
+def _check_detection(page) -> str | None:
+    """Return warning phrase if a risk-control dialog/toast is visible, else None."""
+    selectors = [
+        '[class*="dialog"]', '[class*="modal"]', '[role="dialog"]',
+        '[role="alertdialog"]', '[class*="toast"]', '[class*="notice"]',
+        '[class*="captcha"]',
+    ]
+    for sel in selectors:
+        try:
+            loc = page.locator(sel)
+            for i in range(loc.count()):
+                el = loc.nth(i)
+                if not el.is_visible():
+                    continue
+                text = el.inner_text(timeout=1000)
+                for phrase in _DETECTION_PHRASES:
+                    if phrase in text:
+                        return phrase
+        except Exception:
+            pass
+    return None
+
+
+def _enforce_active_hours(settings: dict, cancel_event=None) -> None:
+    """Block until we're within configured active posting hours."""
+    start = int(settings.get("active_hours_start", 8))
+    end = int(settings.get("active_hours_end", 23))
+    if start == end:
+        return
+    while True:
+        _raise_if_canceled(cancel_event)
+        hour = datetime.now().hour
+        if start < end:
+            in_range = start <= hour < end
+        else:
+            in_range = hour >= start or hour < end
+        if in_range:
+            return
+        now = datetime.now()
+        target = now.replace(hour=start, minute=random.randint(0, 15), second=0, microsecond=0)
+        if target <= now:
+            target += timedelta(days=1)
+        wait_sec = (target - now).total_seconds()
+        log.info(f"xhs: 当前 {hour}:00 不在活跃时段 ({start}:00-{end}:00)，等待 {wait_sec:.0f}s")
+        _sleep_with_cancel(min(wait_sec, 300), cancel_event)
+
+
+def _warmup_browse(page, cancel_event=None) -> None:
+    """Browse XHS feed briefly to establish normal browsing pattern."""
+    log.info("xhs: 浏览预热中...")
+    try:
+        page.goto("https://www.xiaohongshu.com/explore", wait_until="commit", timeout=20000)
+    except Exception:
+        return
+    time.sleep(random.uniform(3, 6))
+
+    scroll_count = random.randint(2, 4)
+    for _ in range(scroll_count):
+        direction = random.choice([-1, 1])
+        amount = random.randint(200, 600) * direction
+        try:
+            page.evaluate(f"window.scrollBy(0, {amount})")
+        except Exception:
+            pass
+        time.sleep(random.uniform(2, 5))
+
+    if random.random() < 0.3:
+        try:
+            notes = page.locator('a[href*="/explore/"]')
+            if notes.count() > 3:
+                idx = random.randint(0, min(notes.count() - 1, 8))
+                notes.nth(idx).click()
+                time.sleep(random.uniform(3, 8))
+                page.go_back()
+                time.sleep(random.uniform(1, 3))
+        except Exception:
+            pass
+
+    log.info("xhs: 预热完成")
+
+
+def _human_type(page, text: str, *, cancel_event=None) -> None:
+    """Keystroke-by-keystroke typing with human-like timing variance."""
+    for i, ch in enumerate(text):
+        _raise_if_canceled(cancel_event)
+        delay_s = max(0.02, random.gauss(0.08, 0.03))
+        if i > 0 and random.random() < 0.08:
+            time.sleep(random.uniform(0.2, 0.5))
+        if random.random() < 0.015 and ch.isascii() and ch.isalpha():
+            wrong = chr(ord(ch) + random.choice([-1, 1]))
+            page.keyboard.type(wrong)
+            time.sleep(random.uniform(0.1, 0.3))
+            page.keyboard.press("Backspace")
+            time.sleep(random.uniform(0.05, 0.15))
+        page.keyboard.type(ch)
+        time.sleep(delay_s)
+
+
+def _human_move_and_click(page, locator, *, cancel_event=None) -> None:
+    """Move mouse along a bezier curve to the element, then click."""
+    _raise_if_canceled(cancel_event)
+    try:
+        box = locator.bounding_box(timeout=3000)
+    except Exception:
+        box = None
+    if not box:
+        locator.click()
+        return
+    target_x = box["x"] + box["width"] / 2 + random.uniform(-3, 3)
+    target_y = box["y"] + box["height"] / 2 + random.uniform(-3, 3)
+    try:
+        current = page.evaluate(
+            "() => ({x: window._lastMouseX || 640, y: window._lastMouseY || 360})"
+        )
+        cx, cy = current["x"], current["y"]
+    except Exception:
+        cx, cy = 640.0, 360.0
+    steps = random.randint(15, 30)
+    cp1x = cx + (target_x - cx) * 0.3 + random.uniform(-50, 50)
+    cp1y = cy + (target_y - cy) * 0.3 + random.uniform(-30, 30)
+    cp2x = cx + (target_x - cx) * 0.7 + random.uniform(-30, 30)
+    cp2y = cy + (target_y - cy) * 0.7 + random.uniform(-20, 20)
+    for i in range(steps + 1):
+        t = i / steps
+        x = (1 - t) ** 3 * cx + 3 * (1 - t) ** 2 * t * cp1x + 3 * (1 - t) * t ** 2 * cp2x + t ** 3 * target_x
+        y = (1 - t) ** 3 * cy + 3 * (1 - t) ** 2 * t * cp1y + 3 * (1 - t) * t ** 2 * cp2y + t ** 3 * target_y
+        page.mouse.move(x, y)
+        time.sleep(random.uniform(0.005, 0.02))
+    page.evaluate(
+        f"() => {{ window._lastMouseX = {target_x}; window._lastMouseY = {target_y}; }}"
+    )
+    time.sleep(random.uniform(0.05, 0.15))
+    page.mouse.click(target_x, target_y)
+
+
+def _random_scroll(page) -> None:
+    """Randomly scroll page a small amount to simulate browsing."""
+    direction = random.choice([-1, 1])
+    amount = random.randint(50, 200) * direction
+    try:
+        page.evaluate(f"window.scrollBy(0, {amount})")
+    except Exception:
+        pass
+    time.sleep(random.uniform(0.3, 0.8))
+
+
+def _enforce_min_interval(settings: dict, cancel_event=None) -> None:
+    """Block until min_interval_seconds have elapsed since last publish."""
+    min_sec = float(settings.get("min_interval_seconds", 1800))
+    actual_min = min_sec * random.uniform(0.8, 1.2)
+    try:
+        last_ts = float(_LAST_PUBLISH_FILE.read_text(encoding="utf-8").strip())
+    except (FileNotFoundError, ValueError, OSError):
+        return
+    elapsed = time.time() - last_ts
+    if elapsed < actual_min:
+        wait = actual_min - elapsed
+        log.info(f"    xhs: 距上次发布 {elapsed:.0f}s，需等待 {wait:.0f}s")
+        _sleep_with_cancel(wait, cancel_event)
+
+
+def _record_publish_time() -> None:
+    try:
+        _LAST_PUBLISH_FILE.write_text(str(time.time()), encoding="utf-8")
+    except OSError:
+        pass
+
+
 def create_xhs_post(
     page,
     payload: dict[str, Any],
@@ -511,15 +747,43 @@ def create_xhs_post(
     starting points — real-world testing will likely require tweaking
     XHS_SELECTORS in xhs/support.py.
     """
+    global _detection_triggered
     settings = settings or DEFAULT_SETTINGS
     _raise_if_canceled(cancel_event)
+
+    if _detection_triggered:
+        log.critical("xhs: 之前检测到风控，本次会话内不再发帖")
+        return None
+
+    _enforce_active_hours(settings, cancel_event)
+    _enforce_min_interval(settings, cancel_event)
+
+    # Random pre-publish detour (20% chance)
+    if random.random() < 0.2:
+        detour = random.choice([
+            "https://www.xiaohongshu.com/user/profile/self",
+            "https://creator.xiaohongshu.com/creator/home",
+        ])
+        try:
+            page.goto(detour, wait_until="commit", timeout=15000)
+            _sleep_with_cancel(random.uniform(3, 8), cancel_event)
+            page.evaluate(f"window.scrollBy(0, {random.randint(100, 400)})")
+            _sleep_with_cancel(random.uniform(1, 3), cancel_event)
+        except Exception:
+            pass
 
     try:
         page.goto(XHS_PUBLISH_URL, wait_until="commit", timeout=30000)
     except Exception as exc:
         log.error(f"    xhs: publish 跳转失败: {exc}")
         return None
-    _sleep_with_cancel(4, cancel_event)
+    _sleep_with_cancel(random.uniform(3, 6), cancel_event)
+
+    detected = _check_detection(page)
+    if detected:
+        log.critical(f"xhs: 检测到风控关键词「{detected}」，中止发布")
+        _detection_triggered = True
+        return None
 
     # 1. Switch to image-text tab (default is video)
     try:
@@ -534,7 +798,7 @@ def create_xhs_post(
             try:
                 if el.is_visible():
                     el.scroll_into_view_if_needed(timeout=3000)
-                    el.click(timeout=5000)
+                    _human_move_and_click(page, el, cancel_event=cancel_event)
                     clicked = True
                     break
             except Exception:
@@ -542,7 +806,7 @@ def create_xhs_post(
         if not clicked and tab_loc.count() > 0:
             tab_loc.first.click(force=True)
         if clicked or tab_loc.count() > 0:
-            _sleep_with_cancel(2, cancel_event)
+            _sleep_with_cancel(random.uniform(1.5, 3.5), cancel_event)
     except Exception as exc:
         log.warning(f"    xhs: 切换图文 tab 失败（可能已在图文模式）: {exc}")
 
@@ -566,14 +830,22 @@ def create_xhs_post(
         return None
 
     # Wait for images to upload (heuristic: title input becomes available)
-    _sleep_with_cancel(8, cancel_event)
+    _sleep_with_cancel(random.uniform(6, 12), cancel_event)
+
+    detected = _check_detection(page)
+    if detected:
+        log.critical(f"xhs: 上传后检测到风控「{detected}」，中止")
+        _detection_triggered = True
+        return None
 
     # 3. Fill title
     if payload.get("title"):
         try:
             title_input = page.locator(XHS_SELECTORS["title_input"]).first
-            title_input.click()
-            title_input.fill(payload["title"])
+            _human_move_and_click(page, title_input, cancel_event=cancel_event)
+            _human_type(page, payload["title"], cancel_event=cancel_event)
+            if random.random() < 0.2:
+                _sleep_with_cancel(random.uniform(1, 3), cancel_event)
         except Exception as exc:
             log.warning(f"    xhs: 写标题失败: {exc}")
 
@@ -584,16 +856,18 @@ def create_xhs_post(
     editor_clicked = False
     try:
         editor = page.locator(XHS_SELECTORS["body_editor"]).first
-        editor.click()
+        _human_move_and_click(page, editor, cancel_event=cancel_event)
         editor_clicked = True
     except Exception as exc:
         log.warning(f"    xhs: 定位正文编辑器失败: {exc}")
 
     if editor_clicked:
+        if random.random() < 0.3:
+            _random_scroll(page)
         caption_text = payload.get("caption_text") or ""
         if caption_text:
             try:
-                page.keyboard.type(caption_text, delay=10)
+                _human_type(page, caption_text, cancel_event=cancel_event)
             except Exception as exc:
                 log.warning(f"    xhs: 写正文失败: {exc}")
 
@@ -615,8 +889,8 @@ def create_xhs_post(
             if not topic_text:
                 continue
             try:
-                page.keyboard.type(" ", delay=10)
-                page.keyboard.type("#" + topic_text, delay=20)
+                _human_type(page, " ", cancel_event=cancel_event)
+                _human_type(page, "#" + topic_text, cancel_event=cancel_event)
                 # Try each selector candidate with a short timeout window
                 clicked = False
                 deadline = time.time() + topic_wait
@@ -627,25 +901,26 @@ def create_xhs_post(
                         page.wait_for_selector(sel, timeout=remaining_ms)
                         loc = page.locator(sel)
                         if loc.count() > 0:
-                            loc.first.click()
+                            _human_move_and_click(page, loc.first, cancel_event=cancel_event)
                             clicked = True
-                            _sleep_with_cancel(0.5, cancel_event)
+                            _sleep_with_cancel(random.uniform(0.3, 1.0), cancel_event)
                             break
                     except Exception:
                         pass
                     if time.time() > deadline:
                         break
                 if not clicked:
-                    # Fallback: Enter accepts first highlighted suggestion in most editors
                     page.keyboard.press("Enter")
-                    _sleep_with_cancel(0.3, cancel_event)
+                    _sleep_with_cancel(random.uniform(0.3, 0.8), cancel_event)
                     log.warning(f"    xhs: 话题 {tag} selector 未命中，已按 Enter 兜底")
             except Exception as exc:
                 log.warning(f"    xhs: 话题 {tag} 插入失败: {exc}")
 
-    # 5. 推荐话题：点击编辑器下方 XHS 推荐的 tag 芯片
-    rec_count = int(settings.get("recommended_tag_count", 3))
-    if rec_count > 0:
+    # 5/6/7: Recommended tags, AI declaration, original declaration — randomized order
+    def _do_recommended_tags():
+        rec_count = int(settings.get("recommended_tag_count", 3))
+        if rec_count <= 0:
+            return
         try:
             rec_loc = page.locator(XHS_SELECTORS["recommended_tag_chip"])
             clicked_rec = 0
@@ -653,8 +928,8 @@ def create_xhs_post(
                 try:
                     el = rec_loc.nth(i)
                     if el.is_visible():
-                        el.click()
-                        _sleep_with_cancel(0.3, cancel_event)
+                        _human_move_and_click(page, el, cancel_event=cancel_event)
+                        _sleep_with_cancel(random.uniform(0.3, 0.8), cancel_event)
                         clicked_rec += 1
                 except Exception:
                     continue
@@ -665,29 +940,30 @@ def create_xhs_post(
         except Exception as exc:
             log.warning(f"    xhs: 推荐话题点击失败: {exc}")
 
-    # 6. AI 内容声明（GB45438-2025，2025-09-01 起）
-    # 流程：展开"添加内容类型声明"折叠面板 → 点"笔记含AI合成内容"
-    if payload.get("ai_declaration_required"):
+    def _do_ai_declaration():
+        if not payload.get("ai_declaration_required"):
+            return
         try:
             expand_loc = page.get_by_text("添加内容类型声明", exact=False)
             if expand_loc.count() > 0:
-                expand_loc.first.click()
-                _sleep_with_cancel(1, cancel_event)
+                _human_move_and_click(page, expand_loc.first, cancel_event=cancel_event)
+                _sleep_with_cancel(random.uniform(0.8, 2.0), cancel_event)
             ai_loc = page.get_by_text("笔记含AI合成内容", exact=True)
             if ai_loc.count() == 0:
                 ai_loc = page.get_by_text("笔记含AI合成内容", exact=False)
             if ai_loc.count() == 0:
                 ai_loc = page.locator(XHS_SELECTORS["ai_declaration_ai_content"])
             if ai_loc.count() > 0:
-                ai_loc.first.click()
+                _human_move_and_click(page, ai_loc.first, cancel_event=cancel_event)
                 log.info("    xhs: 已勾选「笔记含AI合成内容」")
             else:
                 log.warning("    xhs: 未找到「笔记含AI合成内容」选项，跳过")
         except Exception as exc:
             log.warning(f"    xhs: AI 内容声明失败（跳过）: {exc}")
 
-    # 7. 原创声明 toggle
-    if settings.get("auto_declare_original", True):
+    def _do_original_declaration():
+        if not settings.get("auto_declare_original", True):
+            return
         try:
             orig_loc = page.locator(
                 ':has-text("原创声明") span.d-switch-simulator,'
@@ -695,17 +971,15 @@ def create_xhs_post(
                 ' :has-text("原创声明") span[class*="switch-simulator"]'
             )
             if orig_loc.count() > 0:
-                orig_loc.first.click()
-                _sleep_with_cancel(1.5, cancel_event)
-                # First-time: dialog "笔记完成原创声明后..." appears
+                _human_move_and_click(page, orig_loc.first, cancel_event=cancel_event)
+                _sleep_with_cancel(random.uniform(1.0, 2.5), cancel_event)
                 confirm_btn = page.get_by_text("声明原创", exact=True)
                 if confirm_btn.count() > 0:
-                    # Checkbox is an SVG icon — click the label text to toggle it
                     agree_label = page.get_by_text("我已阅读并同意", exact=False)
                     if agree_label.count() > 0:
-                        agree_label.first.click()
-                        _sleep_with_cancel(0.5, cancel_event)
-                    confirm_btn.first.click()
+                        _human_move_and_click(page, agree_label.first, cancel_event=cancel_event)
+                        _sleep_with_cancel(random.uniform(0.3, 1.0), cancel_event)
+                    _human_move_and_click(page, confirm_btn.first, cancel_event=cancel_event)
                     log.info("    xhs: 原创声明协议已确认")
                 log.info("    xhs: 已勾选原创声明")
             else:
@@ -713,17 +987,30 @@ def create_xhs_post(
         except Exception as exc:
             log.warning(f"    xhs: 原创声明失败（跳过）: {exc}")
 
+    _post_steps = [_do_recommended_tags, _do_ai_declaration, _do_original_declaration]
+    random.shuffle(_post_steps)
+    for _step_fn in _post_steps:
+        _step_fn()
+        _sleep_with_cancel(random.uniform(0.5, 1.5), cancel_event)
+
     # 8. Publish
-    _sleep_with_cancel(1, cancel_event)  # let any post-dialog transitions settle
+    _sleep_with_cancel(random.uniform(0.8, 2.0), cancel_event)
     try:
+        try:
+            page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            _sleep_with_cancel(random.uniform(0.3, 1.0), cancel_event)
+        except Exception:
+            pass
         # Button lives inside an iframe — search all frames
         publish_frame = None
         publish_btn = None
         for _frame in page.frames:
             for _sel in [
                 'button.ce-btn.bg-red',
+                'button[class*="publish"]',
                 'button.ce-btn:has-text("发布")',
                 'button:has-text("发布")',
+                'div.ce-btn:has-text("发布")',
             ]:
                 try:
                     _loc = _frame.locator(_sel)
@@ -770,8 +1057,8 @@ def create_xhs_post(
                     () => {
                         const h = window.innerHeight;
                         const w = window.innerWidth;
-                        for (const yOff of [28, 32, 36, 40, 45]) {
-                            for (const xPct of [0.55, 0.52, 0.58, 0.50, 0.60]) {
+                        for (const yOff of [20, 28, 36, 45, 60, 80, 100]) {
+                            for (const xPct of [0.55, 0.52, 0.58, 0.50, 0.60, 0.45, 0.65]) {
                                 const x = Math.round(w * xPct);
                                 const y = h - yOff;
                                 const el = document.elementFromPoint(x, y);
@@ -787,13 +1074,17 @@ def create_xhs_post(
                 if clicked_coord:
                     log.info(f"    xhs: 坐标点击成功: {clicked_coord}")
                 else:
-                    # Last resort: blind click at bottom-center of actual viewport
+                    # Last resort: scroll to bottom, blind click bottom area
+                    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    _sleep_with_cancel(0.3, cancel_event)
                     actual_h = page.evaluate("window.innerHeight") or 720
                     actual_w = page.evaluate("window.innerWidth") or 1280
-                    bx = int(actual_w * 0.55)
-                    by = actual_h - 30
-                    log.warning(f"    xhs: 盲点 ({bx}, {by}) viewport=({actual_w},{actual_h})")
-                    page.mouse.click(bx, by)
+                    for _y_off in [30, 50, 70]:
+                        bx = int(actual_w * 0.55)
+                        by = actual_h - _y_off
+                        log.warning(f"    xhs: 盲点 ({bx}, {by}) viewport=({actual_w},{actual_h})")
+                        page.mouse.click(bx, by)
+                        _sleep_with_cancel(0.3, cancel_event)
         else:
             try:
                 publish_btn.scroll_into_view_if_needed(timeout=3000)
@@ -822,23 +1113,22 @@ def create_xhs_post(
         log.error(f"    xhs: 点击发布失败: {exc}")
         return None
 
-    # 6. Detect success
+    # 9. Detect success
     timeout = int(settings.get("publish_timeout_sec", 120))
     for _ in range(timeout // 2):
         _sleep_with_cancel(2, cancel_event)
         url = page.url or ""
-        # Heuristic 1: URL changes back to manage page or home
         if "/publish/success" in url or "/note" in url:
+            _record_publish_time()
             wait = float(delay) + random.uniform(1, 3)
-            time.sleep(wait)
+            _sleep_with_cancel(wait, cancel_event)
             return url
-        # Heuristic 2: visible success toast
         try:
             if page.locator(':text("发布成功"), :text("发布中")').count() > 0:
+                _record_publish_time()
                 _sleep_with_cancel(3, cancel_event)
-                # take whatever URL the page has now
                 wait = float(delay) + random.uniform(1, 3)
-                time.sleep(wait)
+                _sleep_with_cancel(wait, cancel_event)
                 return page.url or "https://www.xiaohongshu.com/"
         except Exception:
             pass
