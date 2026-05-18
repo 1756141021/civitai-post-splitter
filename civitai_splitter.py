@@ -734,6 +734,7 @@ def create_upload_manifest(
     xhs_settings: dict | None = None,
     xhs_templates: dict | None = None,
     xhs_base_template: str = "default",
+    ai_tags_by_platform: dict | None = None,
     cancel_event=None,
 ) -> tuple[dict, bool]:
     _raise_if_canceled(cancel_event)
@@ -804,6 +805,7 @@ def create_upload_manifest(
             pixiv_page=pixiv_page,
             live_lookup=True,
             live_jp_lookup=True,
+            include_ai_art=(ai_tags_by_platform or {}).get("pixiv", True),
         )
         if needs_pixiv_payload else None
     )
@@ -948,6 +950,7 @@ def create_upload_manifest(
                 base_template=x_base_template,
                 age_restriction=(pixiv_payload or {}).get("age_restriction", "all_ages"),
                 copy=copy_block,
+                ai_tags_enabled=(ai_tags_by_platform or {}).get("x", True),
             )
         except Exception as exc:
             log.error(f"    X payload 构建失败: {exc}")
@@ -960,11 +963,15 @@ def create_upload_manifest(
         try:
             from xhs.support import build_xhs_payload as _build_xhs_payload
             xhs_source = Path(pixiv_clean.output_path) if pixiv_clean else image_path
+            _xhs_settings = xhs_settings or {}
+            if not (ai_tags_by_platform or {}).get("xhs", True):
+                _xhs_settings = dict(_xhs_settings)
+                _xhs_settings["auto_append_ai_tag"] = False
             xhs_payload = _build_xhs_payload(
                 pixiv_payload=pixiv_payload,
                 image_path=xhs_source,
                 xhs_dir=xhs_dir or (image_path.parent.parent / "xhs_out"),
-                settings=xhs_settings or {},
+                settings=_xhs_settings,
                 templates=xhs_templates or {},
                 base_template=xhs_base_template,
                 age_restriction=(pixiv_payload or {}).get("age_restriction", "all_ages"),
@@ -1195,6 +1202,14 @@ def cmd_upload(args):
     if getattr(args, "llm_reverse", False) and not llm_reverse_enabled:
         log.warning("LLM 反推: 已请求但未启用或配置不完整，将跳过")
 
+    no_ai_tags = getattr(args, "no_ai_tags", None) or ""
+    if not getattr(args, "ai_tags_by_platform", None) and no_ai_tags:
+        if no_ai_tags == "all":
+            args.ai_tags_by_platform = {"pixiv": False, "x": False, "xhs": False}
+        else:
+            skip = {p.strip().lower() for p in no_ai_tags.split(",") if p.strip()}
+            args.ai_tags_by_platform = {p: p not in skip for p in ("pixiv", "x", "xhs")}
+
     UPLOAD_DIR.mkdir(exist_ok=True)
     XHS_UPLOAD_DIR.mkdir(exist_ok=True)
     DONE_DIR.mkdir(exist_ok=True)
@@ -1382,6 +1397,7 @@ def cmd_upload(args):
                 xhs_settings=xhs_settings,
                 xhs_templates=xhs_templates,
                 xhs_base_template=xhs_base_template,
+                ai_tags_by_platform=getattr(args, "ai_tags_by_platform", None),
                 cancel_event=_cancel_ev,
             )
             _raise_if_canceled(_cancel_ev)
@@ -1846,6 +1862,8 @@ def main():
     sp_upload.add_argument("--x-template", default="", choices=["", "jp_sfw", "en_sfw", "zh_sfw", "jp_nsfw", "en_nsfw", "zh_nsfw"], help="X 模板（默认 en_sfw；r18/r18g 自动切到 *_nsfw）")
     sp_upload.add_argument("--x-group", type=int, default=1, choices=[1, 2, 3, 4], help="X 多图组队大小（1=每图单推；2-4=按文件名相邻组队，一条推挂多图）")
     sp_upload.add_argument("--xhs-template", default="", help="小红书模板（默认 default）")
+    sp_upload.add_argument("--no-ai-tags", default="", nargs="?", const="all",
+                           help="不打 AI 标签。不带值=全部平台；带值=指定平台（逗号分隔，如 pixiv,x）")
     sp_upload.add_argument("--count", type=int, default=0, help="本次发几张（默认 0 = 随机 1-5）")
     sp_upload.add_argument(
         "--sort", default="random",

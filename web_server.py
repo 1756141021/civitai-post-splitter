@@ -330,6 +330,7 @@ def _run_task_locked(task_id: str, cmd: int, params: dict) -> None:
                 llm_mode=params.get("llm_mode", "unified"),
                 llm_personas_by_platform=params.get("llm_personas_by_platform") or {},
                 llm_content_modes_by_platform=params.get("llm_content_modes_by_platform") or {},
+                ai_tags_by_platform=params.get("ai_tags_by_platform") or {},
                 x_template=params.get("x_template", ""),
                 xhs_template=params.get("xhs_template", ""),
                 cancel_event=cancel_event,

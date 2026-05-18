@@ -77,6 +77,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   const [llmContentByPlatform,  setLlmContentByPlatform]  = React.useState(ud.llm_content_modes_by_platform || { pixiv: ud.llm_content_mode || 'sfw', x: ud.llm_content_mode || 'sfw', xhs: ud.llm_content_mode || 'sfw' });
   const [xTemplate,    setXTemplate]    = React.useState(() => ud.x_template   ?? (localStorage.getItem('civitai-splitter:x-template')   || ''));
   const [xhsTemplate,  setXhsTemplate]  = React.useState(() => ud.xhs_template ?? (localStorage.getItem('civitai-splitter:xhs-template') || ''));
+  const [aiTagsByPlatform, setAiTagsByPlatform] = React.useState(ud.ai_tags_by_platform || { pixiv: true, x: true, xhs: true });
   const [saving,    setSaving]    = React.useState(false);
   const [savedAt,   setSavedAt]   = React.useState(0);
   const [templateOpts, setTemplateOpts] = React.useState({ x: [], x_default: 'en_sfw', xhs: [], xhs_default: 'default' });
@@ -202,14 +203,15 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
       ...(targetX   ? { x_template:   xTemplate   || templateOpts.x_default   || '' } : {}),
       ...(targetXhs ? { xhs_template: xhsTemplate || templateOpts.xhs_default || '' } : {}),
     };
+    const aiFields = { ai_tags_by_platform: aiTagsByPlatform };
     if (llmMode === 'per_platform') {
       const platMap = { civitai: targetCivitai, pixiv: targetPixiv, x: targetX, xhs: targetXhs };
       const needsCopy = ['pixiv', 'x', 'xhs'].filter(p => platMap[p]);
       const pbp = {}, cbp = {};
       needsCopy.forEach(p => { pbp[p] = llmPersonasByPlatform[p] || ''; cbp[p] = llmContentByPlatform[p] || 'sfw'; });
-      return { llm_reverse: llmReverse, llm_mode: 'per_platform', llm_personas_by_platform: pbp, llm_content_modes_by_platform: cbp, ...templateFields };
+      return { llm_reverse: llmReverse, llm_mode: 'per_platform', llm_personas_by_platform: pbp, llm_content_modes_by_platform: cbp, ...templateFields, ...aiFields };
     }
-    return { llm_reverse: llmReverse, llm_mode: 'unified', llm_persona: llmPersona, llm_content_mode: llmContentMode, ...templateFields };
+    return { llm_reverse: llmReverse, llm_mode: 'unified', llm_persona: llmPersona, llm_content_mode: llmContentMode, ...templateFields, ...aiFields };
   };
 
   const _currentTargets = () => [
@@ -230,6 +232,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
     llm_content_modes_by_platform: llmContentByPlatform,
     x_template: xTemplate,
     xhs_template: xhsTemplate,
+    ai_tags_by_platform: aiTagsByPlatform,
   });
 
   const _postDefaults = () =>
@@ -458,6 +461,30 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
             <span className="mn-mono" style={{ fontSize: 10, color: M.inkDim, marginLeft: 2 }}>(NSFW 跳过)</span>
           </label>
         </div>
+
+        {(targetPixiv || targetX || targetXhs) && (
+          <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim, marginRight: 4 }}>AI标签</span>
+            {targetPixiv && (
+              <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+                <input type="checkbox" checked={aiTagsByPlatform.pixiv !== false}
+                       onChange={e => setAiTagsByPlatform(prev => ({ ...prev, pixiv: e.target.checked }))} /> Pixiv
+              </label>
+            )}
+            {targetX && (
+              <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+                <input type="checkbox" checked={aiTagsByPlatform.x !== false}
+                       onChange={e => setAiTagsByPlatform(prev => ({ ...prev, x: e.target.checked }))} /> X
+              </label>
+            )}
+            {targetXhs && (
+              <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+                <input type="checkbox" checked={aiTagsByPlatform.xhs !== false}
+                       onChange={e => setAiTagsByPlatform(prev => ({ ...prev, xhs: e.target.checked }))} /> 小红书
+              </label>
+            )}
+          </div>
+        )}
 
         {llmConfig && llmConfig.enabled && (
           <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}` }}>

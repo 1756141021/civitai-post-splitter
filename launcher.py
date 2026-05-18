@@ -218,6 +218,10 @@ def _ask_upload_params() -> list[str]:
     if mode:
         extra += ["--sort", mode]
 
+    s = input("  不打 AI 标签？（留空=打，all=全部不打，或指定平台如 pixiv,x）: ").strip().lower()
+    if s:
+        extra += ["--no-ai-tags", s] if s != "all" else ["--no-ai-tags"]
+
     return extra
 
 

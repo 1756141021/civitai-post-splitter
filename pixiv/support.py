@@ -1859,6 +1859,7 @@ def build_pixiv_payload(
     pixiv_page: Any = None,
     live_lookup: bool = True,
     live_jp_lookup: bool = True,
+    include_ai_art: bool = True,
 ) -> dict[str, Any]:
     metadata = metadata_info.get("metadata")
     positive_prompt = getattr(metadata, "positive_prompt", "") if metadata else ""
@@ -2085,7 +2086,7 @@ def build_pixiv_payload(
         infer_candidate_age_restriction(age_candidates, age_rules),
     )
 
-    if not any(item["semantic"] == "ai_art" for item in semantic_entries):
+    if include_ai_art and not any(item["semantic"] == "ai_art" for item in semantic_entries):
         winner, decision = choose_semantic_winner("ai_art", alias_data, popularity_data, live_lookup=live_lookup, live_budget=live_count_budget)
         popularity_decisions.append(decision)
         info = semantics["ai_art"]

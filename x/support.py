@@ -287,6 +287,7 @@ def build_x_payload(
     base_template: str | None = None,
     age_restriction: str = "all_ages",
     copy: dict[str, Any] | None = None,
+    ai_tags_enabled: bool = True,
 ) -> dict[str, Any]:
     """Assemble manifest['x'] for a single image. Pure transform (no browser).
 
@@ -302,9 +303,10 @@ def build_x_payload(
     lang = template.get("lang", "en")
 
     entity_tags = (pixiv_payload or {}).get("entity_tags") or []
+    tag_template = template if ai_tags_enabled else {"core": "", "social": ""}
     tag_pick = pick_x_tags(
         entity_tags=entity_tags,
-        template=template,
+        template=tag_template,
         limit=int(settings.get("tag_limit", 2)),
     )
     tags = tag_pick["tags"]
