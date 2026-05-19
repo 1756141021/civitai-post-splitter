@@ -78,6 +78,21 @@ def _check_updates(force: bool = False, cancel_event=None) -> tuple[bool, int, s
     if not (SCRIPT_DIR / ".git").exists():
         return False, 0, ""
     _raise_if_canceled(cancel_event)
+    try:
+        _run_command_with_cancel(
+            ["git", "-C", str(SCRIPT_DIR), "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+            timeout=5, cancel_event=cancel_event, capture_output=True,
+        )
+    except InterruptedError:
+        raise
+    except Exception:
+        try:
+            _run_command_with_cancel(
+                ["git", "-C", str(SCRIPT_DIR), "branch", "--set-upstream-to=origin/main", "main"],
+                timeout=5, cancel_event=cancel_event,
+            )
+        except Exception:
+            return False, 0, ""
     if not force and LAST_UPDATE_CHECK_FILE.exists():
         age_h = (time.time() - LAST_UPDATE_CHECK_FILE.stat().st_mtime) / 3600
         if age_h < UPDATE_CHECK_INTERVAL_HOURS:
@@ -150,9 +165,10 @@ _update_banner = ""
 
 
 def header():
+    from version import __version__
     print()
     print(" " + "=" * 46)
-    print("  Civitai Post Splitter & Pixiv Uploader")
+    print(f"  Civitai Post Splitter & Pixiv Uploader  v{__version__}")
     print(" " + "=" * 46)
     if _update_banner:
         print()

@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026.05.19
+
+### Added
+- **版本管理**：新建 `version.py` 作为版本号单一源（日期版本 `YYYY.MM.DD`）。CLI header 和 Web UI 标题栏显示当前版本号。`/api/status` 返回 `version` 字段。
+- **NAI alpha channel 隐写读取**：`StandaloneMetadataReader` 新增 `_read_stealth_pnginfo()`，从 RGBA 图片 alpha 通道 LSB 提取 NAI 隐写元数据（magic `stealth_pngcomp` + gzip JSON）。当 PNG text chunk 中无 Comment 时自动回退到隐写读取，解决 NAI 图片经处理后 Comment 被剥掉导致元数据丢失的问题。
+
+### Fixed
+- **自动更新 upstream tracking**：`_check_updates()` 现在在检查前验证 `@{u}` 是否可用，缺失时自动尝试 `git branch --set-upstream-to=origin/main main`，修复无 upstream tracking 时更新检查静默失败的问题。
+- **Scheduler AI 标签开关**：`_scheduler_fire()` 构建 params 时补读 `ai_tags_by_platform`，修复定时发布忽略 AI 标签开关设置的问题。
+- **Tagger rating → NSFW 判定**：WD14 tagger rating 分类（general/sensitive/questionable/explicit）现在被三个 tagger bridge 正确提取并返回 `rating_scores` 字段。当 tagger 判定为 explicit/questionable（>0.5）时自动升级 `age_restriction` 至 r18。
+- **NAI Comment chunk 解析**：`StandaloneMetadataReader` 现在解析 PNG Comment chunk 中的 NAI JSON 元数据（prompt / uc / 生成参数），检测条件为 `"prompt" in data and "uc" in data` 避免误判。
+- **nsfw_blocked_targets 重算**：censor / rating 升级 age_restriction 后重新计算 `nsfw_blocked_targets`，修复初始 all_ages 被升级为 r18 后 xhs 等平台未被拦截的问题。
+
 ## 2026-05-16 (2)
 
 ### Added

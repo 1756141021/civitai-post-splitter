@@ -813,7 +813,7 @@ function MonoSingleApp() {
           </div>
           <div style={{ lineHeight: 1.15 }}>
             <div style={{ fontSize: 13.5, fontWeight: 600 }}>Civitai · Pixiv Uploader</div>
-            <div className="mn-mono" style={{ fontSize: 10, color: M.inkFaint }}>single-page console</div>
+            <div className="mn-mono" style={{ fontSize: 10, color: M.inkFaint }}>{status.version ? `v${status.version}` : 'single-page console'}</div>
           </div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>

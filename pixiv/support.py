@@ -958,10 +958,11 @@ class HainTagTaggerBridge:
     def predict_tags(self, path: Path) -> dict[str, Any]:
         engine = self._ensure_engine()
         if engine is None:
-            return {"available": False, "status": self._status, "flat_tags": [], "groups": {}, "details": []}
+            return {"available": False, "status": self._status, "flat_tags": [], "groups": {}, "details": [], "rating_scores": {}}
 
         settings = self._settings or {}
         enabled_categories = set(settings.get("tagger_local_enabled_categories") or ["general", "character", "copyright"])
+        enabled_with_rating = enabled_categories | {"rating"}
         gen_threshold = float(settings.get("tagger_local_general_threshold", 55)) / 100.0
         char_threshold = float(settings.get("tagger_local_character_threshold", 60)) / 100.0
         try:
@@ -969,7 +970,7 @@ class HainTagTaggerBridge:
                 str(path),
                 gen_threshold=gen_threshold,
                 char_threshold=char_threshold,
-                enabled_categories=enabled_categories,
+                enabled_categories=enabled_with_rating,
             )
         except Exception as exc:
             return {
@@ -978,7 +979,12 @@ class HainTagTaggerBridge:
                 "flat_tags": [],
                 "groups": {},
                 "details": [f"{type(exc).__name__}: {exc}"],
+                "rating_scores": {},
             }
+
+        rating_scores: dict[str, float] = {}
+        for tag, score in groups.pop("rating", []):
+            rating_scores[str(tag)] = round(float(score), 4)
 
         flat = []
         for category, entries in groups.items():
@@ -992,6 +998,7 @@ class HainTagTaggerBridge:
             "groups": {key: [(tag, round(float(score), 4)) for tag, score in value] for key, value in groups.items()},
             "details": [],
             "scored_tags": flat,
+            "rating_scores": rating_scores,
         }
 
     def _ensure_engine(self):
@@ -1105,7 +1112,7 @@ class HainTagTaggerBridge:
 def sanitize_image_for_pixiv(src: Path, dest_dir: Path) -> CleanResult:
     dest_dir.mkdir(exist_ok=True)
     with Image.open(src) as img:
-        image = img.convert("RGBA") if img.mode in ("RGBA", "LA", "P") else img.convert("RGB")
+        image = img.convert("RGB")
         dest = dest_dir / f"{src.stem}_pixiv_clean.png"
         image.save(dest, "PNG")
         return CleanResult(output_path=dest, width=image.width, height=image.height)
@@ -1129,6 +1136,7 @@ def split_prompt_tokens(text: str) -> list[str]:
         ):
             token = token[1:-1].strip()
         token = re.sub(r":[0-9.]+(?<!\\)\)?$", "", token).strip()
+        token = re.sub(r"^-?[0-9.]*::", "", token).rstrip(":").strip()
         if token:
             tokens.append(token)
     return tokens

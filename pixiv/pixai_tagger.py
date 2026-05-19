@@ -46,7 +46,7 @@ class PixAITaggerBridge:
 
     def predict_tags(self, path: Path) -> dict[str, Any]:
         if not self._ensure_loaded():
-            return {"available": False, "status": self._status, "flat_tags": [], "groups": {}, "details": []}
+            return {"available": False, "status": self._status, "flat_tags": [], "groups": {}, "details": [], "rating_scores": {}}
         try:
             arr = self._preprocess(path)
             inp = self._session.get_inputs()[0].name
@@ -54,7 +54,7 @@ class PixAITaggerBridge:
             scores = outputs[0][0]
             return self._decode(scores)
         except Exception as exc:
-            return {"available": True, "status": "error", "flat_tags": [], "groups": {}, "details": [f"{type(exc).__name__}: {exc}"]}
+            return {"available": True, "status": "error", "flat_tags": [], "groups": {}, "details": [f"{type(exc).__name__}: {exc}"], "rating_scores": {}}
 
     # ------------------------------------------------------------------
     # internal
@@ -179,7 +179,7 @@ class PixAITaggerBridge:
 
     def _decode(self, scores) -> dict[str, Any]:
         if self._tags is None:
-            return {"available": False, "status": "mapping_missing", "flat_tags": [], "groups": {}, "details": []}
+            return {"available": False, "status": "mapping_missing", "flat_tags": [], "groups": {}, "details": [], "rating_scores": {}}
 
         groups: dict[str, list] = {"general": [], "character": [], "copyright": []}
         flat: list[dict] = []
@@ -213,4 +213,5 @@ class PixAITaggerBridge:
             "groups": groups,
             "details": [],
             "scored_tags": flat,
+            "rating_scores": {},
         }

@@ -832,6 +832,25 @@ def create_upload_manifest(
             if pixiv_payload.get("age_restriction") not in {"r18", "r18g"}:
                 log.info("    censor: 检测到露出，强制 age_restriction=r18")
                 force_pixiv_age_restriction(pixiv_payload, "r18")
+        _rating_scores = tagger_result.get("rating_scores") or {}
+        if _rating_scores:
+            _best_rating = max(_rating_scores, key=_rating_scores.get)
+            _best_score = _rating_scores[_best_rating]
+            if _best_rating in ("explicit", "questionable") and _best_score > 0.5:
+                if pixiv_payload.get("age_restriction") not in ("r18", "r18g"):
+                    log.info(f"    tagger rating: {_best_rating}={_best_score:.2f}，升级 age_restriction → r18")
+                    force_pixiv_age_restriction(pixiv_payload, "r18")
+        _updated_age = pixiv_payload.get("age_restriction", "all_ages")
+        if _updated_age != image_age_for_rule:
+            nsfw_blocked_targets = {
+                t for t in targets
+                if not _platform_accepts_age(t, _updated_age)
+            }
+            if nsfw_blocked_targets:
+                log.info(
+                    f"    NSFW 硬规则拦截 (age={_updated_age}, 升级后): "
+                    f"{sorted(nsfw_blocked_targets)} 不接受该分级，自动跳过"
+                )
         if llm_reverse_config and llm_reverse_config.get("enabled"):
             # Skip LLM if no target consumes copy (e.g. --targets civitai)
             if not _targets_need_copy(targets):

@@ -6,6 +6,7 @@ is not installed. Interfaces are identical so callers don't need to branch.
 from __future__ import annotations
 
 import csv
+import gzip
 import json
 import os
 import re
@@ -38,6 +39,14 @@ class StandaloneMetadataReader:
         except Exception:
             chunks = {}
 
+        if "Comment" not in chunks:
+            try:
+                stealth = self._read_stealth_pnginfo(path)
+                if stealth:
+                    chunks.update(stealth)
+            except Exception:
+                pass
+
         if not chunks:
             return {"available": True, "status": "clean", "detected_types": [], "details": [], "metadata": None}
 
@@ -55,6 +64,24 @@ class StandaloneMetadataReader:
             for key in ("prompt", "workflow"):
                 if key in chunks and not positive:
                     positive = self._extract_comfy_prompt(chunks[key])
+
+        if not positive and "Comment" in chunks:
+            try:
+                comment_data = json.loads(chunks["Comment"])
+                nai_data = self._extract_nai_data(comment_data)
+                if nai_data is not None:
+                    detected.append("nai")
+                    positive = str(nai_data.get("prompt", ""))
+                    negative = str(nai_data.get("uc", ""))
+                    for nai_key in ("steps", "sampler", "seed", "strength", "noise",
+                                    "scale", "uncond_scale", "cfg_rescale", "sm", "sm_dyn",
+                                    "dynamic_thresholding", "noise_schedule", "version"):
+                        if nai_key in nai_data:
+                            parameters[nai_key] = str(nai_data[nai_key])
+                    if chunks.get("Software", "").startswith("NovelAI"):
+                        detected.append("novelai_software")
+            except (json.JSONDecodeError, ValueError, TypeError):
+                pass
 
         if positive:
             details.append("positive_prompt")
@@ -79,6 +106,24 @@ class StandaloneMetadataReader:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _extract_nai_data(comment_data: Any) -> dict | None:
+        """Extract NAI generation params from Comment JSON, handling both old and V4.5 formats."""
+        if not isinstance(comment_data, dict):
+            return None
+        if "prompt" in comment_data and "uc" in comment_data:
+            return comment_data
+        if "Comment" in comment_data:
+            try:
+                inner = comment_data["Comment"]
+                if isinstance(inner, str):
+                    inner = json.loads(inner)
+                if isinstance(inner, dict) and "prompt" in inner:
+                    return inner
+            except (json.JSONDecodeError, ValueError, TypeError):
+                pass
+        return None
+
+    @staticmethod
     def _read_chunks(path: Path) -> dict[str, str]:
         from PIL import Image
         img = Image.open(str(path))
@@ -88,6 +133,51 @@ class StandaloneMetadataReader:
                 result[str(key)] = val
             elif isinstance(val, bytes):
                 result[str(key)] = val.decode("utf-8", errors="replace")
+        return result
+
+    @staticmethod
+    def _read_stealth_pnginfo(path: Path) -> dict[str, str]:
+        """Extract NAI stealth pnginfo from alpha channel LSB."""
+        import numpy as np
+        from PIL import Image
+
+        img = Image.open(str(path))
+        if img.mode != "RGBA":
+            return {}
+
+        alpha = np.array(img)[:, :, 3].T.flatten()
+        bits = alpha & 1
+        n_bytes = len(bits) // 8
+        if n_bytes < 20:
+            return {}
+        byte_arr = np.packbits(bits[:n_bytes * 8])
+        raw = bytes(byte_arr)
+
+        magic = b"stealth_pngcomp"
+        if raw[:15] != magic:
+            return {}
+
+        data_len = int.from_bytes(raw[15:19], "big")
+        byte_len = (data_len + 7) // 8
+        start = 19
+        if start + byte_len > len(raw):
+            return {}
+
+        try:
+            decompressed = gzip.decompress(raw[start:start + byte_len])
+            payload = json.loads(decompressed.decode("utf-8"))
+        except Exception:
+            return {}
+
+        if not isinstance(payload, dict):
+            return {}
+
+        result: dict[str, str] = {}
+        for k, v in payload.items():
+            if isinstance(v, str):
+                result[k] = v
+            elif isinstance(v, (dict, list)):
+                result[k] = json.dumps(v)
         return result
 
     @staticmethod
@@ -165,8 +255,7 @@ def sanitize_and_verify(src: Path, dest_dir: Path):
     dest = dest_dir / f"{src.stem}_pixiv_clean.png"
 
     with Image.open(src) as img:
-        # Re-save without any info dict → strips all text chunks
-        clean = img.convert("RGBA") if img.mode in ("RGBA", "LA", "P") else img.convert("RGB")
+        clean = img.convert("RGB")
         clean.save(dest, "PNG")
         w, h = clean.width, clean.height
 
@@ -220,14 +309,14 @@ class StandaloneTaggerBridge:
 
     def predict_tags(self, path: Path) -> dict[str, Any]:
         if not self._ensure_loaded():
-            return {"available": False, "status": self._status, "flat_tags": [], "groups": {}, "details": []}
+            return {"available": False, "status": self._status, "flat_tags": [], "groups": {}, "details": [], "rating_scores": {}}
         try:
             arr = self._preprocess(path)
             inp = self._session.get_inputs()[0].name
             scores = self._session.run(None, {inp: arr})[0][0]
             return self._decode(scores)
         except Exception as exc:
-            return {"available": True, "status": "error", "flat_tags": [], "groups": {}, "details": [f"{type(exc).__name__}: {exc}"]}
+            return {"available": True, "status": "error", "flat_tags": [], "groups": {}, "details": [f"{type(exc).__name__}: {exc}"], "rating_scores": {}}
 
     # ------------------------------------------------------------------
     # internal
@@ -385,10 +474,11 @@ class StandaloneTaggerBridge:
 
     def _decode(self, scores) -> dict[str, Any]:
         if self._tags is None:
-            return {"available": False, "status": "mapping_missing", "flat_tags": [], "groups": {}, "details": []}
+            return {"available": False, "status": "mapping_missing", "flat_tags": [], "groups": {}, "details": [], "rating_scores": {}}
 
         groups: dict[str, list] = {}
         flat: list[dict] = []
+        rating_scores: dict[str, float] = {}
 
         for i, score in enumerate(scores):
             if i >= len(self._tags):
@@ -396,6 +486,11 @@ class StandaloneTaggerBridge:
             info = self._tags[i]
             cat_raw = str(info.get("category", "General"))
             cat = _CATEGORY_MAP.get(cat_raw, cat_raw.lower())
+            if cat == "rating":
+                name = info.get("name", "")
+                if name:
+                    rating_scores[name] = round(self._sigmoid(float(score)), 4)
+                continue
             if cat in _SKIP_CATEGORIES:
                 continue
             prob = self._sigmoid(float(score))
@@ -419,4 +514,5 @@ class StandaloneTaggerBridge:
             "groups": groups,
             "details": [],
             "scored_tags": flat,
+            "rating_scores": rating_scores,
         }

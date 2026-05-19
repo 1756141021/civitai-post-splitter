@@ -776,7 +776,9 @@ def api_status():
                     censor_preset = p
     except Exception:
         pass
+    from version import __version__
     return jsonify({
+        "version":           __version__,
         "mosaic_installed":  model_path.exists(),
         "upload_count":      upload_count,
         "has_api_key":       bool(api_key),
@@ -1264,6 +1266,7 @@ def _scheduler_fire() -> None:
             "llm_persona": sched.get("llm_persona", ""),
             "llm_account": sched.get("llm_account", ""),
             "llm_content_mode": sched.get("llm_content_mode", ""),
+            "ai_tags_by_platform": cfg.get("upload_defaults", {}).get("ai_tags_by_platform") or {},
         }
         xhs_persona = sched.get("xhs_llm_persona", "")
         xhs_mode = sched.get("xhs_llm_content_mode", "") or sched.get("llm_content_mode", "sfw")
