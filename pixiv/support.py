@@ -3409,6 +3409,22 @@ def _set_checkbox_by_text(page, name: str, texts: list[str], desired: bool, canc
     return PixivStep(name, False, "verify_failed", last_detail or f"no candidate matched: {texts}")
 
 
+def _read_tag_count(page) -> int:
+    """Read current tag count from Pixiv's 'N/10' counter near the tag input."""
+    try:
+        for sel in ('input[placeholder="标签"]', 'input[placeholder="タグ"]', 'input[placeholder="Tags"]'):
+            loc = page.locator(sel)
+            if loc.count() > 0:
+                container = loc.locator("xpath=ancestor::label")
+                text = container.inner_text()
+                m = re.search(r"(\d+)\s*/\s*10", text)
+                if m:
+                    return int(m.group(1))
+    except Exception:
+        pass
+    return 0
+
+
 def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], cancel_event=None) -> PixivStep:
     tags = tags[:10]
     failed: list[str] = []
@@ -3419,6 +3435,10 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], canc
     listbox_selectors = PIXIV_SELECTORS.get("tag_autocomplete_listbox", [])
     autocomplete_debug_dumps = 0  # cap per call
     for tag_index, tag in enumerate(tags):
+        current_count = _read_tag_count(page)
+        if current_count >= 10:
+            log.info(f"    tag count already {current_count}/10, stopping")
+            break
         # Re-locate each iteration: pixiv tag input may briefly hide/swap during chip insert
         locator = _first_visible_locator(page, selectors)
         if locator is None:
