@@ -2345,7 +2345,7 @@ def open_pixiv_browser(pw, profile_dir: Path | None = None):
         channel="chrome",
         headless=False,
         args=[
-            "--start-maximized",
+            "--start-minimized",
             "--disable-sync",
             "--no-first-run",
         ],

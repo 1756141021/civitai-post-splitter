@@ -542,7 +542,7 @@ def open_civitai_browser(pw):
         str(CHROME_PROFILE_DIR),
         channel="chrome",
         headless=False,
-        args=[],
+        args=["--start-minimized"],
         ignore_default_args=["--enable-automation", "--no-sandbox"],
     )
     page = context.pages[0] if context.pages else context.new_page()

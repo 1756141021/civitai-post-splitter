@@ -1197,7 +1197,8 @@ def _sched_default() -> dict:
     return {"enabled": False, "targets": "civitai,pixiv", "count": 1, "sort": "random",
             "min_hours": 0.4, "max_hours": 0.8, "next_fire_at": None,
             "llm_reverse": False, "llm_persona": "", "llm_account": "", "llm_content_mode": "",
-            "xhs_llm_persona": "", "xhs_llm_content_mode": ""}
+            "xhs_llm_persona": "", "xhs_llm_content_mode": "",
+            "ai_tags_by_platform": {"pixiv": True, "x": True, "xhs": True}}
 
 
 def _broadcast_scheduler(sched: dict) -> None:
@@ -1266,7 +1267,7 @@ def _scheduler_fire() -> None:
             "llm_persona": sched.get("llm_persona", ""),
             "llm_account": sched.get("llm_account", ""),
             "llm_content_mode": sched.get("llm_content_mode", ""),
-            "ai_tags_by_platform": cfg.get("upload_defaults", {}).get("ai_tags_by_platform") or {},
+            "ai_tags_by_platform": sched.get("ai_tags_by_platform") or {},
         }
         xhs_persona = sched.get("xhs_llm_persona", "")
         xhs_mode = sched.get("xhs_llm_content_mode", "") or sched.get("llm_content_mode", "sfw")
@@ -1337,6 +1338,8 @@ def api_scheduler():
         sched["xhs_llm_persona"] = str(body["xhs_llm_persona"])
     if "xhs_llm_content_mode" in body:
         sched["xhs_llm_content_mode"] = body["xhs_llm_content_mode"] if body["xhs_llm_content_mode"] in ("sfw", "nsfw", "") else ""
+    if "ai_tags_by_platform" in body and isinstance(body["ai_tags_by_platform"], dict):
+        sched["ai_tags_by_platform"] = {k: bool(v) for k, v in body["ai_tags_by_platform"].items() if k in ("pixiv", "x", "xhs")}
     if sched.get("min_hours", 1.0) > sched.get("max_hours", 3.0):
         return jsonify({"error": "min_hours > max_hours"}), 400
     if any(k in body for k in ("enabled", "min_hours", "max_hours")):

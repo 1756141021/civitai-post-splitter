@@ -1333,6 +1333,10 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
   const [llmContentMode,setLlmContentMode]= React.useState(sched.llm_content_mode || 'sfw');
   const [xhsLlmPersona,    setXhsLlmPersona]    = React.useState(sched.xhs_llm_persona || '');
   const [xhsLlmContentMode,setXhsLlmContentMode]= React.useState(sched.xhs_llm_content_mode || '');
+  const _initAiTags = sched.ai_tags_by_platform || { pixiv: true, x: true, xhs: true };
+  const [aiPixiv,       setAiPixiv]       = React.useState(_initAiTags.pixiv !== false);
+  const [aiX,           setAiX]           = React.useState(_initAiTags.x !== false);
+  const [aiXhs,         setAiXhs]         = React.useState(_initAiTags.xhs !== false);
   const [saving,        setSaving]        = React.useState(false);
   const [err,           setErr]           = React.useState('');
 
@@ -1353,6 +1357,7 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
         enabled: true, min_hours: min, max_hours: max, count: cnt, targets, sort: sortMode,
         llm_reverse: llmReverse, llm_persona: llmPersona, llm_content_mode: llmContentMode,
         xhs_llm_persona: xhsLlmPersona, xhs_llm_content_mode: xhsLlmContentMode,
+        ai_tags_by_platform: { pixiv: aiPixiv, x: aiX, xhs: aiXhs },
       }),
     })
       .then(r => r.json())
@@ -1406,6 +1411,23 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
             </label>
           </div>
         </div>
+
+        {(pixiv || xTarget || xhs) && (
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, marginBottom: 6 }}>AI标签</div>
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              {pixiv && <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
+                <input type="checkbox" checked={aiPixiv} onChange={e => setAiPixiv(e.target.checked)} /> Pixiv
+              </label>}
+              {xTarget && <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
+                <input type="checkbox" checked={aiX} onChange={e => setAiX(e.target.checked)} /> X
+              </label>}
+              {xhs && <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
+                <input type="checkbox" checked={aiXhs} onChange={e => setAiXhs(e.target.checked)} /> 小红书
+              </label>}
+            </div>
+          </div>
+        )}
 
         {llmEnabled && (
           <div style={{ marginBottom: 18 }}>

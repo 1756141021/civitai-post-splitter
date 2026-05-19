@@ -458,7 +458,7 @@ def _ensure_chrome_cdp(cdp_url: str, profile_dir: Path) -> None:
         f"--user-data-dir={profile_dir}",
         "--no-first-run",
         "--disable-sync",
-        "--start-maximized",
+        "--start-minimized",
     ])
     for i in range(20):
         time.sleep(1)
