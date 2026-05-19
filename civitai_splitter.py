@@ -1260,7 +1260,7 @@ def cmd_upload(args):
         if model_path.exists():
             cfg = load_json(files["censor_config"], {})
             mode = cfg.get("mode", "mosaic")
-            conf = float(cfg.get("conf_threshold", 0.45))
+            conf = float(cfg.get("conf_threshold", 0.55))
             bar_count = int(cfg.get("bar_count", 4))
             classes_spec = cfg.get("enabled_classes", "")
             if isinstance(classes_spec, list):

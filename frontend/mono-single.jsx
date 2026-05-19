@@ -1493,7 +1493,7 @@ function MonoSingleApp() {
   const [llmReverseDialog, setLlmReverseDialog] = React.useState(false);
   const [llmReverseConfig, setLlmReverseConfig] = React.useState(null);
   const [llmSpecs, setLlmSpecs] = React.useState(null);
-  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 0.4, max_hours: 0.8, count: 1, sort: 'random', targets: 'civitai,pixiv', llm_reverse: false, llm_persona: '', llm_account: '', llm_content_mode: '' } });
+  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, censor_mode: 'mosaic', censor_conf_threshold: 0.55, censor_bar_count: 4, scheduler: { enabled: false, next_fire_at: null, min_hours: 0.4, max_hours: 0.8, count: 1, sort: 'random', targets: 'civitai,pixiv', llm_reverse: false, llm_persona: '', llm_account: '', llm_content_mode: '' } });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
   const [pageDragging, setPageDragging] = React.useState(false);
   const [dropToast,    setDropToast]    = React.useState('');
@@ -2061,6 +2061,67 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
           </select>
         </div>
       </div>
+      {status.mosaic_installed && status.censor_preset !== 'off' && <>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+          <div style={{ fontSize: 12.5 }}>打码样式</div>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select className="mn-input" value={status.censor_mode || 'mosaic'}
+                    onChange={e => {
+                      fetch('/api/censor-config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mode: e.target.value }),
+                      }).then(() => onStatusReload && onStatusReload());
+                    }}
+                    style={{ fontSize: 11.5, padding: '2px 6px' }}>
+              <option value="mosaic">马赛克</option>
+              <option value="blur">高斯模糊</option>
+              <option value="bar">黑条</option>
+              <option value="heart">💖 心形贴纸</option>
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+          <div style={{ fontSize: 12.5 }}>灵敏度 <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{(status.censor_conf_threshold || 0.55).toFixed(2)}</span></div>
+          <div style={{ marginLeft: 'auto', width: 120 }}>
+            <input type="range" min="0.2" max="0.9" step="0.05"
+                   value={status.censor_conf_threshold || 0.55}
+                   onChange={e => {
+                     const v = parseFloat(e.target.value);
+                     setStatus(s => ({ ...s, censor_conf_threshold: v }));
+                   }}
+                   onMouseUp={e => {
+                     fetch('/api/censor-config', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ conf_threshold: parseFloat(e.target.value) }),
+                     }).then(() => onStatusReload && onStatusReload());
+                   }}
+                   style={{ width: '100%', accentColor: M.accent }} />
+          </div>
+        </div>
+        {status.censor_mode === 'bar' && (
+          <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+            <div style={{ fontSize: 12.5 }}>黑条数量 <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{status.censor_bar_count || 4}</span></div>
+            <div style={{ marginLeft: 'auto', width: 120 }}>
+              <input type="range" min="1" max="8" step="1"
+                     value={status.censor_bar_count || 4}
+                     onChange={e => {
+                       const v = parseInt(e.target.value);
+                       setStatus(s => ({ ...s, censor_bar_count: v }));
+                     }}
+                     onMouseUp={e => {
+                       fetch('/api/censor-config', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ bar_count: parseInt(e.target.value) }),
+                       }).then(() => onStatusReload && onStatusReload());
+                     }}
+                     style={{ width: '100%', accentColor: M.accent }} />
+            </div>
+          </div>
+        )}
+      </>}
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
         <div style={{ fontSize: 12.5 }}>WD14 tagger</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>

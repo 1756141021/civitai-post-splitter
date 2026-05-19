@@ -19,6 +19,7 @@ Default enabled set therefore: {0, 1, 2, 4}.
 from __future__ import annotations
 
 import logging
+import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -81,7 +82,7 @@ class CensorEngine:
     def __init__(
         self,
         model_path: Path | str | None,
-        conf_threshold: float = 0.45,
+        conf_threshold: float = 0.55,
         mode: str = "mosaic",
         bar_count: int = 4,
     ):
@@ -97,8 +98,9 @@ class CensorEngine:
         self._model: Any = None
         self._cv2: Any = None
         self._status = "uninitialized"
-        self._mode = mode if mode in {"mosaic", "blur", "bar"} else "mosaic"
+        self._mode = mode if mode in {"mosaic", "blur", "bar", "heart"} else "mosaic"
         self._bar_count = max(1, int(bar_count))
+        self._heart_template: Any = None
 
     @property
     def status(self) -> str:
@@ -141,6 +143,89 @@ class CensorEngine:
             self._status = "load_error"
             log.warning(f"censor 模型加载失败: {type(exc).__name__}: {exc}")
             return None
+
+    def _load_heart(self):
+        """Lazy-load heart_base.png as BGRA numpy array at original resolution."""
+        if self._heart_template is not None:
+            return self._heart_template
+        heart_path = Path(__file__).parent / "heart_base.png"
+        if not heart_path.exists():
+            log.warning(f"heart 模式需要 {heart_path}，文件不存在；回退到 mosaic")
+            return None
+        import numpy as np
+        cv2 = self._cv2
+        with open(heart_path, "rb") as f:
+            raw = f.read()
+        arr = np.frombuffer(raw, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_UNCHANGED)
+        if img is None or img.ndim < 3:
+            return None
+        if img.shape[2] == 3:
+            alpha = np.full((*img.shape[:2], 1), 255, dtype=np.uint8)
+            img = np.concatenate([img, alpha], axis=2)
+        self._heart_template = img
+        return img
+
+    def _paste_one_heart(self, img, cx, cy, scale, angle, np):
+        """Paste a single heart at (cx,cy) with given scale and rotation angle."""
+        cv2 = self._cv2
+        template = self._heart_template
+        th, tw = template.shape[:2]
+        sw = max(1, int(tw * scale))
+        sh = max(1, int(th * scale))
+        resized = cv2.resize(template, (sw, sh),
+                             interpolation=cv2.INTER_AREA if scale < 1.0 else cv2.INTER_LINEAR)
+        M = cv2.getRotationMatrix2D((sw / 2, sh / 2), angle, 1.0)
+        cos_a, sin_a = abs(M[0, 0]), abs(M[0, 1])
+        nw = int(sh * sin_a + sw * cos_a)
+        nh = int(sh * cos_a + sw * sin_a)
+        M[0, 2] += (nw - sw) / 2
+        M[1, 2] += (nh - sh) / 2
+        rotated = cv2.warpAffine(resized, M, (nw, nh),
+                                 flags=cv2.INTER_LINEAR, borderValue=(0, 0, 0, 0))
+        h_img, w_img = img.shape[:2]
+        px1 = cx - nw // 2
+        py1 = cy - nh // 2
+        sx1 = max(0, -px1)
+        sy1 = max(0, -py1)
+        sx2 = nw - max(0, px1 + nw - w_img)
+        sy2 = nh - max(0, py1 + nh - h_img)
+        dx1 = max(0, px1)
+        dy1 = max(0, py1)
+        dx2 = min(w_img, px1 + nw)
+        dy2 = min(h_img, py1 + nh)
+        if dx2 <= dx1 or dy2 <= dy1 or sx2 <= sx1 or sy2 <= sy1:
+            return
+        crop = rotated[sy1:sy2, sx1:sx2]
+        alpha = crop[:, :, 3:4].astype(np.float32) / 255.0
+        bgr = crop[:, :, :3].astype(np.float32)
+        roi = img[dy1:dy2, dx1:dx2].astype(np.float32)
+        img[dy1:dy2, dx1:dx2] = (roi * (1 - alpha) + bgr * alpha).astype(np.uint8)
+
+    def _stamp_heart(self, img, x1, y1, x2, y2, rng):
+        """Scatter many small hearts over the bbox region."""
+        import numpy as np
+        import math
+        template = self._load_heart()
+        if template is None:
+            return False
+        th, tw = template.shape[:2]
+        bw, bh = x2 - x1, y2 - y1
+        bbox_area = bw * bh
+        heart_area = tw * th
+        if bbox_area < heart_area * 0.5:
+            scale = min(bw / tw, bh / th)
+            self._paste_one_heart(img, (x1 + x2) // 2, (y1 + y2) // 2,
+                                  scale, rng.uniform(-25, 25), np)
+            return True
+        count = max(3, math.ceil(bbox_area / heart_area * 1.8))
+        for _ in range(count):
+            cx = rng.randint(x1, x2)
+            cy = rng.randint(y1, y2)
+            scale = rng.uniform(0.8, 1.2)
+            angle = rng.uniform(-25, 25)
+            self._paste_one_heart(img, cx, cy, scale, angle, np)
+        return True
 
     def detect_and_censor(
         self,
@@ -212,7 +297,13 @@ class CensorEngine:
                 all_dets.append(det)
                 if not det["applied"]:
                     continue
-                if self._mode == "bar":
+                if self._mode == "heart":
+                    rng = random.Random(hash((x1, y1, x2, y2)))
+                    if self._stamp_heart(img, x1, y1, x2, y2, rng):
+                        applied_count += 1
+                    else:
+                        det["applied"] = False
+                elif self._mode == "bar":
                     bbox_h = y2 - y1
                     n = self._bar_count
                     # Each "slot" gets a bar in its top half + a gap in bottom half.

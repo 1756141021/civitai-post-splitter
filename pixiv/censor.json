@@ -1,16 +1,13 @@
 {
-  "_comment": "自动打码配置。删了重启会重生默认值。preset 决定 enabled_classes：off=空，japan=Pixiv 标准（生殖区域），strict=加乳头。preset 优先，enabled_classes 仍可手动覆盖（其值随 preset 切换自动改写，但运行时以 enabled_classes 字段为准向后兼容）。",
+  "_comment": "自动打码配置。删了重启会重生默认值。",
   "_help": {
-    "preset": "off / japan(Pixiv 标准) / strict（切换后自动改写 enabled_classes）",
-    "mode": "mosaic / blur / bar",
-    "conf_threshold": "0.0~1.0；越高漏检越多但误检越少（推荐 0.4-0.5）",
+    "mode": "mosaic / blur / bar / heart",
+    "conf_threshold": "0.0~1.0；越高漏检越多但误检越少（推荐 0.5-0.6）",
     "enabled_classes": "要打码的类别：dick / vagina(=pussy) / anus / cum / tits(=breasts)",
-    "bar_count": "仅 mode=bar 时生效，横条 bar 的数量",
-    "_presets": "off=[], japan(Pixiv 标准)=[dick,vagina,anus,cum], strict=[dick,vagina,anus,cum,tits]"
+    "bar_count": "仅 mode=bar 时生效，横条 bar 的数量"
   },
-  "preset": "japan",
   "mode": "mosaic",
-  "conf_threshold": 0.45,
+  "conf_threshold": 0.55,
   "enabled_classes": [
     "dick",
     "vagina",

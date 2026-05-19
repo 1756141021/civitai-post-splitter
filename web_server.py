@@ -573,6 +573,36 @@ def api_censor_preset():
     return jsonify({"ok": True, "preset": preset, "enabled_classes": existing["enabled_classes"]})
 
 
+@app.route("/api/censor-config", methods=["POST"])
+def api_censor_config():
+    """Update censor settings (mode, conf_threshold, bar_count)."""
+    body = request.get_json(silent=True) or {}
+    censor_path = SCRIPT_DIR / "pixiv" / "censor.json"
+    try:
+        existing = json.loads(censor_path.read_text(encoding="utf-8")) if censor_path.exists() else {}
+    except Exception:
+        existing = {}
+    if not isinstance(existing, dict):
+        existing = {}
+    if "mode" in body:
+        m = str(body["mode"]).strip().lower()
+        if m in {"mosaic", "blur", "bar", "heart"}:
+            existing["mode"] = m
+    if "conf_threshold" in body:
+        try:
+            v = float(body["conf_threshold"])
+            existing["conf_threshold"] = max(0.1, min(0.95, round(v, 2)))
+        except (ValueError, TypeError):
+            pass
+    if "bar_count" in body:
+        try:
+            existing["bar_count"] = max(1, min(8, int(body["bar_count"])))
+        except (ValueError, TypeError):
+            pass
+    censor_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+    return jsonify({"ok": True, **{k: existing.get(k) for k in ("mode", "conf_threshold", "bar_count")}})
+
+
 @app.route("/api/llm-reverse-platforms", methods=["GET"])
 def api_llm_reverse_platforms():
     return jsonify({pid: dict(spec, id=pid) for pid, spec in PLATFORM_SPECS.items()})
@@ -767,6 +797,9 @@ def api_status():
     llm_masked = "*" * (len(llm_key) - 4) + llm_key[-4:] if len(llm_key) > 4 else "*" * len(llm_key)
     censor_path = SCRIPT_DIR / "pixiv" / "censor.json"
     censor_preset = "japan"
+    censor_mode = "mosaic"
+    censor_conf = 0.55
+    censor_bar_count = 4
     try:
         if censor_path.exists():
             cdata = json.loads(censor_path.read_text(encoding="utf-8"))
@@ -774,6 +807,13 @@ def api_status():
                 p = str(cdata.get("preset", "")).strip().lower()
                 if p in _CENSOR_PRESETS:
                     censor_preset = p
+                m = str(cdata.get("mode", "")).strip().lower()
+                if m in {"mosaic", "blur", "bar", "heart"}:
+                    censor_mode = m
+                if "conf_threshold" in cdata:
+                    censor_conf = float(cdata["conf_threshold"])
+                if "bar_count" in cdata:
+                    censor_bar_count = int(cdata["bar_count"])
     except Exception:
         pass
     from version import __version__
@@ -794,6 +834,9 @@ def api_status():
         "llm_reverse_model": llm_cfg.get("model", ""),
         "llm_reverse_api_key_masked": llm_masked,
         "censor_preset":      censor_preset,
+        "censor_mode":        censor_mode,
+        "censor_conf_threshold": censor_conf,
+        "censor_bar_count":   censor_bar_count,
         "upload_defaults":    cfg.get("upload_defaults") or {},
     })
 

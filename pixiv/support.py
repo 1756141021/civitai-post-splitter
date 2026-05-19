@@ -740,13 +740,13 @@ DEFAULT_GENERAL_JP = {
 DEFAULT_CENSOR_CONFIG = {
     "_comment": "自动打码配置。删了重启会重生默认值。",
     "_help": {
-        "mode": "mosaic / blur / bar",
-        "conf_threshold": "0.0~1.0；越高漏检越多但误检越少（推荐 0.4-0.5）",
+        "mode": "mosaic / blur / bar / heart",
+        "conf_threshold": "0.0~1.0；越高漏检越多但误检越少（推荐 0.5-0.6）",
         "enabled_classes": "要打码的类别：dick / vagina(=pussy) / anus / cum / tits(=breasts)",
         "bar_count": "仅 mode=bar 时生效，横条 bar 的数量"
     },
     "mode": "mosaic",
-    "conf_threshold": 0.45,
+    "conf_threshold": 0.55,
     "enabled_classes": ["dick", "vagina", "anus", "cum"],
     "bar_count": 4
 }
