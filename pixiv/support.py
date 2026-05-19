@@ -3472,9 +3472,13 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], canc
                 exact_option = None
                 try:
                     options = page.locator('[data-tag][data-type="front_matching"]')
-                    for option_index in range(options.count()):
+                    count = options.count()
+                    for option_index in range(min(count, 20)):
                         option = options.nth(option_index)
-                        data_tag = (option.get_attribute("data-tag") or "").strip()
+                        try:
+                            data_tag = (option.get_attribute("data-tag", timeout=2000) or "").strip()
+                        except Exception:
+                            break
                         if data_tag == tag:
                             exact_option = option
                             break
@@ -3540,11 +3544,8 @@ def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str, cancel_
             el.dispatchEvent(new Event('input', {bubbles: true}));
         }""")
         _jsleep(0.3, cancel_event=cancel_event)
-        try:
-            checked = bool(locator.is_checked())
-        except Exception:
-            checked = None
-        if checked is False:
+        checked = locator.evaluate("el => el.checked")
+        if not checked:
             return PixivStep(name, False, "verify_failed", f"{selector} not checked after click")
         return PixivStep(name, True, detail=f"name={attr_name}, value={attr_value}")
     except InterruptedError:
