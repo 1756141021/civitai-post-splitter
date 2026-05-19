@@ -22,7 +22,7 @@
         "AIイラスト": 739287,
         "AI生成": 259828
       },
-      "updated_at": "2026-05-19T12:22:14"
+      "updated_at": "2026-05-19T12:54:14"
     },
     "glasses": {
       "winner": "眼鏡",
@@ -13654,9 +13654,9 @@
     "character:baobhan sith (first ascension) (fate)": {
       "winner": "バオハン・シット (第一再臨) (Fate)",
       "counts": {
-        "バオハン・シット (第一再臨) (Fate)": 0
+        "バオハン・シット (第一再臨) (Fate)": 1
       },
-      "updated_at": "2026-05-18T19:18:27"
+      "updated_at": "2026-05-19T12:54:13"
     },
     "feature:red dress": {
       "winner": "赤いドレス",
@@ -13692,6 +13692,13 @@
         "空気入り玩具": 0
       },
       "updated_at": "2026-05-18T22:52:01"
+    },
+    "feature:center frills": {
+      "winner": "中央フリル",
+      "counts": {
+        "中央フリル": 0
+      },
+      "updated_at": "2026-05-19T13:04:11"
     }
   }
 }

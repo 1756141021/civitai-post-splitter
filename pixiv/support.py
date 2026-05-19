@@ -3428,18 +3428,8 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], canc
         try:
             _human_move_and_click(page, locator, cancel_event=cancel_event)
             _jsleep(0.3, cancel_event=cancel_event)
-            try:
-                value_now = locator.input_value()
-            except Exception:
-                value_now = ""
-            if value_now:
-                page.keyboard.press("Control+A")
-                page.keyboard.press("Delete")
-                _jsleep(0.2, cancel_event=cancel_event)
-            page.keyboard.type(tag, delay=_typing_delay())
-            # Wait for autocomplete dropdown to render. Pixiv uses this to suggest
-            # canonical Japanese forms (e.g. cirno → チルノ, touhou → 東方Project).
-            # Selecting first suggestion is preferred; fall back to raw Enter.
+            locator.fill(tag)
+            locator.dispatch_event("input")
             _jsleep(1.2, cancel_event=cancel_event)
             listbox = _first_visible_locator(page, listbox_selectors) if listbox_selectors else None
             if listbox is None and autocomplete_debug_dumps < 3:
@@ -3479,32 +3469,26 @@ def _fill_tag_input(page, name: str, selectors: list[str], tags: list[str], canc
                 if clicked:
                     autocomplete_used += 1
                 else:
-                    page.keyboard.press("Enter")
+                    page.keyboard.press(" ")
                     raw_used += 1
             else:
-                page.keyboard.press("Enter")
+                page.keyboard.press(" ")
                 raw_used += 1
             _jsleep(0.6, cancel_event=cancel_event)
-            # Verify input actually cleared (commit succeeded)
             try:
                 value_after = locator.input_value()
             except Exception:
                 value_after = None
             if value_after:
-                # Try one more Enter, then if still not cleared, try Tab as commit fallback
-                try:
-                    locator.press("Enter")
-                    _jsleep(0.4, cancel_event=cancel_event)
-                    value_after = locator.input_value()
-                except Exception:
-                    pass
-                if value_after:
+                for commit_key in (" ", "Enter", "Tab"):
                     try:
-                        locator.press("Tab")
+                        locator.press(commit_key)
                         _jsleep(0.4, cancel_event=cancel_event)
                         value_after = locator.input_value()
                     except Exception:
                         pass
+                    if not value_after:
+                        break
             if value_after:
                 not_committed.append(f"{tag}(remained:{value_after!r})")
         except InterruptedError:
