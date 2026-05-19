@@ -3531,19 +3531,19 @@ def _set_radio_by_attr(page, name: str, attr_name: str, attr_value: str, cancel_
     if locator is None:
         return PixivStep(name, False, "selector_miss", selector)
     try:
-        locator.evaluate("el => el.click()")
+        # charcoal radio: hidden input inside <label>. Click the label, not the input.
+        locator.evaluate("""el => {
+            const label = el.closest('label') || el.parentElement;
+            if (label && label.tagName === 'LABEL') { label.click(); return; }
+            el.checked = true;
+            el.dispatchEvent(new Event('change', {bubbles: true}));
+            el.dispatchEvent(new Event('input', {bubbles: true}));
+        }""")
         _jsleep(0.3, cancel_event=cancel_event)
         try:
             checked = bool(locator.is_checked())
         except Exception:
             checked = None
-        if checked is False:
-            try:
-                locator.check(force=True)
-                _jsleep(0.2, cancel_event=cancel_event)
-                checked = bool(locator.is_checked())
-            except Exception:
-                pass
         if checked is False:
             return PixivStep(name, False, "verify_failed", f"{selector} not checked after click")
         return PixivStep(name, True, detail=f"name={attr_name}, value={attr_value}")
