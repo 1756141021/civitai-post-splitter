@@ -189,6 +189,12 @@ if (typeof document !== 'undefined' && !document.getElementById('mono-styles')) 
     .ms-pulse { animation: ms-pulse 1.4s ease-in-out infinite; }
 
     .ms-root { font-family:${M.display}; color:var(--mn-ink); background:var(--mn-bg); height:100%; width:100%; display:flex; flex-direction:column; overflow:hidden; }
+
+    .mn-range { -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:2px; background:var(--mn-line); outline:none; cursor:pointer; }
+    .mn-range::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:var(--mn-accent); cursor:pointer; border:2px solid var(--mn-panel); box-shadow:0 1px 3px rgba(0,0,0,0.3); margin-top:-5px; }
+    .mn-range::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:var(--mn-accent); cursor:pointer; border:2px solid var(--mn-panel); box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+    .mn-range::-webkit-slider-runnable-track { height:4px; border-radius:2px; background:var(--mn-line); }
+    .mn-range::-moz-range-track { height:4px; border-radius:2px; background:var(--mn-line); }
   `;
   document.head.appendChild(s);
   updateCssVars(M);

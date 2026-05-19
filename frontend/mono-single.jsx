@@ -2006,6 +2006,11 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
   const [xhsOpening, setXhsOpening] = React.useState(false);
   const [xhsGuideOpen, setXhsGuideOpen] = React.useState(false);
 
+  const [confThreshold, setConfThreshold] = React.useState(status.censor_conf_threshold || 0.55);
+  const [barCount, setBarCount] = React.useState(status.censor_bar_count || 4);
+  React.useEffect(() => setConfThreshold(status.censor_conf_threshold || 0.55), [status.censor_conf_threshold]);
+  React.useEffect(() => setBarCount(status.censor_bar_count || 4), [status.censor_bar_count]);
+
   const fmtNextFire = iso => {
     if (!iso) return '—';
     const diff = Math.floor((new Date(iso) - Date.now()) / 1000);
@@ -2040,18 +2045,20 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
   return (
     <div style={{ background: M.panel, padding: '12px 18px 14px', flexShrink: 0 }}>
       <div className="ms-section-label" style={{ marginBottom: 8 }}>设置</div>
-      <SetCompactRow label="马赛克模型" value={status.mosaic_installed ? '已安装' : '未安装'} ok={status.mosaic_installed} />
-      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
-        <div style={{ fontSize: 12.5 }}>打码档位</div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}`, flexWrap: 'wrap', gap: '4px 8px' }}>
+        <div style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+          自动打码
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.mosaic_installed ? M.ok : M.red }} />
+          <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{status.mosaic_installed ? '已安装' : '未安装'}</span>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
           <select className="mn-input" value={status.censor_preset || 'japan'}
                   disabled={!status.mosaic_installed}
                   onChange={e => {
-                    const v = e.target.value;
                     fetch('/api/censor-preset', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ preset: v }),
+                      body: JSON.stringify({ preset: e.target.value }),
                     }).then(() => onStatusReload && onStatusReload());
                   }}
                   style={{ fontSize: 11.5, padding: '2px 6px' }}>
@@ -2059,12 +2066,7 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
             <option value="japan">Pixiv 标准</option>
             <option value="strict">严格</option>
           </select>
-        </div>
-      </div>
-      {status.mosaic_installed && status.censor_preset !== 'off' && <>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
-          <div style={{ fontSize: 12.5 }}>打码样式</div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          {status.mosaic_installed && status.censor_preset !== 'off' && (
             <select className="mn-input" value={status.censor_mode || 'mosaic'}
                     onChange={e => {
                       fetch('/api/censor-config', {
@@ -2077,19 +2079,19 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
               <option value="mosaic">马赛克</option>
               <option value="blur">高斯模糊</option>
               <option value="bar">黑条</option>
-              <option value="heart">💖 心形贴纸</option>
+              <option value="heart">💖 心形</option>
             </select>
-          </div>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
-          <div style={{ fontSize: 12.5 }}>灵敏度 <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{(status.censor_conf_threshold || 0.55).toFixed(2)}</span></div>
-          <div style={{ marginLeft: 'auto', width: 120 }}>
+      </div>
+      {status.mosaic_installed && status.censor_preset !== 'off' && <>
+        <div style={{ display: 'flex', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+          <div style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>灵敏度 <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{confThreshold.toFixed(2)}</span></div>
+          <div style={{ flex: 1, maxWidth: 180, minWidth: 80, marginLeft: 12 }}>
             <input type="range" min="0.2" max="0.9" step="0.05"
-                   value={status.censor_conf_threshold || 0.55}
-                   onChange={e => {
-                     const v = parseFloat(e.target.value);
-                     setStatus(s => ({ ...s, censor_conf_threshold: v }));
-                   }}
+                   className="mn-range"
+                   value={confThreshold}
+                   onInput={e => setConfThreshold(parseFloat(e.target.value))}
                    onMouseUp={e => {
                      fetch('/api/censor-config', {
                        method: 'POST',
@@ -2097,19 +2099,23 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
                        body: JSON.stringify({ conf_threshold: parseFloat(e.target.value) }),
                      }).then(() => onStatusReload && onStatusReload());
                    }}
-                   style={{ width: '100%', accentColor: M.accent }} />
+                   onTouchEnd={() => {
+                     fetch('/api/censor-config', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ conf_threshold: confThreshold }),
+                     }).then(() => onStatusReload && onStatusReload());
+                   }} />
           </div>
         </div>
         {status.censor_mode === 'bar' && (
-          <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
-            <div style={{ fontSize: 12.5 }}>黑条数量 <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{status.censor_bar_count || 4}</span></div>
-            <div style={{ marginLeft: 'auto', width: 120 }}>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+            <div style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>黑条数量 <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{barCount}</span></div>
+            <div style={{ flex: 1, maxWidth: 180, minWidth: 80, marginLeft: 12 }}>
               <input type="range" min="1" max="8" step="1"
-                     value={status.censor_bar_count || 4}
-                     onChange={e => {
-                       const v = parseInt(e.target.value);
-                       setStatus(s => ({ ...s, censor_bar_count: v }));
-                     }}
+                     className="mn-range"
+                     value={barCount}
+                     onInput={e => setBarCount(parseInt(e.target.value))}
                      onMouseUp={e => {
                        fetch('/api/censor-config', {
                          method: 'POST',
@@ -2117,7 +2123,13 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
                          body: JSON.stringify({ bar_count: parseInt(e.target.value) }),
                        }).then(() => onStatusReload && onStatusReload());
                      }}
-                     style={{ width: '100%', accentColor: M.accent }} />
+                     onTouchEnd={() => {
+                       fetch('/api/censor-config', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ bar_count: barCount }),
+                       }).then(() => onStatusReload && onStatusReload());
+                     }} />
             </div>
           </div>
         )}
