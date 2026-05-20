@@ -42,7 +42,7 @@ PLATFORM_RULES: dict[str, dict] = {
     "civitai": {"needs_sanitize": False, "needs_censor": False, "needs_copy": False, "max_age": "r18g"},
     "pixiv":   {"needs_sanitize": True,  "needs_censor": True,  "needs_copy": True,  "max_age": "r18g"},
     "x":       {"needs_sanitize": True,  "needs_censor": True,  "needs_copy": True,  "max_age": "r18g"},
-    "xhs":     {"needs_sanitize": True,  "needs_censor": True,  "needs_copy": True,  "max_age": "all_ages"},
+    "xhs":     {"needs_sanitize": True,  "needs_censor": True,  "needs_copy": True,  "max_age": "r18g"},
 }
 
 
