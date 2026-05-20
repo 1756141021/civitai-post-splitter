@@ -473,38 +473,121 @@ def _ensure_chrome_cdp(cdp_url: str, profile_dir: Path) -> None:
     raise RuntimeError(f"Chrome 启动后 CDP 端口 {port} 未就绪，等了 20 秒")
 
 
+def _ensure_chrome_cdp_clean(cdp_url: str, profile_dir: Path,
+                              startup_url: str | None = None) -> None:
+    """Launch Chrome with minimal flags for XHS — avoids detection.
+
+    If *startup_url* is given, Chrome opens it natively (not through CDP).
+    This is critical because XHS CDN detects CDP-initiated navigation.
+    """
+    global _cdp_chrome_proc
+    import subprocess, urllib.request
+    try:
+        resp = urllib.request.urlopen(cdp_url + "/json/version", timeout=2)
+        data = json.loads(resp.read())
+        if "webSocketDebuggerUrl" in data:
+            log.info("xhs: CDP 端口已有 Chrome 在监听")
+            return
+        port = cdp_url.rsplit(":", 1)[-1].split("/")[0]
+        raise RuntimeError(f"端口 {port} 已被其他服务占用（不是 Chrome CDP），请关闭占用该端口的程序")
+    except RuntimeError:
+        raise
+    except Exception:
+        pass
+
+    chrome = _find_chrome()
+    if not chrome:
+        raise RuntimeError("找不到 Chrome，请安装 Chrome 浏览器")
+
+    port = cdp_url.rsplit(":", 1)[-1].split("/")[0]
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        chrome,
+        f"--remote-debugging-port={port}",
+        f"--user-data-dir={profile_dir}",
+        "--lang=zh-CN",
+        "--window-size=1920,1080",
+    ]
+    if startup_url:
+        cmd.append(startup_url)
+    log.info(f"xhs: 启动 Chrome (CDP :{port}, 最小 flag) ...")
+    _cdp_chrome_proc = subprocess.Popen(cmd)
+    for i in range(20):
+        time.sleep(1)
+        if _cdp_chrome_proc.poll() is not None:
+            raise RuntimeError(f"Chrome 启动后立即退出 (exit code {_cdp_chrome_proc.returncode})")
+        try:
+            urllib.request.urlopen(cdp_url + "/json/version", timeout=2)
+            log.info("xhs: Chrome CDP 就绪")
+            return
+        except Exception:
+            pass
+    raise RuntimeError(f"Chrome 启动后 CDP 端口 {port} 未就绪，等了 20 秒")
+
+
 _DEFAULT_CDP_URL = "http://localhost:9222"
 
 
 def open_xhs_browser(pw, profile_dir: Path | None = None, *, cdp_url: str | None = None):
-    """Auto-launch Chrome with CDP and connect for xhs.
+    """Launch clean Chrome with XHS URL and connect via CDP afterward.
 
-    Chrome is started as a clean process (not via Playwright), then
-    connected over CDP using Patchright — minimal automation fingerprint.
+    Chrome opens XHS natively (as startup URL) to avoid CDP-initiated navigation
+    detection. Patchright connects after the page has loaded.
     """
     from xhs.stealth_scripts import FINGERPRINT_INIT_SCRIPT
 
     target_profile = profile_dir or XHS_PROFILE_DIR
     url = cdp_url or _DEFAULT_CDP_URL
-    _ensure_chrome_cdp(url, target_profile)
+    _ensure_chrome_cdp_clean(url, target_profile, startup_url=XHS_BASE + "/")
+    time.sleep(3)
     log.info(f"xhs: CDP 连接 → {url}")
     browser = pw.chromium.connect_over_cdp(url)
     if not browser.contexts:
         raise RuntimeError("CDP 连接成功但没有 context，浏览器可能没打开页面")
     context = browser.contexts[0]
     context.add_init_script(FINGERPRINT_INIT_SCRIPT)
+
+    cookies_path = XHS_DIR / "cookies.json"
+    if cookies_path.exists():
+        n = _load_cookies_into_context(context, cookies_path)
+        if n > 0:
+            log.info(f"xhs: 注入 {n} 条 cookies（来自 xhs/cookies.json）")
+
     page = context.pages[0] if context.pages else context.new_page()
     ensure_xhs_logged_in(page)
     _warmup_browse(page)
     return context, page, browser
 
 
-def ensure_xhs_logged_in(page) -> None:
-    """Open publish page; if file input doesn't appear, block on manual login."""
+def _is_on_xhs(page) -> bool:
+    """Check if page is already on a xiaohongshu domain."""
     try:
-        page.goto(XHS_PUBLISH_URL, wait_until="commit", timeout=30000)
+        url = page.url.lower()
+        return "xiaohongshu.com" in url
     except Exception:
-        pass
+        return False
+
+
+def _js_navigate(page, url: str, timeout: float = 30) -> None:
+    """Navigate via JS instead of CDP Page.navigate to avoid detection."""
+    page.evaluate(f'window.location.href = "{url}"')
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        time.sleep(1)
+        try:
+            if page.url and ("xiaohongshu.com" in page.url):
+                return
+        except Exception:
+            pass
+
+
+def ensure_xhs_logged_in(page) -> None:
+    """Wait for user to log in on main site, then navigate to creator via JS."""
+    if _is_on_xhs(page):
+        log.info("xhs: Chrome 已在小红书，等待登录...")
+    else:
+        _js_navigate(page, XHS_BASE + "/")
+
     for _ in range(8):
         time.sleep(1)
         try:
@@ -517,23 +600,25 @@ def ensure_xhs_logged_in(page) -> None:
     print("=" * 64)
     print("小红书 未登录（或 publish 页未加载完成）")
     print("请在弹出的 Chrome 窗口里登录小红书。")
-    print("登录成功 + 能看到创作者中心后，回到这里按 Enter 继续...")
+    print("登录成功后，回到这里按 Enter 继续...")
     print("=" * 64)
     try:
         input()
     except EOFError:
         pass
-    try:
-        page.goto(XHS_PUBLISH_URL, wait_until="commit", timeout=30000)
-    except Exception:
-        pass
-    for _ in range(8):
+
+    log.info("xhs: 用户确认已登录，跳转 creator...")
+    _js_navigate(page, XHS_PUBLISH_URL)
+    time.sleep(3)
+
+    for _ in range(12):
         time.sleep(1)
         try:
             if page.locator(XHS_SELECTORS["file_input"]).count() > 0:
                 return
         except Exception:
             pass
+    log.warning("xhs: 登录后仍未找到文件上传输入框，继续，可能会失败")
     log.warning("xhs: 登录后仍未找到文件上传输入框，继续，可能会失败")
 
 

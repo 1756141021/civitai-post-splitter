@@ -1248,6 +1248,7 @@ def cmd_upload(args):
         return
 
     needs_xhs = "xhs" in targets or bool(xhs_only)
+    xhs_manual_mode = bool(getattr(args, "xhs_manual_mode", False))
 
     # Auto-censor: model file at models/auto_censor.pt opts in. Config tunables
     # live in pixiv_censor.json (auto-created on first run with defaults).
@@ -1315,7 +1316,7 @@ def cmd_upload(args):
     civitai_dir = temp_dir / "civitai"
     pixiv_dir = temp_dir / "pixiv"
     x_dir = temp_dir / "x"
-    xhs_dir = temp_dir / "xhs"
+    xhs_dir = (SCRIPT_DIR / "xhs_out") if xhs_manual_mode else (temp_dir / "xhs")
     civitai_dir.mkdir(exist_ok=True)
     pixiv_dir.mkdir(exist_ok=True)
     if "x" in targets:
@@ -1351,7 +1352,10 @@ def cmd_upload(args):
     target_fail_counts = {target: 0 for target in all_processed_targets}
 
     try:
-        if not args.dry_run and any(target in targets for target in ("civitai", "pixiv", "x", "xhs")):
+        needs_browser = [t for t in ("civitai", "pixiv", "x") if t in targets]
+        if needs_xhs and not xhs_manual_mode:
+            needs_browser.append("xhs")
+        if not args.dry_run and needs_browser:
             playwright = sync_playwright().start()
         if playwright is not None and "civitai" in targets:
             civitai_context, civitai_page = open_civitai_browser(playwright)
@@ -1360,12 +1364,10 @@ def cmd_upload(args):
         if playwright is not None and "x" in targets:
             from x.support import open_x_browser
             x_context, x_page = open_x_browser(playwright)
-        if playwright is not None and needs_xhs:
+        if playwright is not None and needs_xhs and not xhs_manual_mode:
             from xhs.support import open_xhs_browser
             try:
-                xhs_context, xhs_page, xhs_browser = open_xhs_browser(
-                    playwright, cdp_url=load_app_config().get("xhs_cdp_url")
-                )
+                xhs_context, xhs_page, xhs_browser = open_xhs_browser(playwright)
             except Exception as exc:
                 log.warning(f"XHS 浏览器启动失败，跳过小红书: {exc}")
                 log.debug(traceback.format_exc())
@@ -1625,11 +1627,7 @@ def cmd_upload(args):
                         all_succeeded = False
 
             if "xhs" in effective_targets:
-                if xhs_page is None:
-                    manifest["status_by_target"]["xhs"] = "failed"
-                    manifest["errors"].append("xhs browser not available")
-                    all_succeeded = False
-                elif "xhs" in skip_targets:
+                if "xhs" in skip_targets:
                     inherited_url = prior_successes["xhs"]
                     manifest["xhs"]["post_url"] = inherited_url
                     manifest["status_by_target"]["xhs"] = "skipped_already_done"
@@ -1643,6 +1641,17 @@ def cmd_upload(args):
                 elif not manifest["xhs"]["clean_copy_paths"]:
                     manifest["status_by_target"]["xhs"] = "failed"
                     manifest["errors"].append("xhs payload missing (build failed)")
+                    all_succeeded = False
+                elif xhs_manual_mode:
+                    manifest["status_by_target"]["xhs"] = "manual_ready"
+                    log.info("    xhs 手动模式：内容已准备好，请手动发布")
+                    all_succeeded = False
+                    _xhs_manual_cb = getattr(args, "xhs_manual_callback", None)
+                    if _xhs_manual_cb:
+                        _xhs_manual_cb(manifest["xhs"], str(manifest_path))
+                elif xhs_page is None:
+                    manifest["status_by_target"]["xhs"] = "failed"
+                    manifest["errors"].append("xhs browser not available")
                     all_succeeded = False
                 else:
                     from xhs.support import create_xhs_post as _create_xhs_post
@@ -1687,9 +1696,18 @@ def cmd_upload(args):
                 elif status == "failed":
                     target_fail_counts[target] += 1
 
+            _ok_or_manual = {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted", "skipped_max_age", "manual_ready"}
+            only_manual_pending = (
+                not all_succeeded
+                and all(manifest["status_by_target"].get(t) in _ok_or_manual for t in effective_targets)
+            )
+
             if all_succeeded:
                 dest = move_to_done(orig_path)
                 log.info(f"    已移动到: {dest.name}")
+                success_count += 1
+                consecutive_failures = 0
+            elif only_manual_pending:
                 success_count += 1
                 consecutive_failures = 0
             else:
@@ -1702,13 +1720,15 @@ def cmd_upload(args):
                         target_summaries.append(f"{target} 已发过")
                     elif status == "skipped_civitai_safety":
                         target_summaries.append(f"{target} 安全过滤跳过")
+                    elif status == "manual_ready":
+                        target_summaries.append(f"{target} 待手动发布")
                     elif status == "failed":
                         target_summaries.append(f"{target} 失败")
                     else:
                         target_summaries.append(f"{target} {status}")
                 log.error(f"    {'，'.join(target_summaries)}，文件保留在 upload/")
                 fail_count += 1
-                _ok_statuses = {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted", "skipped_max_age"}
+                _ok_statuses = {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted", "skipped_max_age", "manual_ready"}
                 core_targets = [t for t in effective_targets if t != "xhs"]
                 core_any_ok = any(manifest["status_by_target"].get(t) in _ok_statuses for t in core_targets) if core_targets else False
                 if core_any_ok:
@@ -1881,6 +1901,8 @@ def main():
     sp_upload.add_argument("--x-template", default="", choices=["", "jp_sfw", "en_sfw", "zh_sfw", "jp_nsfw", "en_nsfw", "zh_nsfw"], help="X 模板（默认 en_sfw；r18/r18g 自动切到 *_nsfw）")
     sp_upload.add_argument("--x-group", type=int, default=1, choices=[1, 2, 3, 4], help="X 多图组队大小（1=每图单推；2-4=按文件名相邻组队，一条推挂多图）")
     sp_upload.add_argument("--xhs-template", default="", help="小红书模板（默认 default）")
+    sp_upload.add_argument("--xhs-manual", action="store_true", default=False, dest="xhs_manual_mode",
+                           help="小红书手动模式：只生成内容，不启动浏览器")
     sp_upload.add_argument("--no-ai-tags", default="", nargs="?", const="all",
                            help="不打 AI 标签。不带值=全部平台；带值=指定平台（逗号分隔，如 pixiv,x）")
     sp_upload.add_argument("--count", type=int, default=0, help="本次发几张（默认 0 = 随机 1-5）")

@@ -312,6 +312,25 @@ def _run_task_locked(task_id: str, cmd: int, params: dict) -> None:
             # param. Legacy fallback: cmd=2 → "civitai,pixiv", cmd=3 → "pixiv".
             legacy_default = "civitai,pixiv" if cmd == 2 else "pixiv"
             from civitai_splitter import cmd_upload
+            _run_cfg = _load_config()
+            _xhs_manual = bool(_run_cfg.get("xhs_manual_mode"))
+
+            def _xhs_manual_cb(xhs_payload, manifest_path):
+                from urllib.parse import quote
+                raw_paths = xhs_payload.get("clean_copy_paths", [])
+                image_urls = []
+                for p in raw_paths:
+                    name = Path(p).name
+                    encoded = quote(name, safe="")
+                    image_urls.append(f"/xhs_out/{encoded}")
+                _broadcast_sse("xhs_manual", {
+                    "title": xhs_payload.get("title", ""),
+                    "body": xhs_payload.get("body", ""),
+                    "tags": xhs_payload.get("tags", []),
+                    "image_urls": image_urls,
+                    "manifest_path": manifest_path,
+                })
+
             args = argparse.Namespace(
                 targets=params.get("targets", legacy_default),
                 count=params.get("count", 0),
@@ -333,6 +352,8 @@ def _run_task_locked(task_id: str, cmd: int, params: dict) -> None:
                 ai_tags_by_platform=params.get("ai_tags_by_platform") or {},
                 x_template=params.get("x_template", ""),
                 xhs_template=params.get("xhs_template", ""),
+                xhs_manual_mode=_xhs_manual,
+                xhs_manual_callback=_xhs_manual_cb if _xhs_manual else None,
                 cancel_event=cancel_event,
             )
             cmd_upload(args)
@@ -535,6 +556,8 @@ def api_settings():
     if "api_key" in body:
         cfg["api_key"] = body["api_key"].strip()
         os.environ["CIVITAI_API_KEY"] = cfg["api_key"]
+    if "xhs_manual_mode" in body:
+        cfg["xhs_manual_mode"] = bool(body["xhs_manual_mode"])
     _save_config(cfg)
     return jsonify({"ok": True})
 
@@ -838,6 +861,7 @@ def api_status():
         "censor_conf_threshold": censor_conf,
         "censor_bar_count":   censor_bar_count,
         "upload_defaults":    cfg.get("upload_defaults") or {},
+        "xhs_manual_mode":   bool(cfg.get("xhs_manual_mode")),
     })
 
 
@@ -1196,10 +1220,13 @@ def api_xhs_open_login():
         try:
             from patchright.sync_api import sync_playwright
             from xhs.stealth_scripts import FINGERPRINT_INIT_SCRIPT
-            from xhs.support import _ensure_chrome_cdp, _DEFAULT_CDP_URL, XHS_PROFILE_DIR as _XHS_PROF
+            from xhs.support import (
+                _ensure_chrome_cdp_clean, _DEFAULT_CDP_URL,
+                XHS_PROFILE_DIR as _XHS_PROF,
+            )
             from civitai_splitter import load_app_config
             cdp_url = load_app_config().get("xhs_cdp_url") or _DEFAULT_CDP_URL
-            _ensure_chrome_cdp(cdp_url, _XHS_PROF)
+            _ensure_chrome_cdp_clean(cdp_url, _XHS_PROF)
             with sync_playwright() as pw:
                 browser = pw.chromium.connect_over_cdp(cdp_url)
                 context = browser.contexts[0] if browser.contexts else None
@@ -1234,6 +1261,78 @@ def api_xhs_open_login():
     import threading as _th
     _th.Thread(target=_launch, daemon=True).start()
     return jsonify({"ok": True})
+
+
+@app.route("/api/xhs-manual-done", methods=["POST"])
+def api_xhs_manual_done():
+    data = request.get_json(force=True) or {}
+    mp = data.get("manifest_path", "")
+    if not mp:
+        return jsonify({"error": "missing manifest_path"}), 400
+    mp = Path(mp)
+    if not mp.exists():
+        return jsonify({"error": "manifest not found"}), 404
+    try:
+        manifest = json.loads(mp.read_text(encoding="utf-8"))
+        manifest["status_by_target"]["xhs"] = "success"
+        mp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        all_done = all(
+            s in {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted", "skipped_max_age"}
+            for s in manifest["status_by_target"].values()
+        )
+        for p in manifest.get("xhs", {}).get("clean_copy_paths", []):
+            try:
+                Path(p).unlink(missing_ok=True)
+            except Exception:
+                pass
+        moved = ""
+        if all_done:
+            src = Path(manifest.get("source_path", ""))
+            if src.exists():
+                from civitai_splitter import move_to_done
+                dest = move_to_done(src)
+                moved = str(dest)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    log_msg = "xhs 手动发布已确认"
+    if moved:
+        log_msg += "，已移入 done/"
+    _broadcast_sse("log", {"t": datetime.now().strftime("%H:%M:%S.%f")[:12], "lvl": "OK", "src": "xhs", "msg": log_msg})
+    return jsonify({"ok": True, "moved_to_done": moved})
+
+
+@app.route("/xhs_out/<path:filename>")
+def serve_xhs_out(filename):
+    return send_from_directory(SCRIPT_DIR / "xhs_out", filename)
+
+
+@app.route("/api/pin-window", methods=["POST"])
+def api_pin_window():
+    title_sub = (request.get_json(force=True) or {}).get("title", "")
+    if not title_sub or sys.platform != "win32":
+        return jsonify({"ok": False, "error": "not supported"}), 400
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.windll.user32
+        HWND_TOPMOST = wintypes.HWND(-1)
+        SWP_NOMOVE = 0x0002
+        SWP_NOSIZE = 0x0001
+        found = []
+        def _cb(hwnd, _lp):
+            length = user32.GetWindowTextLengthW(hwnd)
+            if length:
+                buf = ctypes.create_unicode_buffer(length + 1)
+                user32.GetWindowTextW(hwnd, buf, length + 1)
+                if title_sub in buf.value:
+                    user32.SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE)
+                    found.append(buf.value)
+            return True
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        user32.EnumWindows(WNDENUMPROC(_cb), 0)
+        return jsonify({"ok": bool(found), "pinned": found})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 def _sched_default() -> dict:

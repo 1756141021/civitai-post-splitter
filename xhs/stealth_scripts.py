@@ -63,4 +63,39 @@ if (!navigator.connection) {
         })
     });
 }
+
+// navigator.plugins — CDP/automation Chrome may have empty plugins
+if (navigator.plugins.length === 0) {
+    Object.defineProperty(navigator, 'plugins', {
+        get: () => {
+            const arr = [
+                {name: 'PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format'},
+                {name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer', description: ''},
+                {name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer', description: ''},
+            ];
+            arr.item = i => arr[i];
+            arr.namedItem = n => arr.find(p => p.name === n);
+            arr.refresh = () => {};
+            return arr;
+        }
+    });
+}
+
+// window.chrome.runtime — must exist in real Chrome
+if (!window.chrome) window.chrome = {};
+if (!window.chrome.runtime) {
+    window.chrome.runtime = {connect: function(){}, sendMessage: function(){}};
+}
+
+// Error.stack — strip automation framework names from stack traces
+const _origStackDesc = Object.getOwnPropertyDescriptor(Error.prototype, 'stack');
+if (_origStackDesc && _origStackDesc.get) {
+    Object.defineProperty(Error.prototype, 'stack', {
+        get: function() {
+            const s = _origStackDesc.get.call(this);
+            return typeof s === 'string' ? s.replace(/patchright|playwright|puppeteer/gi, 'chrome') : s;
+        },
+        configurable: true
+    });
+}
 """

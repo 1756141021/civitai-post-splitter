@@ -1479,6 +1479,87 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
   );
 }
 
+function openXhsManualPopup(card) {
+  const w = 360, h = 520;
+  const left = window.screenX + window.outerWidth - w - 20;
+  const top = window.screenY + 60;
+  const popup = window.open('', '_blank', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+  if (!popup) return;
+  const imgHtml = (card.image_urls || []).map(u =>
+    `<a href="${u}" target="_blank" style="display:inline-block;width:80px;height:80px;border-radius:6px;overflow:hidden;border:1px solid #333">` +
+    `<img src="${u}" style="width:100%;height:100%;object-fit:cover"></a>`
+  ).join(' ');
+  const safeData = JSON.stringify({ title: card.title || '', body: card.body || '', manifest_path: card.manifest_path || '', _id: card._id || '' });
+  const escHtml = s => (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  popup.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>小红书 · 手动发布</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter','Microsoft YaHei',sans-serif; background: #1a1a1a; color: #e0e0e0; padding: 16px; }
+  .title { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: #fff; }
+  .label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .btn { border: none; border-radius: 6px; padding: 10px 0; font-size: 13px; font-weight: 500; cursor: pointer; width: 100%; margin-bottom: 8px; transition: opacity 0.15s; }
+  .btn:active { opacity: 0.7; }
+  .btn-copy { background: #2a2a2a; color: #e0e0e0; border: 1px solid #444; }
+  .btn-copy.copied { background: #1a3a1a; color: #6f6; border-color: #363; }
+  .btn-open { background: #333; color: #ccc; border: 1px solid #555; }
+  .btn-done { background: #d44; color: #fff; }
+  .btn-done.done { background: #262; color: #8f8; }
+  .imgs { margin: 10px 0; display: flex; gap: 6px; flex-wrap: wrap; }
+  .sep { border-top: 1px solid #333; margin: 12px 0; }
+</style></head><body>
+  <div class="title">小红书 · 手动发布</div>
+  <div class="label">① 复制标题</div>
+  <button class="btn btn-copy" id="cpTitle">复制标题：${escHtml(card.title) || '（无）'}</button>
+  <div class="label">② 复制正文</div>
+  <button class="btn btn-copy" id="cpBody">复制正文</button>
+  <div class="sep"></div>
+  <div class="label">图片预览（点击查看大图）</div>
+  <div class="imgs">${imgHtml || '<span style="color:#666">无图片</span>'}</div>
+  <div class="sep"></div>
+  <button class="btn btn-open" id="openXhs">打开小红书发布页</button>
+  <button class="btn btn-done" id="markDone">发布完成</button>
+<script>
+  var __d = ${safeData};
+  function copyAndFeedback(btn, text) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.classList.add('copied');
+      var orig = btn.textContent;
+      btn.textContent = '已复制 ✓';
+      setTimeout(function() { btn.classList.remove('copied'); btn.textContent = orig; }, 1500);
+    });
+  }
+  document.getElementById('cpTitle').onclick = function() { copyAndFeedback(this, __d.title); };
+  document.getElementById('cpBody').onclick = function() { copyAndFeedback(this, __d.body); };
+  document.getElementById('openXhs').onclick = function() {
+    window.open('https://creator.xiaohongshu.com/publish/publish?source=official', '_blank');
+  };
+  document.getElementById('markDone').onclick = function() {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = '提交中…';
+    fetch('/api/xhs-manual-done', { method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({manifest_path: __d.manifest_path}) })
+      .then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) {
+          btn.classList.add('done');
+          btn.textContent = '已完成 ✓' + (d.moved_to_done ? ' 已移入 done/' : '');
+          if (window.opener && window.opener.__xhsManualDone) window.opener.__xhsManualDone(__d._id);
+          setTimeout(function() { window.close(); }, 1200);
+        } else {
+          btn.textContent = '失败: ' + (d.error || '未知错误');
+          btn.disabled = false;
+        }
+      }).catch(function() { btn.textContent = '网络错误'; btn.disabled = false; });
+  };
+  setTimeout(function() {
+    fetch('/api/pin-window', { method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({title: '手动发布'}) });
+  }, 500);
+</script></body></html>`);
+  popup.document.close();
+}
+
+
 function MonoSingleApp() {
   const [filter, setFilter] = React.useState('all');
   const [tick,   setTick]   = React.useState(0);
@@ -1497,6 +1578,7 @@ function MonoSingleApp() {
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
   const [pageDragging, setPageDragging] = React.useState(false);
   const [dropToast,    setDropToast]    = React.useState('');
+  const [xhsManualCards, setXhsManualCards] = React.useState([]);
 
   React.useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 800);
@@ -1534,6 +1616,9 @@ function MonoSingleApp() {
     };
     window.addEventListener('pagehide', notifyShutdown);
     window.addEventListener('beforeunload', notifyShutdown);
+    window.__xhsManualDone = (id) => {
+      setXhsManualCards(prev => prev.filter(c => c._id !== id));
+    };
     const es = new EventSource('/api/stream');
     es.addEventListener('task_update', e => {
       const t = JSON.parse(e.data);
@@ -1555,6 +1640,12 @@ function MonoSingleApp() {
       setTasks(prev => prev.filter(t => t.id !== id));
     });
     es.addEventListener('input_required', e => setPendingInput(JSON.parse(e.data)));
+    es.addEventListener('xhs_manual', e => {
+      const card = JSON.parse(e.data);
+      card._id = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      setXhsManualCards(prev => [...prev, card]);
+      openXhsManualPopup(card);
+    });
     es.addEventListener('status_update', e => {
       const s = JSON.parse(e.data);
       setStatus(prev => ({ ...prev, ...s }));
@@ -1699,6 +1790,15 @@ function MonoSingleApp() {
       {dropToast && (
         <div style={{ position: 'fixed', bottom: 40, left: '50%', transform: 'translateX(-50%)', zIndex: 900, background: '#0078d4', color: '#fff', padding: '8px 20px', borderRadius: 8, fontSize: 14, fontWeight: 500, pointerEvents: 'none' }}>
           {dropToast}
+        </div>
+      )}
+
+      {xhsManualCards.length > 0 && (
+        <div style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 850 }}>
+          <div style={{ background: M.accent, color: '#fff', padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
+               onClick={() => xhsManualCards.forEach(card => openXhsManualPopup(card))}>
+            小红书手动发布 ({xhsManualCards.length} 待处理) — 点击重新打开
+          </div>
         </div>
       )}
 
@@ -2400,6 +2500,34 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
             )}
           </div>
         )}
+      </div>
+      <div style={{ padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', alignItems: 'center' }}>
+        <div style={{ fontSize: 12.5 }}>小红书手动模式</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint }}>
+            {status.xhs_manual_mode ? '只生成内容，手动粘贴发布' : '自动发布'}
+          </span>
+          <label style={{ position: 'relative', display: 'inline-block', width: 32, height: 18, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!status.xhs_manual_mode}
+                   onChange={e => {
+                     const v = e.target.checked;
+                     fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ xhs_manual_mode: v }) })
+                       .then(() => onStatusReload && onStatusReload());
+                   }}
+                   style={{ opacity: 0, width: 0, height: 0 }} />
+            <span style={{
+              position: 'absolute', inset: 0, borderRadius: 9,
+              background: status.xhs_manual_mode ? M.accent : M.lineSoft,
+              transition: 'background 0.2s',
+            }} />
+            <span style={{
+              position: 'absolute', top: 2, left: status.xhs_manual_mode ? 16 : 2,
+              width: 14, height: 14, borderRadius: '50%', background: '#fff',
+              transition: 'left 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+            }} />
+          </label>
+        </div>
       </div>
       <SetCompactRow label="上传队列" value={`${status.upload_count} 张`} />
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>

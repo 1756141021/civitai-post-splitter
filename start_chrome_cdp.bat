@@ -44,15 +44,16 @@ if !errorlevel!==0 (
 )
 
 echo 正在启动 Chrome...
-start "" "!CHROME_PATH!" --remote-debugging-port=9222
+start "" "!CHROME_PATH!" --remote-debugging-port=9222 --user-data-dir="%USERPROFILE%\.civitai_splitter_xhs_chrome" --lang=zh-CN --window-size=1920,1080
 echo.
-echo [OK] Chrome 已启动（CDP 端口 9222）
+echo [OK] Chrome 已启动（CDP 端口 9222，独立 profile）
 echo.
 echo ---- 使用流程 ----
 echo 1. 在刚打开的 Chrome 里登录小红书
 echo 2. 然后运行 run_web.bat 或 run.bat
 echo 3. 程序会直接连接这个浏览器，不再另开窗口
 echo.
-echo 发布期间不要关闭这个 Chrome。
+echo 注意：程序现在默认用 persistent context 模式（不依赖 CDP），
+echo       此脚本仅用于手动登录/调试。发布期间不要关闭这个 Chrome。
 echo.
 pause
