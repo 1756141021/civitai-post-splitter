@@ -618,7 +618,7 @@ def create_civitai_post(page, image_path: Path, delay: float, cancel_event=None)
         log.error("    Publish 按钮未启用（等待 120 秒），跳过")
         return None
 
-    publish_btn.first.click()
+    publish_btn.first.click(force=True)
     log.info("    已点击 Publish，等待跳转...")
 
     for _ in range(30):
