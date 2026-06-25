@@ -436,6 +436,7 @@ def _run_task_locked(task_id: str, cmd: int, params: dict) -> None:
             _set_task_status(task_id, "canceled")
         else:
             _set_task_status(task_id, "done", 1.0)
+            _broadcast_sse("images_changed", {})
 
     except InterruptedError:
         _push_log_line(task_id, "INFO", "worker", "任务已取消")
@@ -622,8 +623,34 @@ def api_censor_config():
             existing["bar_count"] = max(1, min(8, int(body["bar_count"])))
         except (ValueError, TypeError):
             pass
+    if "box_expand_default" in body:
+        try:
+            existing["box_expand_default"] = max(0.0, min(0.5, round(float(body["box_expand_default"]), 2)))
+        except (ValueError, TypeError):
+            pass
+    if "box_expand" in body and isinstance(body["box_expand"], dict):
+        existing["box_expand"] = {
+            k: max(0.0, min(0.5, round(float(v), 2)))
+            for k, v in body["box_expand"].items()
+            if isinstance(k, str)
+        }
+    if "class_thresholds" in body and isinstance(body["class_thresholds"], dict):
+        existing["class_thresholds"] = {
+            k: max(0.05, min(0.95, round(float(v), 2)))
+            for k, v in body["class_thresholds"].items()
+            if isinstance(k, str)
+        }
+    if "secondary_enabled" in body:
+        existing["secondary_enabled"] = bool(body["secondary_enabled"])
+    if "secondary_conf" in body:
+        try:
+            existing["secondary_conf"] = max(0.05, min(0.95, round(float(body["secondary_conf"]), 2)))
+        except (ValueError, TypeError):
+            pass
     censor_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
-    return jsonify({"ok": True, **{k: existing.get(k) for k in ("mode", "conf_threshold", "bar_count")}})
+    _resp_keys = ("mode", "conf_threshold", "bar_count", "box_expand_default", "box_expand",
+                  "class_thresholds", "secondary_enabled", "secondary_conf")
+    return jsonify({"ok": True, **{k: existing.get(k) for k in _resp_keys}})
 
 
 @app.route("/api/llm-reverse-platforms", methods=["GET"])
@@ -823,6 +850,10 @@ def api_status():
     censor_mode = "mosaic"
     censor_conf = 0.55
     censor_bar_count = 4
+    censor_box_expand_default = 0.0
+    censor_box_expand = {}
+    censor_class_thresholds = {}
+    censor_secondary_enabled = False
     try:
         if censor_path.exists():
             cdata = json.loads(censor_path.read_text(encoding="utf-8"))
@@ -837,6 +868,13 @@ def api_status():
                     censor_conf = float(cdata["conf_threshold"])
                 if "bar_count" in cdata:
                     censor_bar_count = int(cdata["bar_count"])
+                if "box_expand_default" in cdata:
+                    censor_box_expand_default = float(cdata["box_expand_default"])
+                if isinstance(cdata.get("box_expand"), dict):
+                    censor_box_expand = cdata["box_expand"]
+                if isinstance(cdata.get("class_thresholds"), dict):
+                    censor_class_thresholds = cdata["class_thresholds"]
+                censor_secondary_enabled = bool(cdata.get("secondary_enabled", False))
     except Exception:
         pass
     from version import __version__
@@ -860,6 +898,10 @@ def api_status():
         "censor_mode":        censor_mode,
         "censor_conf_threshold": censor_conf,
         "censor_bar_count":   censor_bar_count,
+        "censor_box_expand_default": censor_box_expand_default,
+        "censor_box_expand":  censor_box_expand,
+        "censor_class_thresholds": censor_class_thresholds,
+        "censor_secondary_enabled": censor_secondary_enabled,
         "upload_defaults":    cfg.get("upload_defaults") or {},
         "xhs_manual_mode":   bool(cfg.get("xhs_manual_mode")),
     })

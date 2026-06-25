@@ -1653,6 +1653,9 @@ function MonoSingleApp() {
       if (s.pixiv_logged_in) setPixivOpening(false);
       if (s.xhs_logged_in) setXhsOpening(false);
     });
+    es.addEventListener('images_changed', () => {
+      fetch('/api/status').then(r => r.json()).then(setStatus).catch(() => {});
+    });
     let errTimer = null;
     es.onopen  = () => { clearTimeout(errTimer); setConnected(true); };
     es.onerror = () => { errTimer = setTimeout(() => { if (es.readyState !== 1) setConnected(false); }, 2000); };
@@ -2108,8 +2111,15 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
 
   const [confThreshold, setConfThreshold] = React.useState(status.censor_conf_threshold || 0.55);
   const [barCount, setBarCount] = React.useState(status.censor_bar_count || 4);
+  const [boxExpandDefault, setBoxExpandDefault] = React.useState(status.censor_box_expand_default || 0);
+  const [vaginaThreshold, setVaginaThreshold] = React.useState((status.censor_class_thresholds || {}).vagina ?? '');
+  const [anusThreshold, setAnusThreshold] = React.useState((status.censor_class_thresholds || {}).anus ?? '');
+  const [secondaryEnabled, setSecondaryEnabled] = React.useState(status.censor_secondary_enabled || false);
   React.useEffect(() => setConfThreshold(status.censor_conf_threshold || 0.55), [status.censor_conf_threshold]);
   React.useEffect(() => setBarCount(status.censor_bar_count || 4), [status.censor_bar_count]);
+  React.useEffect(() => setBoxExpandDefault(status.censor_box_expand_default || 0), [status.censor_box_expand_default]);
+  React.useEffect(() => { const ct = status.censor_class_thresholds || {}; setVaginaThreshold(ct.vagina ?? ''); setAnusThreshold(ct.anus ?? ''); }, [status.censor_class_thresholds]);
+  React.useEffect(() => setSecondaryEnabled(status.censor_secondary_enabled || false), [status.censor_secondary_enabled]);
 
   const fmtNextFire = iso => {
     if (!iso) return '—';
@@ -2233,6 +2243,75 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
             </div>
           </div>
         )}
+        {/* Box expand */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+          <div style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>框扩展 <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{(boxExpandDefault * 100).toFixed(0)}%</span></div>
+          <div style={{ flex: 1, maxWidth: 180, minWidth: 80, marginLeft: 12 }}>
+            <input type="range" min="0" max="0.4" step="0.02"
+                   className="mn-range"
+                   value={boxExpandDefault}
+                   onInput={e => setBoxExpandDefault(parseFloat(e.target.value))}
+                   onMouseUp={e => {
+                     fetch('/api/censor-config', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ box_expand_default: parseFloat(e.target.value) }),
+                     }).then(() => onStatusReload && onStatusReload());
+                   }}
+                   onTouchEnd={() => {
+                     fetch('/api/censor-config', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ box_expand_default: boxExpandDefault }),
+                     }).then(() => onStatusReload && onStatusReload());
+                   }} />
+          </div>
+        </div>
+        {/* Per-class thresholds */}
+        <div style={{ padding: '5px 0', borderBottom: `1px solid ${M.lineSoft}`, fontSize: 12.5 }}>
+          <div style={{ marginBottom: 4 }}>分类别阈值 <span className="mn-mono" style={{ fontSize: 10, color: M.inkDim }}>（空 = 用全局）</span></div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[['vagina', vaginaThreshold, setVaginaThreshold], ['anus', anusThreshold, setAnusThreshold]].map(([cls, val, setVal]) => (
+              <div key={cls} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim, minWidth: 40 }}>{cls}</span>
+                <input className="mn-input" type="number" min="0.05" max="0.95" step="0.05"
+                       value={val} placeholder="—"
+                       onChange={e => setVal(e.target.value)}
+                       onBlur={e => {
+                         const v = e.target.value.trim();
+                         const ct = { ...(status.censor_class_thresholds || {}) };
+                         if (v === '') { delete ct[cls]; } else { ct[cls] = Math.max(0.05, Math.min(0.95, parseFloat(v))); }
+                         fetch('/api/censor-config', {
+                           method: 'POST',
+                           headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify({ class_thresholds: ct }),
+                         }).then(() => onStatusReload && onStatusReload());
+                       }}
+                       style={{ width: 52, fontSize: 11, padding: '2px 4px', textAlign: 'center' }} />
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Secondary detector */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '5px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+          <div style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+            辅助检测 <span className="mn-mono" style={{ fontSize: 10, color: M.inkDim }}>deepghs</span>
+          </div>
+          <div style={{ marginLeft: 'auto' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11.5 }}>
+              <input type="checkbox" checked={secondaryEnabled}
+                     onChange={e => {
+                       setSecondaryEnabled(e.target.checked);
+                       fetch('/api/censor-config', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ secondary_enabled: e.target.checked }),
+                       }).then(() => onStatusReload && onStatusReload());
+                     }} />
+              {secondaryEnabled ? '已启用' : '关'}
+            </label>
+          </div>
+        </div>
       </>}
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
         <div style={{ fontSize: 12.5 }}>WD14 tagger</div>

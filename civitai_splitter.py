@@ -17,7 +17,7 @@ import httpx
 from PIL import Image, PngImagePlugin
 from patchright.sync_api import sync_playwright
 
-from pixiv.censor import CensorEngine, DEFAULT_CENSOR_CLASSES, parse_class_set
+from pixiv.censor import CENSOR_CLASS_BY_NAME, CensorEngine, DEFAULT_CENSOR_CLASSES, DeepghsDetector, parse_class_set
 from pixiv.llm_reverse import (
     account_can_handle_age,
     apply_llm_result_to_copy_block,
@@ -406,7 +406,7 @@ def strip_prompts_keep_lora(image_path: Path, dest_dir: Path) -> Path:
     lora_tags = _LORA_RE.findall(prompt_block)
     parts = []
     if lora_tags:
-        parts.append(", ".join(f"<lora:{name}:1>" for name, weight in lora_tags))
+        parts.append(", ".join(f"<lora:{name}:{round(random.random(), 2)}>" for name, _ in lora_tags))
     if settings_line:
         parts.append(settings_line)
 
@@ -618,6 +618,7 @@ def create_civitai_post(page, image_path: Path, delay: float, cancel_event=None)
         log.error("    Publish 按钮未启用（等待 120 秒），跳过")
         return None
 
+    # sticky 通知栏可能遮挡按钮，force 跳过遮挡检查
     publish_btn.first.click(force=True)
     log.info("    已点击 Publish，等待跳转...")
 
@@ -718,6 +719,7 @@ def create_upload_manifest(
     general_jp_data: dict | None = None,
     pixiv_page=None,
     censor_engine: CensorEngine | None = None,
+    censor_secondary: "DeepghsDetector | None" = None,
     censor_classes=None,
     civitai_safety_cfg: dict | None = None,
     llm_reverse_config: dict | None = None,
@@ -766,6 +768,7 @@ def create_upload_manifest(
             Path(pixiv_clean.output_path),
             output_path=Path(pixiv_clean.output_path),
             enabled_classes=censor_classes,
+            secondary_detector=censor_secondary,
         )
         _raise_if_canceled(cancel_event)
         if censor_result.applied:
@@ -1254,6 +1257,7 @@ def cmd_upload(args):
     # live in pixiv_censor.json (auto-created on first run with defaults).
     # X target reuses the pixiv-cleaned image, so censor follows the same toggle.
     censor_engine = None
+    censor_secondary = None
     censor_classes = DEFAULT_CENSOR_CLASSES
     needs_pixiv_pipeline = any(PLATFORM_RULES.get(t, {}).get("needs_sanitize") for t in targets) or needs_xhs
     if needs_pixiv_pipeline:
@@ -1267,14 +1271,41 @@ def cmd_upload(args):
             if isinstance(classes_spec, list):
                 classes_spec = ",".join(str(x) for x in classes_spec)
             censor_classes = parse_class_set(classes_spec)
+            box_expand_raw = cfg.get("box_expand", {})
+            box_expand = {
+                CENSOR_CLASS_BY_NAME[k]: float(v)
+                for k, v in box_expand_raw.items()
+                if k in CENSOR_CLASS_BY_NAME
+            }
+            box_expand_default = float(cfg.get("box_expand_default", 0.0))
+            class_thresholds_raw = cfg.get("class_thresholds", {})
+            class_thresholds = {
+                CENSOR_CLASS_BY_NAME[k]: float(v)
+                for k, v in class_thresholds_raw.items()
+                if k in CENSOR_CLASS_BY_NAME
+            }
             censor_engine = CensorEngine(
                 model_path,
                 conf_threshold=conf,
                 mode=mode,
                 bar_count=bar_count,
+                box_expand=box_expand,
+                box_expand_default=box_expand_default,
+                class_thresholds=class_thresholds,
             )
+            if cfg.get("secondary_enabled", False):
+                sec_model = cfg.get("secondary_model") or None
+                sec_conf = float(cfg.get("secondary_conf", 0.25))
+                sec_level = str(cfg.get("secondary_level", "s"))
+                censor_secondary = DeepghsDetector(
+                    model_name=sec_model,
+                    conf=sec_conf,
+                    level=sec_level,
+                )
             log.info(
-                f"自动打码: 已启用 (mode={mode}, conf={conf}, classes={sorted(censor_classes)})"
+                f"自动打码: 已启用 (mode={mode}, conf={conf}, classes={sorted(censor_classes)}"
+                f", expand_default={box_expand_default}, class_thresholds={class_thresholds}"
+                f", secondary={'deepghs' if censor_secondary else 'off'})"
             )
         else:
             log.info("自动打码: 未启用（如需放模型到 models/auto_censor.pt + pip install ultralytics opencv-python）")
@@ -1402,6 +1433,7 @@ def cmd_upload(args):
                 general_jp_data=general_jp_data,
                 pixiv_page=pixiv_page,
                 censor_engine=censor_engine,
+                censor_secondary=censor_secondary,
                 censor_classes=censor_classes,
                 civitai_safety_cfg=civitai_safety_cfg,
                 llm_reverse_config=llm_reverse_config if llm_reverse_enabled else None,

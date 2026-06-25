@@ -85,6 +85,9 @@ class CensorEngine:
         conf_threshold: float = 0.55,
         mode: str = "mosaic",
         bar_count: int = 4,
+        box_expand: dict[int, float] | None = None,
+        box_expand_default: float = 0.0,
+        class_thresholds: dict[int, float] | None = None,
     ):
         """
         mode:
@@ -92,6 +95,9 @@ class CensorEngine:
           - "blur"   — pure gaussian blur on bbox
           - "bar"    — N 条横向黑 bar 堆叠（日式条码）
         bar_count: number of horizontal bars per region (default 4).
+        box_expand: per-class bbox expansion ratio (e.g. {4: 0.22} = vagina expands 22% each side).
+        box_expand_default: fallback expansion ratio for classes not in box_expand.
+        class_thresholds: per-class confidence overrides (e.g. {4: 0.30} = vagina at 0.30).
         """
         self._model_path = Path(model_path) if model_path else None
         self._conf = conf_threshold
@@ -101,6 +107,9 @@ class CensorEngine:
         self._mode = mode if mode in {"mosaic", "blur", "bar", "heart"} else "mosaic"
         self._bar_count = max(1, int(bar_count))
         self._heart_template: Any = None
+        self._box_expand = box_expand or {}
+        self._box_expand_default = box_expand_default
+        self._class_thresholds = class_thresholds or {}
 
     @property
     def status(self) -> str:
@@ -232,6 +241,7 @@ class CensorEngine:
         image_path: Path,
         output_path: Path | None = None,
         enabled_classes: frozenset[int] | set[int] | None = None,
+        secondary_detector: "DeepghsDetector | None" = None,
     ) -> CensorResult:
         """Run detection on image_path, apply mosaic to enabled classes, write result.
 
@@ -260,15 +270,17 @@ class CensorEngine:
         except Exception as exc:
             return CensorResult(status="io_error", applied=False, detail=f"{type(exc).__name__}: {exc}")
 
+        effective_conf = self._conf
+        if self._class_thresholds:
+            effective_conf = min(self._conf, *self._class_thresholds.values())
         try:
-            results = model.predict(img, conf=self._conf, verbose=False)
+            results = model.predict(img, conf=effective_conf, verbose=False)
         except Exception as exc:
             return CensorResult(status="infer_error", applied=False, detail=f"{type(exc).__name__}: {exc}")
 
         h, w = img.shape[:2]
-        # Fine mosaic — small blocks for higher visual fidelity, then a tiny
-        # Gaussian smooth pass kills the harsh staircase edges.
-        block_size = max(8, min(w, h) // 140)
+        pixiv_min = max(4, max(w, h) // 150)
+        block_size = max(8, min(w, h) // 140, pixiv_min)
         all_dets: list[dict[str, Any]] = []
         applied_count = 0
         for r in results:
@@ -287,12 +299,23 @@ class CensorEngine:
                 x2 = max(0, min(w, x2))
                 y1 = max(0, min(h - 1, y1))
                 y2 = max(0, min(h, y2))
+                cls_threshold = self._class_thresholds.get(cls, self._conf)
+                should_apply = cls in enabled_classes and conf >= cls_threshold and x2 > x1 and y2 > y1
+                if should_apply:
+                    expand_ratio = self._box_expand.get(cls, self._box_expand_default)
+                    if expand_ratio > 0:
+                        bw, bh = x2 - x1, y2 - y1
+                        ex, ey = int(bw * expand_ratio), int(bh * expand_ratio)
+                        x1 = max(0, x1 - ex)
+                        y1 = max(0, y1 - ey)
+                        x2 = min(w, x2 + ex)
+                        y2 = min(h, y2 + ey)
                 det = {
                     "class": cls,
                     "name": CENSOR_CLASS_NAMES.get(cls, str(cls)),
                     "confidence": round(conf, 3),
                     "bbox": [x1, y1, x2, y2],
-                    "applied": cls in enabled_classes and x2 > x1 and y2 > y1,
+                    "applied": should_apply,
                 }
                 all_dets.append(det)
                 if not det["applied"]:
@@ -347,6 +370,83 @@ class CensorEngine:
                     img[y1:y2, x1:x2] = cv2.GaussianBlur(pixelated, (smooth_k, smooth_k), 0)
                     applied_count += 1
 
+        # Secondary detector: merge additional detections from deepghs
+        if secondary_detector is not None and secondary_detector.is_available():
+            try:
+                secondary_dets = secondary_detector.detect(image_path)
+                secondary_dets = [d for d in secondary_dets if d["class"] in enabled_classes]
+                if secondary_dets:
+                    new_dets = merge_detections([], secondary_dets, iou_threshold=0.5)
+                    for sd in new_dets:
+                        already_covered = any(
+                            d["class"] == sd["class"]
+                            and d["applied"]
+                            and _iou(d["bbox"], sd["bbox"]) > 0.3
+                            for d in all_dets
+                        )
+                        if already_covered:
+                            sd["applied"] = False
+                            sd["source"] = "deepghs_dup"
+                            all_dets.append(sd)
+                            continue
+                        cls = sd["class"]
+                        expand_ratio = self._box_expand.get(cls, self._box_expand_default)
+                        x1, y1, x2, y2 = sd["bbox"]
+                        if expand_ratio > 0:
+                            bw, bh = x2 - x1, y2 - y1
+                            ex, ey = int(bw * expand_ratio), int(bh * expand_ratio)
+                            x1 = max(0, x1 - ex)
+                            y1 = max(0, y1 - ey)
+                            x2 = min(w, x2 + ex)
+                            y2 = min(h, y2 + ey)
+                            sd["bbox"] = [x1, y1, x2, y2]
+                        if x2 > x1 and y2 > y1:
+                            if self._mode == "heart":
+                                rng = random.Random(hash((x1, y1, x2, y2)))
+                                if self._stamp_heart(img, x1, y1, x2, y2, rng):
+                                    applied_count += 1
+                                else:
+                                    sd["applied"] = False
+                            elif self._mode == "bar":
+                                bbox_h = y2 - y1
+                                n = self._bar_count
+                                slot = bbox_h / n
+                                bar_h = max(6, int(slot * 0.5))
+                                for i in range(n):
+                                    cy = y1 + int((i + 0.5) * slot)
+                                    by1 = max(0, cy - bar_h // 2)
+                                    by2 = min(h, by1 + bar_h)
+                                    if by2 > by1 and x2 > x1:
+                                        img[by1:by2, x1:x2] = 0
+                                applied_count += 1
+                            elif self._mode == "blur":
+                                roi = img[y1:y2, x1:x2]
+                                if roi.size > 0:
+                                    rh, rw = roi.shape[:2]
+                                    k = max(15, (min(rh, rw) // 4) | 1)
+                                    img[y1:y2, x1:x2] = cv2.GaussianBlur(roi, (k, k), sigmaX=k / 2)
+                                    applied_count += 1
+                                else:
+                                    sd["applied"] = False
+                            else:  # mosaic
+                                roi = img[y1:y2, x1:x2]
+                                if roi.size > 0:
+                                    rh, rw = roi.shape[:2]
+                                    small_w = max(1, rw // block_size)
+                                    small_h = max(1, rh // block_size)
+                                    small = cv2.resize(roi, (small_w, small_h), interpolation=cv2.INTER_LINEAR)
+                                    pixelated = cv2.resize(small, (rw, rh), interpolation=cv2.INTER_NEAREST)
+                                    smooth_k = max(3, (block_size // 4) | 1)
+                                    img[y1:y2, x1:x2] = cv2.GaussianBlur(pixelated, (smooth_k, smooth_k), 0)
+                                    applied_count += 1
+                                else:
+                                    sd["applied"] = False
+                        else:
+                            sd["applied"] = False
+                        all_dets.append(sd)
+            except Exception as exc:
+                log.warning(f"辅助检测合并异常: {type(exc).__name__}: {exc}")
+
         if applied_count == 0:
             return CensorResult(
                 status="ok",
@@ -375,3 +475,125 @@ class CensorEngine:
             output_path=out,
             detail=f"applied {self._mode} to {applied_count} regions",
         )
+
+
+# ---------------------------------------------------------------------------
+#  Secondary detector: deepghs/imgutils anime censor detection
+# ---------------------------------------------------------------------------
+
+_DEEPGHS_LABEL_MAP = {
+    "pussy": 4,     # vagina
+    "penis": 2,     # dick
+    "nipple_f": 3,  # tits/breasts
+}
+
+
+def _iou(a: list[int], b: list[int]) -> float:
+    """Intersection-over-union for two [x1,y1,x2,y2] boxes."""
+    ix1 = max(a[0], b[0])
+    iy1 = max(a[1], b[1])
+    ix2 = min(a[2], b[2])
+    iy2 = min(a[3], b[3])
+    inter = max(0, ix2 - ix1) * max(0, iy2 - iy1)
+    if inter == 0:
+        return 0.0
+    area_a = (a[2] - a[0]) * (a[3] - a[1])
+    area_b = (b[2] - b[0]) * (b[3] - b[1])
+    return inter / (area_a + area_b - inter)
+
+
+def _union_bbox(a: list[int], b: list[int]) -> list[int]:
+    return [min(a[0], b[0]), min(a[1], b[1]), max(a[2], b[2]), max(a[3], b[3])]
+
+
+def merge_detections(
+    primary: list[dict],
+    secondary: list[dict],
+    iou_threshold: float = 0.5,
+) -> list[dict]:
+    """Merge secondary detections into primary. Same-class overlaps get union bbox."""
+    merged = [dict(d) for d in primary]
+    for s in secondary:
+        overlaps = False
+        for i, p in enumerate(merged):
+            if p["class"] == s["class"] and _iou(p["bbox"], s["bbox"]) > iou_threshold:
+                merged[i]["bbox"] = _union_bbox(p["bbox"], s["bbox"])
+                merged[i]["source"] = "merged"
+                overlaps = True
+                break
+        if not overlaps:
+            merged.append(dict(s))
+    return merged
+
+
+class DeepghsDetector:
+    """Optional secondary detector using deepghs/imgutils anime censor detection."""
+
+    def __init__(
+        self,
+        model_name: str | None = None,
+        conf: float = 0.25,
+        iou: float = 0.7,
+        level: str = "s",
+    ):
+        self._model_name = model_name
+        self._conf = conf
+        self._iou = iou
+        self._level = level
+        self._available: bool | None = None
+
+    def is_available(self) -> bool:
+        if self._available is not None:
+            return self._available
+        try:
+            from imgutils.detect import detect_censors  # noqa: F401
+            self._available = True
+        except ImportError:
+            self._available = False
+            log.warning("deepghs 辅助检测不可用（需 pip install dghs-imgutils）")
+        return self._available
+
+    def detect(self, image_path: Path) -> list[dict]:
+        """Run detection, return results in same format as YOLO detections."""
+        if not self.is_available():
+            return []
+        import os
+        old_offline = os.environ.get("HF_HUB_OFFLINE")
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        try:
+            from imgutils.detect import detect_censors
+            kwargs = {"conf_threshold": self._conf, "iou_threshold": self._iou, "level": self._level}
+            if self._model_name:
+                kwargs["model_name"] = self._model_name
+            try:
+                results = detect_censors(str(image_path), **kwargs)
+            except Exception:
+                if old_offline is not None:
+                    os.environ["HF_HUB_OFFLINE"] = old_offline
+                else:
+                    os.environ.pop("HF_HUB_OFFLINE", None)
+                results = detect_censors(str(image_path), **kwargs)
+        except Exception as exc:
+            log.warning(f"deepghs 检测失败: {type(exc).__name__}: {exc}")
+            return []
+        finally:
+            if old_offline is not None:
+                os.environ["HF_HUB_OFFLINE"] = old_offline
+            else:
+                os.environ.pop("HF_HUB_OFFLINE", None)
+
+        dets = []
+        for bbox, label, conf in results:
+            cls = _DEEPGHS_LABEL_MAP.get(label)
+            if cls is None:
+                continue
+            x1, y1, x2, y2 = bbox
+            dets.append({
+                "class": cls,
+                "name": CENSOR_CLASS_NAMES.get(cls, str(cls)),
+                "confidence": round(conf, 3),
+                "bbox": [int(x1), int(y1), int(x2), int(y2)],
+                "applied": True,
+                "source": "deepghs",
+            })
+        return dets

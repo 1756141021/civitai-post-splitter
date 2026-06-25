@@ -2,17 +2,36 @@
   "_comment": "自动打码配置。删了重启会重生默认值。",
   "_help": {
     "mode": "mosaic / blur / bar / heart",
-    "conf_threshold": "0.0~1.0；越高漏检越多但误检越少（推荐 0.5-0.6）",
+    "conf_threshold": "0.0~1.0；全局置信度阈值，class_thresholds 可覆盖单类",
+    "class_thresholds": "按类别覆盖置信度。未指定的类别用 conf_threshold",
     "enabled_classes": "要打码的类别：dick / vagina(=pussy) / anus / cum / tits(=breasts)",
-    "bar_count": "仅 mode=bar 时生效，横条 bar 的数量"
+    "bar_count": "仅 mode=bar 时生效",
+    "box_expand_default": "检测框扩展比例（0.15 = 每边扩 15%）",
+    "box_expand": "按类别覆盖扩展比例",
+    "secondary_enabled": "启用 deepghs 辅助检测（需 pip install dghs-imgutils）",
+    "secondary_conf": "辅助检测置信度阈值",
+    "secondary_level": "s（标准）或 n（nano，更快但稍弱）"
   },
   "mode": "mosaic",
-  "conf_threshold": 0.55,
+  "conf_threshold": 0.6,
+  "class_thresholds": {
+    "anus": 0.35,
+    "vagina": 0.5
+  },
   "enabled_classes": [
     "dick",
     "vagina",
-    "anus",
-    "cum"
+    "anus"
   ],
-  "bar_count": 4
+  "bar_count": 4,
+  "box_expand_default": 0.1,
+  "box_expand": {
+    "vagina": 0.12,
+    "anus": 0.12,
+    "dick": 0.1,
+    "cum": 0.08
+  },
+  "secondary_enabled": true,
+  "secondary_conf": 0.25,
+  "secondary_level": "s"
 }
