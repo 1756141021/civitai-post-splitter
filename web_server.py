@@ -31,6 +31,7 @@ from pixiv.llm_reverse import (
 from pixiv.support import PIXIV_PROFILE_DIR
 from x.support   import X_DIR,   X_PROFILE_DIR
 from xhs.support import XHS_DIR, XHS_PROFILE_DIR
+from watermark import MAX_FONT_UPLOAD_BYTES, WatermarkError, WatermarkService
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 CIVITAI_PROFILE_DIR = Path.home() / ".civitai_splitter_chrome"
@@ -50,6 +51,16 @@ def _load_config() -> dict:
 
 def _save_config(cfg: dict) -> None:
     CONFIG_FILE.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _watermark_service() -> WatermarkService:
+    return WatermarkService(SCRIPT_DIR)
+
+
+def _watermark_local_only():
+    if request.remote_addr in {"127.0.0.1", "::1"}:
+        return None
+    return jsonify({"error": "watermark settings are available only from localhost"}), 403
 
 
 # Apply saved config to env on startup
@@ -563,6 +574,66 @@ def api_settings():
     return jsonify({"ok": True})
 
 
+@app.route("/api/watermark-config", methods=["GET"])
+def api_watermark_config_get():
+    blocked = _watermark_local_only()
+    if blocked is not None:
+        return blocked
+    try:
+        return jsonify(_watermark_service().config_payload())
+    except WatermarkError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/api/watermark-config", methods=["POST"])
+def api_watermark_config_set():
+    blocked = _watermark_local_only()
+    if blocked is not None:
+        return blocked
+    body = request.get_json(silent=True)
+    if not isinstance(body, dict):
+        return jsonify({"error": "invalid watermark configuration"}), 400
+    try:
+        service = _watermark_service()
+        service.save_config(body)
+        return jsonify({"ok": True, **service.config_payload()})
+    except WatermarkError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/api/watermark-font", methods=["POST"])
+def api_watermark_font_import():
+    blocked = _watermark_local_only()
+    if blocked is not None:
+        return blocked
+    uploaded = request.files.get("font")
+    if uploaded is None or not uploaded.filename:
+        return jsonify({"error": "font file is required"}), 400
+    try:
+        data = uploaded.read(MAX_FONT_UPLOAD_BYTES + 1)
+        service = _watermark_service()
+        font = service.import_font(uploaded.filename, data)
+        return jsonify({"ok": True, "font": font.to_dict(), **service.config_payload()})
+    except WatermarkError as exc:
+        return jsonify({"error": str(exc)}), 400
+    finally:
+        uploaded.close()
+
+
+@app.route("/api/watermark-font/<path:file_name>", methods=["DELETE"])
+def api_watermark_font_delete(file_name: str):
+    blocked = _watermark_local_only()
+    if blocked is not None:
+        return blocked
+    try:
+        service = _watermark_service()
+        if not service.delete_font(file_name):
+            return jsonify({"error": "font not found"}), 404
+        return jsonify({"ok": True, **service.config_payload()})
+    except WatermarkError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
 # Censor preset levels. Maps preset name → enabled_classes string. Class names
 # come from pixiv/censor.py CENSOR_CLASS_NAMES: anus, cum, dick, tits, vagina.
 _CENSOR_PRESETS = {
@@ -842,6 +913,16 @@ def api_status():
     else:
         masked = "*" * len(api_key)
     cfg = _load_config()
+    watermark_enabled = False
+    watermark_font_file = ""
+    watermark_status = "disabled"
+    try:
+        watermark_spec = _watermark_service().load_config()
+        watermark_enabled = watermark_spec.enabled
+        watermark_font_file = watermark_spec.font.file_name
+        watermark_status = "enabled" if watermark_enabled else "disabled"
+    except WatermarkError:
+        watermark_status = "invalid"
     llm_cfg = normalize_llm_reverse_config(cfg.get("llm_reverse"))
     llm_key = str(llm_cfg.get("api_key", ""))
     llm_masked = "*" * (len(llm_key) - 4) + llm_key[-4:] if len(llm_key) > 4 else "*" * len(llm_key)
@@ -902,6 +983,9 @@ def api_status():
         "censor_box_expand":  censor_box_expand,
         "censor_class_thresholds": censor_class_thresholds,
         "censor_secondary_enabled": censor_secondary_enabled,
+        "watermark_enabled":  watermark_enabled,
+        "watermark_font_file": watermark_font_file,
+        "watermark_status":   watermark_status,
         "upload_defaults":    cfg.get("upload_defaults") or {},
         "xhs_manual_mode":   bool(cfg.get("xhs_manual_mode")),
     })

@@ -17,6 +17,7 @@ import httpx
 from PIL import Image, PngImagePlugin
 from patchright.sync_api import sync_playwright
 
+from watermark import TextWatermarkSpec, WatermarkError, WatermarkService
 from pixiv.censor import CENSOR_CLASS_BY_NAME, CensorEngine, DEFAULT_CENSOR_CLASSES, DeepghsDetector, parse_class_set
 from pixiv.llm_reverse import (
     account_can_handle_age,
@@ -48,6 +49,19 @@ PLATFORM_RULES: dict[str, dict] = {
 
 def _targets_need_copy(targets) -> bool:
     return any(PLATFORM_RULES.get(t, {}).get("needs_copy") for t in targets)
+
+
+def _load_watermark_for_targets(
+    targets: list[str],
+) -> tuple[WatermarkService | None, TextWatermarkSpec | None]:
+    if not any(PLATFORM_RULES.get(target, {}).get("needs_sanitize") for target in targets):
+        return None, None
+    service = WatermarkService(SCRIPT_DIR)
+    spec = service.load_config()
+    if spec.enabled:
+        font_name = spec.font.file_name or "system"
+        log.info(f"文字水印: 已启用 (renderer={spec.renderer}, font={font_name})")
+    return service, spec
 
 
 def _build_llm_extra_context(
@@ -737,6 +751,8 @@ def create_upload_manifest(
     xhs_templates: dict | None = None,
     xhs_base_template: str = "default",
     ai_tags_by_platform: dict | None = None,
+    watermark_service: WatermarkService | None = None,
+    watermark_spec: TextWatermarkSpec | None = None,
     cancel_event=None,
 ) -> tuple[dict, bool]:
     _raise_if_canceled(cancel_event)
@@ -958,8 +974,39 @@ def create_upload_manifest(
             account_id=llm_account_id,
         )
 
+    watermark_failed = False
+    watermark_error = ""
+    watermark_result = {
+        "renderer": watermark_spec.renderer if watermark_spec is not None else "text",
+        "enabled": bool(watermark_spec and watermark_spec.enabled),
+        "applied": False,
+        "output_path": str(pixiv_clean.output_path) if pixiv_clean is not None else "",
+        "status": "disabled",
+    }
+    if watermark_spec is not None and watermark_spec.enabled:
+        if pixiv_clean is None:
+            watermark_result["status"] = "skipped_no_sanitized_artifact"
+        elif watermark_service is None:
+            watermark_failed = True
+            watermark_error = "watermark service unavailable"
+        else:
+            try:
+                watermark_result = {
+                    "enabled": True,
+                    "status": "ok",
+                    **watermark_service.render(Path(pixiv_clean.output_path), watermark_spec).to_dict(),
+                }
+                log.info("    文字水印: 已写入无元数据发布副本")
+            except WatermarkError as exc:
+                watermark_failed = True
+                watermark_error = str(exc)
+        if watermark_failed:
+            watermark_result.update({"status": "failed", "error": watermark_error})
+            log.error(f"    文字水印失败: {watermark_error}")
+    _raise_if_canceled(cancel_event)
+
     x_payload = None
-    if "x" in targets:
+    if "x" in targets and not watermark_failed:
         try:
             from x.support import build_x_payload as _build_x_payload
             x_source = Path(pixiv_clean.output_path) if pixiv_clean else image_path
@@ -981,7 +1028,7 @@ def create_upload_manifest(
         _raise_if_canceled(cancel_event)
 
     xhs_payload = None
-    if "xhs" in targets and "xhs" not in nsfw_blocked_targets:
+    if "xhs" in targets and "xhs" not in nsfw_blocked_targets and not watermark_failed:
         try:
             from xhs.support import build_xhs_payload as _build_xhs_payload
             xhs_source = Path(pixiv_clean.output_path) if pixiv_clean else image_path
@@ -1011,11 +1058,16 @@ def create_upload_manifest(
         "targets": targets,
         "dry_run": False,
         "status_by_target": {
-            target: ("skipped_max_age" if target in nsfw_blocked_targets else "pending")
+            target: (
+                "skipped_max_age" if target in nsfw_blocked_targets
+                else "failed" if watermark_failed and PLATFORM_RULES.get(target, {}).get("needs_sanitize")
+                else "pending"
+            )
             for target in targets
         },
-        "errors": [],
+        "errors": [f"Watermark failed: {watermark_error}"] if watermark_failed else [],
         "copy": copy_block,
+        "watermark": watermark_result,
         "civitai": {
             "clean_copy_path": str(civitai_copy) if civitai_copy else "",
             "post_url": "",
@@ -1082,10 +1134,12 @@ def create_upload_manifest(
         },
     }
 
-    pixiv_ready = True
+    pixiv_ready = not watermark_failed
     if "pixiv" in targets:
         status = pixiv_metadata_check.get("status")
-        if not pixiv_metadata_check.get("available", False):
+        if watermark_failed:
+            manifest["status_by_target"]["pixiv"] = "failed"
+        elif not pixiv_metadata_check.get("available", False):
             # Validator unavailable. sanitize_image_for_pixiv already strips
             # metadata with PIL, so proceeding is safe.
             # Only warn when haintag root exists but the module can't be loaded
@@ -1237,6 +1291,7 @@ def cmd_upload(args):
     DONE_DIR.mkdir(exist_ok=True)
 
     targets = parse_targets(args.targets)
+    watermark_service, watermark_spec = _load_watermark_for_targets(targets)
 
     all_images = sorted(
         file for file in UPLOAD_DIR.iterdir()
@@ -1451,6 +1506,8 @@ def cmd_upload(args):
                 xhs_templates=xhs_templates,
                 xhs_base_template=xhs_base_template,
                 ai_tags_by_platform=getattr(args, "ai_tags_by_platform", None),
+                watermark_service=watermark_service,
+                watermark_spec=watermark_spec,
                 cancel_event=_cancel_ev,
             )
             _raise_if_canceled(_cancel_ev)
@@ -1614,6 +1671,8 @@ def cmd_upload(args):
                     manifest["x"]["post_url"] = inherited_url
                     manifest["status_by_target"]["x"] = "skipped_already_done"
                     log.info(f"    X 已发过，跳过: {inherited_url}")
+                elif manifest["status_by_target"].get("x") == "failed":
+                    all_succeeded = False
                 elif manifest["status_by_target"].get("x") == "skipped_max_age":
                     log.info("    X 已因 NSFW 硬规则跳过")
                 elif cancel_requested:
@@ -1664,6 +1723,8 @@ def cmd_upload(args):
                     manifest["xhs"]["post_url"] = inherited_url
                     manifest["status_by_target"]["xhs"] = "skipped_already_done"
                     log.info(f"    xhs 已发过，跳过: {inherited_url}")
+                elif manifest["status_by_target"].get("xhs") == "failed":
+                    all_succeeded = False
                 elif manifest["status_by_target"].get("xhs") == "skipped_max_age":
                     log.info("    xhs 已因 NSFW 硬规则跳过（小红书不接受 r18/r18g）")
                 elif cancel_requested:

@@ -33,6 +33,7 @@
 ```
 civitai_splitter.py       主命令入口，拆图 / 上传 / rule-fit 命令
 web_server.py             Web UI 后端、SSE、任务队列、scheduler
+watermark.py              文字水印配置、字体格式注册、字体文件存储、渲染服务
 launcher.py               CLI 菜单、账号切换、scheduler 配置
 civitai_safety.json       Civitai 安全跳过规则
 CHANGELOG.md              变更记录
@@ -324,6 +325,21 @@ Web UI Settings 区有下拉切换；切换走 `/api/censor-preset`，写入 cen
 
 ---
 
+## 文字水印
+
+水印只作用于 `sanitize_image_for_pixiv` 生成的无 metadata 副本：打码和 LLM 图片分析完成后，写入该副本，再由 Pixiv / X / 小红书继续使用。`upload/` 原图、Civitai 保留 metadata 的副本和 `split` 流程不经过水印服务。
+
+配置在根目录 `watermark.json`，导入字体在 `watermark_fonts/`；两者都是本机状态，不提交。
+
+接口分层：
+
+- `WatermarkService`：读取/校验配置、管理字体文件、调用渲染器；上传主流程只依赖这个接口。
+- `WatermarkRendererRegistry`：按 `renderer` 字段分派渲染器；当前注册 `text`，新增二维码或图像水印时在这里注册新渲染器。
+- `FontFormatRegistry`：按字体扩展名分派加载器；当前由 Pillow 处理 `.ttf`、`.otf`、`.ttc`、`.otc`，新增格式时增加处理器，不改上传管线。
+- `TextWatermarkRenderer`：只重写像素，不复制 PNG text / EXIF 等 metadata。
+
+---
+
 ## Civitai 安全跳过
 
 `check_civitai_safety` 会先根据 `pixiv/age_rules.json` 推断年龄分级。只有命中 `civitai_safety.json.unsafe_ratings` 时才检查 minor / school tag。
@@ -377,6 +393,9 @@ rule-fit 是给 Pixiv tag 规则调参用的对照流程。
 | `create_xhs_post` | `xhs/support.py` | Playwright 发小红书（话题走 dropdown，AI 声明 checkbox） |
 | `apply_llm_result_to_copy_block` | `pixiv/llm_reverse.py` | LLM 反推 → manifest.copy 通用区 |
 | `account_can_handle_age` | `pixiv/llm_reverse.py` | LLM account NSFW 能力 vs 图分级比对 |
+| `WatermarkService` | `watermark.py` | 水印配置、字体库存储和渲染入口 |
+| `WatermarkRendererRegistry` | `watermark.py` | 水印渲染器注册表；按 renderer 分派 |
+| `FontFormatRegistry` | `watermark.py` | 字体格式加载器注册表；按扩展名分派 |
 | `_platform_accepts_age` | `civitai_splitter.py` | 平台 max_age 硬规则（小红书 NSFW 拦截）|
 | `_targets_need_copy` | `civitai_splitter.py` | 任一 target 需要文案则触发 LLM |
 

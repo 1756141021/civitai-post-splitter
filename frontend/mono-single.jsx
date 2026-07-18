@@ -573,6 +573,254 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   );
 }
 
+function WatermarkDialog({ onClose }) {
+  const defaults = {
+    version: 1,
+    renderer: 'text',
+    enabled: false,
+    text: '',
+    font: { file_name: '', face_index: 0 },
+    style: {
+      position: 'bottom_right',
+      font_size_ratio: 0.045,
+      opacity: 0.72,
+      color: '#FFFFFF',
+      stroke_color: '#000000',
+      margin_ratio: 0.025,
+    },
+  };
+  const mergeConfig = value => ({
+    ...defaults,
+    ...(value || {}),
+    font: { ...defaults.font, ...((value || {}).font || {}) },
+    style: { ...defaults.style, ...((value || {}).style || {}) },
+  });
+  const [cfg, setCfg] = React.useState(null);
+  const [fonts, setFonts] = React.useState([]);
+  const [formats, setFormats] = React.useState([]);
+  const [saving, setSaving] = React.useState(false);
+  const [importing, setImporting] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const fontInputRef = React.useRef(null);
+
+  const readJson = response => response.json().catch(() => ({}));
+  const applyPayload = data => {
+    setCfg(mergeConfig(data.config));
+    setFonts(data.fonts || []);
+    setFormats(data.supported_font_formats || []);
+    setError(data.config_error || '');
+  };
+
+  React.useEffect(() => {
+    fetch('/api/watermark-config')
+      .then(response => readJson(response).then(data => ({ ok: response.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) throw new Error(data.error || '加载失败');
+        applyPayload(data);
+      })
+      .catch(err => setError(err.message || '加载失败'));
+  }, []);
+
+  const patch = value => setCfg(previous => ({ ...previous, ...value }));
+  const patchFont = value => setCfg(previous => ({ ...previous, font: { ...previous.font, ...value } }));
+  const patchStyle = value => setCfg(previous => ({ ...previous, style: { ...previous.style, ...value } }));
+
+  const importFont = async event => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    setError('');
+    const form = new FormData();
+    form.append('font', file);
+    try {
+      const response = await fetch('/api/watermark-font', { method: 'POST', body: form });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || '字体导入失败');
+      setFonts(data.fonts || []);
+      setFormats(data.supported_font_formats || []);
+      const imported = data.font || {};
+      patchFont({ file_name: imported.file_name || '', face_index: ((imported.faces || [])[0] || {}).index || 0 });
+    } catch (err) {
+      setError(err.message || '字体导入失败');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const deleteFont = async () => {
+    const fileName = cfg && cfg.font.file_name;
+    if (!fileName || !window.confirm(`删除导入字体 ${fileName}？`)) return;
+    setError('');
+    try {
+      const response = await fetch(`/api/watermark-font/${encodeURIComponent(fileName)}`, { method: 'DELETE' });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || '删除字体失败');
+      setFonts(data.fonts || []);
+      setFormats(data.supported_font_formats || []);
+      if (cfg.font.file_name === fileName) {
+        const nextFont = (data.config || {}).font || { file_name: '', face_index: 0 };
+        patchFont(nextFont);
+      }
+    } catch (err) {
+      setError(err.message || '删除字体失败');
+    }
+  };
+
+  const save = async () => {
+    if (!cfg) return;
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch('/api/watermark-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cfg),
+      });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || '保存失败');
+      applyPayload(data);
+      onClose(true);
+    } catch (err) {
+      setError(err.message || '保存失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!cfg) {
+    return (
+      <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.55)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <div style={{ background:M.panel, border:`1px solid ${M.line}`, borderRadius:8, padding:'28px 36px', color:M.inkDim, fontFamily:M.mono, fontSize:12 }}>
+          {error || '加载中…'}
+        </div>
+      </div>
+    );
+  }
+
+  const selectedFont = fonts.find(font => font.file_name === cfg.font.file_name);
+  const faces = selectedFont ? (selectedFont.faces || []) : [];
+  const positions = [
+    ['top_left', '左上'], ['top_right', '右上'], ['bottom_left', '左下'], ['bottom_right', '右下'], ['center', '居中'],
+  ];
+  const sizePct = Math.round(cfg.style.font_size_ratio * 1000) / 10;
+  const opacityPct = Math.round(cfg.style.opacity * 100);
+  const marginPct = Math.round(cfg.style.margin_ratio * 1000) / 10;
+  const accept = formats.length ? formats.join(',') : '.ttf,.otf,.ttc,.otc';
+
+  return (
+    <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.55)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+         onMouseDown={event => { if (event.target === event.currentTarget) onClose(false); }}>
+      <div style={{ width:560, maxWidth:'100%', maxHeight:'90vh', display:'flex', flexDirection:'column', overflow:'hidden', background:M.panel, border:`1px solid ${M.line}`, borderRadius:8 }}>
+        <div style={{ padding:'14px 18px', display:'flex', alignItems:'center', borderBottom:`1px solid ${M.line}` }}>
+          <div style={{ fontSize:14, fontWeight:600 }}>文字水印</div>
+          <button className="mn-btn mn-btn-ghost" title="关闭" onClick={() => onClose(false)} style={{ marginLeft:'auto', padding:'3px' }}>
+            <MIcon name="x" size={16} />
+          </button>
+        </div>
+        <div style={{ padding:'14px 18px', overflowY:'auto', display:'flex', flexDirection:'column', gap:14 }}>
+          <label style={{ display:'flex', alignItems:'center', gap:7, cursor:'pointer', fontSize:12.5 }}>
+            <input type="checkbox" checked={!!cfg.enabled} onChange={event => patch({ enabled:event.target.checked })} />
+            启用
+          </label>
+
+          <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:12.5 }}>
+            文字
+            <textarea className="mn-input" rows={3} maxLength={512} value={cfg.text}
+                      onChange={event => patch({ text:event.target.value })}
+                      style={{ resize:'vertical', minHeight:70, lineHeight:1.45 }} />
+          </label>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:8, alignItems:'end' }}>
+            <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:12.5, minWidth:0 }}>
+              字体
+              <select className="mn-input" value={cfg.font.file_name} onChange={event => {
+                const fileName = event.target.value;
+                const font = fonts.find(item => item.file_name === fileName);
+                patchFont({ file_name:fileName, face_index:((font && font.faces[0]) || {}).index || 0 });
+              }}>
+                <option value="">系统字体</option>
+                {fonts.map(font => <option key={font.file_name} value={font.file_name}>{font.file_name}</option>)}
+              </select>
+            </label>
+            <div style={{ display:'flex', gap:4 }}>
+              <input ref={fontInputRef} type="file" accept={accept} style={{ display:'none' }} onChange={importFont} />
+              <button className="mn-btn" onClick={() => fontInputRef.current && fontInputRef.current.click()} disabled={importing} title="导入字体" style={{ padding:'7px 10px' }}>
+                <MIcon name="upload" size={14} /> {importing ? '导入中…' : '导入'}
+              </button>
+              {cfg.font.file_name && (
+                <button className="mn-btn mn-btn-ghost" title="删除当前导入字体" onClick={deleteFont} style={{ padding:'6px' }}>
+                  <MIcon name="x" size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {faces.length > 1 && (
+            <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:12.5 }}>
+              字型
+              <select className="mn-input" value={cfg.font.face_index} onChange={event => patchFont({ face_index:parseInt(event.target.value, 10) || 0 })}>
+                {faces.map(face => <option key={face.index} value={face.index}>{face.family} · {face.style}</option>)}
+              </select>
+            </label>
+          )}
+
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            <div style={{ fontSize:12.5 }}>位置</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0, 1fr))', border:`1px solid ${M.line}`, borderRadius:6, overflow:'hidden' }}>
+              {positions.map(([value, label], index) => (
+                <button key={value} className="mn-btn mn-btn-ghost" onClick={() => patchStyle({ position:value })}
+                        style={{ justifyContent:'center', padding:'6px 3px', borderRadius:0, border:0, borderRight:index < positions.length - 1 ? `1px solid ${M.line}` : 0,
+                                 color:cfg.style.position === value ? '#fff' : M.inkDim, background:cfg.style.position === value ? M.accent : 'transparent', fontSize:11 }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+            <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:12.5 }}>
+              文字色
+              <div style={{ display:'grid', gridTemplateColumns:'34px 1fr', gap:6 }}>
+                <input type="color" value={cfg.style.color} onChange={event => patchStyle({ color:event.target.value.toUpperCase() })}
+                       style={{ width:34, height:32, padding:2, border:`1px solid ${M.line}`, borderRadius:5, background:M.panel }} />
+                <input className="mn-input" value={cfg.style.color} maxLength={7} onChange={event => patchStyle({ color:event.target.value })} style={{ minWidth:0 }} />
+              </div>
+            </label>
+            <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:12.5 }}>
+              描边色
+              <div style={{ display:'grid', gridTemplateColumns:'34px 1fr', gap:6 }}>
+                <input type="color" value={cfg.style.stroke_color} onChange={event => patchStyle({ stroke_color:event.target.value.toUpperCase() })}
+                       style={{ width:34, height:32, padding:2, border:`1px solid ${M.line}`, borderRadius:5, background:M.panel }} />
+                <input className="mn-input" value={cfg.style.stroke_color} maxLength={7} onChange={event => patchStyle({ stroke_color:event.target.value })} style={{ minWidth:0 }} />
+              </div>
+            </label>
+          </div>
+
+          {[
+            ['大小', sizePct, 1, 16, 0.5, value => patchStyle({ font_size_ratio:parseFloat(value) / 100 })],
+            ['透明度', opacityPct, 5, 100, 1, value => patchStyle({ opacity:parseFloat(value) / 100 })],
+            ['边距', marginPct, 0, 15, 0.5, value => patchStyle({ margin_ratio:parseFloat(value) / 100 })],
+          ].map(([label, value, min, max, step, onChange]) => (
+            <div key={label} style={{ display:'grid', gridTemplateColumns:'54px 1fr 44px', alignItems:'center', gap:10 }}>
+              <span style={{ fontSize:12.5 }}>{label}</span>
+              <input className="mn-range" type="range" min={min} max={max} step={step} value={value} onInput={event => onChange(event.target.value)} />
+              <span className="mn-mono" style={{ color:M.inkDim, fontSize:11, textAlign:'right' }}>{value}%</span>
+            </div>
+          ))}
+          {error && <div style={{ color:M.red, fontSize:11.5 }}>{error}</div>}
+        </div>
+        <div style={{ padding:'12px 18px', display:'flex', justifyContent:'flex-end', gap:8, borderTop:`1px solid ${M.line}` }}>
+          <button className="mn-btn" onClick={() => onClose(false)}>取消</button>
+          <button className="mn-btn mn-btn-accent" onClick={save} disabled={saving || (cfg.enabled && !cfg.text.trim())}>
+            {saving ? '保存中…' : '保存'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TaggerSetupDialog({ onClose }) {
   const [haintag,         setHaintag]         = React.useState('');
   const [modelDir,        setModelDir]         = React.useState('');
@@ -1568,6 +1816,7 @@ function MonoSingleApp() {
   const [connected,      setConnected]      = React.useState(false);
   const [pendingInput,   setPendingInput]   = React.useState(null);
   const [uploadDialog,   setUploadDialog]   = React.useState(null);
+  const [watermarkDialog, setWatermarkDialog] = React.useState(false);
   const [taggerSetup,    setTaggerSetup]    = React.useState(false);
   const [taggerConfigured, setTaggerConfigured] = React.useState(true);
   const [schedulerDialog, setSchedulerDialog] = React.useState(false);
@@ -1754,6 +2003,12 @@ function MonoSingleApp() {
           onReloadDefaults={reloadStatus}
         />
       )}
+      {watermarkDialog && (
+        <WatermarkDialog onClose={saved => {
+          setWatermarkDialog(false);
+          if (saved) reloadStatus();
+        }} />
+      )}
       {taggerSetup && (
         <TaggerSetupDialog onClose={saved => {
           setTaggerSetup(false);
@@ -1844,6 +2099,7 @@ function MonoSingleApp() {
           <LogZone logs={logs} />
           <SettingsZone status={status} onStatusReload={reloadStatus}
                        taggerConfigured={taggerConfigured}
+                       onWatermarkConfigure={() => setWatermarkDialog(true)}
                        onTaggerSetup={() => setTaggerSetup(true)}
                        tick={tick}
                        onSchedulerConfigure={() => setSchedulerDialog(true)}
@@ -2087,7 +2343,7 @@ function LogZone({ logs }) {
 }
 
 // ── Settings (right column bottom) ─────────────────────────────
-function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup, tick, onSchedulerConfigure, onLlmReverseConfigure }) {
+function SettingsZone({ status, onStatusReload, taggerConfigured, onWatermarkConfigure, onTaggerSetup, tick, onSchedulerConfigure, onLlmReverseConfigure }) {
   const [apiKey,        setApiKey]        = React.useState('');
   const [saved,         setSaved]         = React.useState(false);
   const [pixivSwitching,   setPixivSwitching]   = React.useState(false);
@@ -2313,6 +2569,16 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
           </div>
         </div>
       </>}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
+        <div style={{ fontSize: 12.5 }}>文字水印</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.watermark_status === 'invalid' ? M.red : (status.watermark_enabled ? M.ok : M.inkFaint) }} />
+          <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>
+            {status.watermark_status === 'invalid' ? '配置无效' : (status.watermark_enabled ? (status.watermark_font_file || '系统字体') : '关闭')}
+          </span>
+          <button className="mn-btn mn-btn-ghost" onClick={onWatermarkConfigure} style={{ padding: '2px 8px', fontSize: 11 }}>配置</button>
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
         <div style={{ fontSize: 12.5 }}>WD14 tagger</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>

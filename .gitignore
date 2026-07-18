@@ -21,6 +21,8 @@ pixiv_validation_cases.json
 # User-tunable config (auto-generated with defaults; private once tuned)
 config.json
 pixiv_censor.json
+watermark.json
+watermark_fonts/
 
 # X / xhs credentials — NEVER commit. auth_token + ct0 == full account access.
 x/cookies*.json
