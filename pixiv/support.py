@@ -3597,7 +3597,6 @@ def _set_checkbox_by_attr(page, name: str, attr_name: str, desired: bool, cancel
     selector = f'input[name="{attr_name}"][type="checkbox"]'
     locator = _first_visible_locator(page, [selector])
     if locator is None:
-        # try without type filter
         locator = _first_visible_locator(page, [f'input[name="{attr_name}"]'])
         if locator is None:
             return PixivStep(name, False, "selector_miss", selector)
@@ -3606,15 +3605,46 @@ def _set_checkbox_by_attr(page, name: str, attr_name: str, desired: bool, cancel
         return PixivStep(name, False, "verify_failed", f"{selector} cannot read state")
     if current == desired:
         return PixivStep(name, True, detail=f"already={current}")
+
+    # Charcoal checkbox: hidden input inside <label>. Click the label, not the input.
     try:
-        _human_move_and_click(page, locator, cancel_event=cancel_event)
-    except Exception as exc:
-        return PixivStep(name, False, "exception", f"{type(exc).__name__}: {exc}")
-    _jsleep(0.4, cancel_event=cancel_event)
+        clicked_label = locator.evaluate("""el => {
+            const label = el.closest('label') || el.parentElement;
+            if (label && label.tagName === 'LABEL') { label.click(); return true; }
+            return false;
+        }""")
+    except Exception:
+        clicked_label = False
+    if clicked_label:
+        _jsleep(0.4, cancel_event=cancel_event)
+        final = _read_checked_state(locator)
+        if final == desired:
+            return PixivStep(name, True, detail=f"toggled to {desired} via label")
+
+    try:
+        locator.click(timeout=3000)
+        _jsleep(0.4, cancel_event=cancel_event)
+        final = _read_checked_state(locator)
+        if final == desired:
+            return PixivStep(name, True, detail=f"toggled to {desired} via locator.click")
+    except Exception:
+        pass
+
+    try:
+        locator.evaluate("""el => {
+            el.checked = !el.checked;
+            el.dispatchEvent(new Event('change', {bubbles: true}));
+            el.dispatchEvent(new Event('input', {bubbles: true}));
+        }""")
+        _jsleep(0.4, cancel_event=cancel_event)
+        final = _read_checked_state(locator)
+        if final == desired:
+            return PixivStep(name, True, detail=f"toggled to {desired} via js")
+    except Exception:
+        pass
+
     final = _read_checked_state(locator)
-    if final == desired:
-        return PixivStep(name, True, detail=f"toggled to {desired}")
-    return PixivStep(name, False, "verify_failed", f"after click state={final}")
+    return PixivStep(name, False, "verify_failed", f"after all strategies state={final}")
 
 
 def _record_step(steps: list[PixivStep], page, log_dir: Path | None, step: PixivStep, cancel_event=None) -> PixivStep:

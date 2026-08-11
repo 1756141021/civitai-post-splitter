@@ -3,6 +3,6 @@ httpx>=0.25.0
 Pillow>=10.0.0
 flask>=3.0.0
 onnxruntime>=1.16.0
-# Optional: auto-censor (skip if you don't need R-18 mosaic)
-# ultralytics>=8.0.0
-# opencv-python>=4.8.0
+# R-18 auto-censor (打码) requires both packages + models/auto_censor.pt (see pixiv/setup_censor.py)
+ultralytics>=8.0.0
+opencv-python>=4.8.0

@@ -12,10 +12,15 @@ from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 CONFIG_FILENAME = "watermark.json"
 FONTS_DIRNAME = "watermark_fonts"
+IMAGES_DIRNAME = "watermark_images"
 MAX_FONT_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_FONT_STORAGE_BYTES = 100 * 1024 * 1024
 MAX_FONT_FACES = 64
 MAX_TEXT_LENGTH = 512
+MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_IMAGE_STORAGE_BYTES = 200 * 1024 * 1024
+MAX_IMAGE_COUNT = 32
+SUPPORTED_IMAGE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 
 
 class WatermarkError(ValueError):
@@ -82,6 +87,32 @@ class TextWatermarkSpec:
                 "opacity": self.opacity,
                 "color": self.color,
                 "stroke_color": self.stroke_color,
+                "margin_ratio": self.margin_ratio,
+            },
+        }
+
+
+@dataclass(frozen=True)
+class ImageWatermarkSpec:
+    version: int = 1
+    renderer: str = "image"
+    enabled: bool = False
+    file_name: str = ""
+    position: str = "bottom_right"
+    size_ratio: float = 0.12
+    opacity: float = 0.85
+    margin_ratio: float = 0.025
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "version": self.version,
+            "renderer": self.renderer,
+            "enabled": self.enabled,
+            "image": {"file_name": self.file_name},
+            "style": {
+                "position": self.position,
+                "size_ratio": self.size_ratio,
+                "opacity": self.opacity,
                 "margin_ratio": self.margin_ratio,
             },
         }
@@ -178,7 +209,7 @@ FONT_FORMATS.register(PillowFontFormatHandler())
 class WatermarkRenderer(Protocol):
     renderer_id: str
 
-    def parse_spec(self, raw: dict[str, Any], font_store: "FontStore") -> TextWatermarkSpec:
+    def parse_spec(self, raw: dict[str, Any], font_store: "FontStore", image_store: "WatermarkImageStore") -> TextWatermarkSpec:
         ...
 
     def render(
@@ -186,6 +217,7 @@ class WatermarkRenderer(Protocol):
         image_path: Path,
         spec: TextWatermarkSpec,
         font_store: "FontStore",
+        image_store: "WatermarkImageStore",
     ) -> WatermarkRenderResult:
         ...
 
@@ -380,7 +412,7 @@ class TextWatermarkRenderer:
     renderer_id = "text"
     _positions = {"top_left", "top_right", "bottom_left", "bottom_right", "center"}
 
-    def parse_spec(self, raw: dict[str, Any], font_store: FontStore) -> TextWatermarkSpec:
+    def parse_spec(self, raw: dict[str, Any], font_store: FontStore, image_store: WatermarkImageStore = None) -> TextWatermarkSpec:
         enabled = _as_bool(raw.get("enabled", False))
         text = str(raw.get("text", "")).replace("\r\n", "\n").replace("\r", "\n").strip()
         if len(text) > MAX_TEXT_LENGTH:
@@ -416,7 +448,13 @@ class TextWatermarkRenderer:
             margin_ratio=_bounded_float(style.get("margin_ratio", 0.025), 0.0, 0.15, "style.margin_ratio"),
         )
 
-    def render(self, image_path: Path, spec: TextWatermarkSpec, font_store: FontStore) -> WatermarkRenderResult:
+    def render(
+        self,
+        image_path: Path,
+        spec: TextWatermarkSpec,
+        font_store: FontStore,
+        image_store: WatermarkImageStore = None,
+    ) -> WatermarkRenderResult:
         if not spec.enabled:
             return WatermarkRenderResult(self.renderer_id, False, str(image_path), spec.font.file_name, spec.font.face_index)
         try:
@@ -446,7 +484,7 @@ class TextWatermarkRenderer:
         result = Image.alpha_composite(canvas, overlay)
         temp_path = image_path.with_name(f".{image_path.stem}.watermark{image_path.suffix}")
         try:
-            self._save_pixels_only(result, temp_path, source_mode)
+            _save_pixels_only(result, temp_path, source_mode)
             temp_path.replace(image_path)
         except OSError as exc:
             raise WatermarkError(f"Unable to save watermarked image: {image_path.name}") from exc
@@ -512,19 +550,207 @@ class TextWatermarkRenderer:
             x, y = width - margin - text_width, height - margin - text_height
         return x - left, y - top
 
-    @staticmethod
-    def _save_pixels_only(image: Image.Image, destination: Path, source_mode: str) -> None:
-        suffix = destination.suffix.lower()
-        if suffix in {".jpg", ".jpeg"}:
-            image.convert("RGB").save(destination, "JPEG", quality=95, subsampling=0)
-        elif suffix == ".webp":
-            image.save(destination, "WEBP", quality=95)
-        else:
-            output = image if "A" in source_mode else image.convert("RGB")
-            output.save(destination, "PNG")
-
 
 RENDERERS.register(TextWatermarkRenderer())
+
+
+def _save_pixels_only(image: Image.Image, destination: Path, source_mode: str) -> None:
+    suffix = destination.suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        if "A" in image.mode:
+            # 透明区域先合白底再转 JPG，避免透明像素变黑
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            background.paste(image, mask=image.getchannel("A"))
+            background.save(destination, "JPEG", quality=95, subsampling=0)
+        else:
+            image.convert("RGB").save(destination, "JPEG", quality=95, subsampling=0)
+    elif suffix == ".webp":
+        image.save(destination, "WEBP", quality=95)
+    else:
+        output = image if "A" in source_mode else image.convert("RGB")
+        output.save(destination, "PNG")
+
+
+class WatermarkImageStore:
+    """Stores imported watermark images (PNG alpha preserved)."""
+
+    def __init__(self, project_dir: Path) -> None:
+        self.project_dir = project_dir
+
+    @property
+    def directory(self) -> Path:
+        return self.project_dir / IMAGES_DIRNAME
+
+    def normalize_file_name(self, value: Any) -> str:
+        file_name = str(value or "").strip()
+        if not file_name:
+            return ""
+        if "/" in file_name or "\\" in file_name or Path(file_name).name != file_name:
+            raise WatermarkError("image.file_name must be a watermark image filename")
+        if Path(file_name).suffix.lower() not in SUPPORTED_IMAGE_SUFFIXES:
+            supported = ", ".join(SUPPORTED_IMAGE_SUFFIXES)
+            raise WatermarkError(f"Unsupported watermark image format; supported: {supported}")
+        return file_name
+
+    def path_for(self, file_name: str) -> Path:
+        return self.directory / self.normalize_file_name(file_name)
+
+    def list_images(self) -> list[str]:
+        if not self.directory.exists():
+            return []
+        return sorted(
+            (
+                item.name
+                for item in self.directory.iterdir()
+                if item.is_file() and item.suffix.lower() in SUPPORTED_IMAGE_SUFFIXES
+            ),
+            key=str.lower,
+        )
+
+    def import_image(self, filename: str, data: bytes) -> str:
+        if len(data) > MAX_IMAGE_UPLOAD_BYTES:
+            maximum_mb = MAX_IMAGE_UPLOAD_BYTES // (1024 * 1024)
+            raise WatermarkError(f"Watermark images must be smaller than {maximum_mb} MB")
+        if not data:
+            raise WatermarkError("The watermark image is empty")
+        original = Path(filename).name.strip()
+        suffix = Path(original).suffix.lower()
+        if suffix not in SUPPORTED_IMAGE_SUFFIXES:
+            supported = ", ".join(SUPPORTED_IMAGE_SUFFIXES)
+            raise WatermarkError(
+                f"Unsupported watermark image format {suffix or '(none)'}; supported: {supported}"
+            )
+        try:
+            with Image.open(BytesIO(data)) as probe:
+                probe.load()
+        except (OSError, ValueError) as exc:
+            raise WatermarkError("The uploaded file is not a readable image") from exc
+        if self.directory.exists():
+            existing = [item for item in self.directory.iterdir() if item.is_file()]
+            if len(existing) >= MAX_IMAGE_COUNT:
+                raise WatermarkError(f"Watermark image storage is limited to {MAX_IMAGE_COUNT} files")
+            existing_bytes = sum(item.stat().st_size for item in existing)
+            if existing_bytes + len(data) > MAX_IMAGE_STORAGE_BYTES:
+                maximum_mb = MAX_IMAGE_STORAGE_BYTES // (1024 * 1024)
+                raise WatermarkError(f"Watermark image storage is limited to {maximum_mb} MB")
+        stem = re.sub(r"[^A-Za-z0-9._ -]+", "_", Path(original).stem).strip(" ._")
+        safe_name = f"{stem or 'watermark-image'}{suffix}"
+        self.directory.mkdir(exist_ok=True)
+        candidate = self.directory / safe_name
+        sequence = 2
+        while candidate.exists():
+            candidate = self.directory / f"{Path(safe_name).stem}-{sequence}{suffix}"
+            sequence += 1
+        candidate.write_bytes(data)
+        return candidate.name
+
+    def delete_image(self, file_name: str) -> bool:
+        path = self.path_for(file_name)
+        if not path.is_file():
+            return False
+        path.unlink()
+        return True
+
+    def has_image(self, file_name: str) -> bool:
+        return bool(file_name) and self.path_for(file_name).is_file()
+
+
+class ImageWatermarkRenderer:
+    renderer_id = "image"
+    _positions = {"top_left", "top_right", "bottom_left", "bottom_right", "center"}
+
+    def parse_spec(self, raw: dict[str, Any], font_store: FontStore, image_store: WatermarkImageStore) -> ImageWatermarkSpec:
+        enabled = _as_bool(raw.get("enabled", False))
+        image_raw = raw.get("image") if isinstance(raw.get("image"), dict) else {}
+        file_name = image_store.normalize_file_name(image_raw.get("file_name", ""))
+        if enabled and not file_name:
+            raise WatermarkError("A watermark image is required when watermarking is enabled")
+        if file_name and not image_store.has_image(file_name):
+            raise WatermarkError("Selected watermark image was not found")
+        style = raw.get("style") if isinstance(raw.get("style"), dict) else {}
+        position = str(style.get("position", "bottom_right")).strip().lower()
+        if position not in self._positions:
+            raise WatermarkError("style.position is invalid")
+        return ImageWatermarkSpec(
+            version=_bounded_int(raw.get("version", 1), 1, 1, "version"),
+            renderer=self.renderer_id,
+            enabled=enabled,
+            file_name=file_name,
+            position=position,
+            size_ratio=_bounded_float(style.get("size_ratio", 0.12), 0.01, 0.6, "style.size_ratio"),
+            opacity=_bounded_float(style.get("opacity", 0.85), 0.05, 1.0, "style.opacity"),
+            margin_ratio=_bounded_float(style.get("margin_ratio", 0.025), 0.0, 0.15, "style.margin_ratio"),
+        )
+
+    def render(
+        self,
+        image_path: Path,
+        spec: ImageWatermarkSpec,
+        image_store: WatermarkImageStore,
+        font_store: FontStore = None,
+    ) -> WatermarkRenderResult:
+        if not spec.enabled:
+            return WatermarkRenderResult(self.renderer_id, False, str(image_path), "", 0)
+        try:
+            with Image.open(image_path) as source:
+                source.load()
+                source_mode = source.mode
+                canvas = source.convert("RGBA")
+        except (OSError, ValueError) as exc:
+            raise WatermarkError(f"Unable to open image for watermarking: {image_path.name}") from exc
+
+        try:
+            with Image.open(image_store.path_for(spec.file_name)) as mark:
+                mark.load()
+                mark = mark.convert("RGBA")  # 保留 alpha 通道
+        except (OSError, ValueError) as exc:
+            raise WatermarkError(f"Unable to read watermark image: {spec.file_name}") from exc
+
+        # 等比缩放：水印长边 = 画布短边 × size_ratio
+        scale = min(canvas.size) * spec.size_ratio / max(mark.size)
+        new_size = (max(1, round(mark.width * scale)), max(1, round(mark.height * scale)))
+        if new_size != mark.size:
+            mark = mark.resize(new_size, Image.LANCZOS)
+        if spec.opacity < 1.0:
+            alpha = mark.getchannel("A").point(lambda value: round(value * spec.opacity))
+            mark.putalpha(alpha)
+        margin = max(0, round(min(canvas.size) * spec.margin_ratio))
+        xy = self._coordinates(mark.size, canvas.size, margin, spec.position)
+        canvas.alpha_composite(mark, xy)
+
+        temp_path = image_path.with_name(f".{image_path.stem}.watermark{image_path.suffix}")
+        try:
+            _save_pixels_only(canvas, temp_path, source_mode)
+            temp_path.replace(image_path)
+        except OSError as exc:
+            raise WatermarkError(f"Unable to save watermarked image: {image_path.name}") from exc
+        finally:
+            temp_path.unlink(missing_ok=True)
+        return WatermarkRenderResult(self.renderer_id, True, str(image_path), "", 0)
+
+    @staticmethod
+    def _coordinates(
+        mark_size: tuple[int, int],
+        image_size: tuple[int, int],
+        margin: int,
+        position: str,
+    ) -> tuple[int, int]:
+        mark_width, mark_height = mark_size
+        width, height = image_size
+        if position == "top_left":
+            x, y = margin, margin
+        elif position == "top_right":
+            x, y = width - margin - mark_width, margin
+        elif position == "bottom_left":
+            x, y = margin, height - margin - mark_height
+        elif position == "center":
+            x, y = (width - mark_width) // 2, (height - mark_height) // 2
+        else:
+            x, y = width - margin - mark_width, height - margin - mark_height
+        return x, y
+
+
+RENDERERS.register(ImageWatermarkRenderer())
 
 
 class WatermarkService:
@@ -532,10 +758,12 @@ class WatermarkService:
         self,
         project_dir: Path,
         font_store: FontStore | None = None,
+        image_store: WatermarkImageStore | None = None,
         renderer_registry: WatermarkRendererRegistry = RENDERERS,
     ) -> None:
         self.project_dir = project_dir
         self.font_store = font_store or FontStore(project_dir)
+        self.image_store = image_store or WatermarkImageStore(project_dir)
         self.renderer_registry = renderer_registry
 
     @property
@@ -545,7 +773,7 @@ class WatermarkService:
     def default_spec(self) -> TextWatermarkSpec:
         return TextWatermarkSpec()
 
-    def load_config(self) -> TextWatermarkSpec:
+    def load_config(self) -> TextWatermarkSpec | ImageWatermarkSpec:
         if not self.config_path.exists():
             return self.default_spec()
         try:
@@ -556,14 +784,14 @@ class WatermarkService:
             raise WatermarkError("Watermark configuration must be an object")
         renderer_id = str(raw.get("renderer", "text")).strip().lower()
         renderer = self.renderer_registry.get(renderer_id)
-        return renderer.parse_spec(raw, self.font_store)
+        return renderer.parse_spec(raw, font_store=self.font_store, image_store=self.image_store)
 
-    def save_config(self, raw: dict[str, Any]) -> TextWatermarkSpec:
+    def save_config(self, raw: dict[str, Any]) -> TextWatermarkSpec | ImageWatermarkSpec:
         if not isinstance(raw, dict):
             raise WatermarkError("Watermark configuration must be an object")
         renderer_id = str(raw.get("renderer", "text")).strip().lower()
         renderer = self.renderer_registry.get(renderer_id)
-        spec = renderer.parse_spec(raw, self.font_store)
+        spec = renderer.parse_spec(raw, font_store=self.font_store, image_store=self.image_store)
         temp_path = self.config_path.with_suffix(".json.tmp")
         temp_path.write_text(json.dumps(spec.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
         temp_path.replace(self.config_path)
@@ -580,6 +808,8 @@ class WatermarkService:
             "config": spec.to_dict(),
             "fonts": [font.to_dict() for font in self.font_store.list_fonts()],
             "supported_font_formats": list(self.font_store.registry.supported_suffixes),
+            "images": self.image_store.list_images(),
+            "supported_image_formats": list(SUPPORTED_IMAGE_SUFFIXES),
             "supported_renderers": list(self.renderer_registry.renderer_ids),
         }
         if config_error:
@@ -597,14 +827,45 @@ class WatermarkService:
         deleted = self.font_store.delete_font(file_name)
         if not deleted:
             return False
-        if spec is not None and spec.font.file_name == file_name:
+        if spec is not None and getattr(getattr(spec, "font", None), "file_name", "") == file_name:
             self.save_config({
                 **spec.to_dict(),
                 "font": {"file_name": "", "face_index": 0},
             })
         return True
 
-    def render(self, image_path: Path, spec: TextWatermarkSpec | None = None) -> WatermarkRenderResult:
+    def import_image(self, filename: str, data: bytes) -> str:
+        return self.image_store.import_image(filename, data)
+
+    def delete_image(self, file_name: str) -> bool:
+        try:
+            spec = self.load_config()
+        except WatermarkError:
+            spec = None
+        deleted = self.image_store.delete_image(file_name)
+        if not deleted:
+            return False
+        if (
+            spec is not None
+            and getattr(spec, "renderer", "") == "image"
+            and getattr(spec, "file_name", "") == file_name
+        ):
+            raw = spec.to_dict()
+            raw["enabled"] = False
+            raw["image"] = {"file_name": ""}
+            self.save_config(raw)
+        return True
+
+    def render(
+        self,
+        image_path: Path,
+        spec: TextWatermarkSpec | ImageWatermarkSpec | None = None,
+    ) -> WatermarkRenderResult:
         current = spec or self.load_config()
         renderer = self.renderer_registry.get(current.renderer)
-        return renderer.render(image_path, current, self.font_store)
+        return renderer.render(
+            image_path,
+            current,
+            font_store=self.font_store,
+            image_store=self.image_store,
+        )

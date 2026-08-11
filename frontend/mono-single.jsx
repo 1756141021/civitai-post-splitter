@@ -580,9 +580,11 @@ function WatermarkDialog({ onClose }) {
     enabled: false,
     text: '',
     font: { file_name: '', face_index: 0 },
+    image: { file_name: '' },
     style: {
       position: 'bottom_right',
       font_size_ratio: 0.045,
+      size_ratio: 0.12,
       opacity: 0.72,
       color: '#FFFFFF',
       stroke_color: '#000000',
@@ -593,21 +595,28 @@ function WatermarkDialog({ onClose }) {
     ...defaults,
     ...(value || {}),
     font: { ...defaults.font, ...((value || {}).font || {}) },
+    image: { ...defaults.image, ...((value || {}).image || {}) },
     style: { ...defaults.style, ...((value || {}).style || {}) },
   });
   const [cfg, setCfg] = React.useState(null);
   const [fonts, setFonts] = React.useState([]);
+  const [images, setImages] = React.useState([]);
   const [formats, setFormats] = React.useState([]);
+  const [imageFormats, setImageFormats] = React.useState([]);
   const [saving, setSaving] = React.useState(false);
   const [importing, setImporting] = React.useState(false);
+  const [importingImage, setImportingImage] = React.useState(false);
   const [error, setError] = React.useState('');
   const fontInputRef = React.useRef(null);
+  const imageInputRef = React.useRef(null);
 
   const readJson = response => response.json().catch(() => ({}));
   const applyPayload = data => {
     setCfg(mergeConfig(data.config));
     setFonts(data.fonts || []);
+    setImages(data.images || []);
     setFormats(data.supported_font_formats || []);
+    setImageFormats(data.supported_image_formats || []);
     setError(data.config_error || '');
   };
 
@@ -623,6 +632,7 @@ function WatermarkDialog({ onClose }) {
 
   const patch = value => setCfg(previous => ({ ...previous, ...value }));
   const patchFont = value => setCfg(previous => ({ ...previous, font: { ...previous.font, ...value } }));
+  const patchImage = value => setCfg(previous => ({ ...previous, image: { ...(previous.image || {}), ...value } }));
   const patchStyle = value => setCfg(previous => ({ ...previous, style: { ...previous.style, ...value } }));
 
   const importFont = async event => {
@@ -667,6 +677,42 @@ function WatermarkDialog({ onClose }) {
     }
   };
 
+  const importImage = async event => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = '';
+    if (!file) return;
+    setImportingImage(true);
+    setError('');
+    const form = new FormData();
+    form.append('image', file);
+    try {
+      const response = await fetch('/api/watermark-image', { method: 'POST', body: form });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || '图片导入失败');
+      setImages(data.images || []);
+      patchImage({ file_name: data.file_name || '' });
+    } catch (err) {
+      setError(err.message || '图片导入失败');
+    } finally {
+      setImportingImage(false);
+    }
+  };
+
+  const deleteImage = async () => {
+    const fileName = cfg && cfg.image && cfg.image.file_name;
+    if (!fileName || !window.confirm(`删除导入水印图 ${fileName}？`)) return;
+    setError('');
+    try {
+      const response = await fetch(`/api/watermark-image/${encodeURIComponent(fileName)}`, { method: 'DELETE' });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || '删除图片失败');
+      setImages(data.images || []);
+      patchImage((data.config || {}).image || { file_name: '' });
+    } catch (err) {
+      setError(err.message || '删除图片失败');
+    }
+  };
+
   const save = async () => {
     if (!cfg) return;
     setSaving(true);
@@ -704,16 +750,27 @@ function WatermarkDialog({ onClose }) {
     ['top_left', '左上'], ['top_right', '右上'], ['bottom_left', '左下'], ['bottom_right', '右下'], ['center', '居中'],
   ];
   const sizePct = Math.round(cfg.style.font_size_ratio * 1000) / 10;
+  const imageSizePct = Math.round(cfg.style.size_ratio * 1000) / 10;
   const opacityPct = Math.round(cfg.style.opacity * 100);
   const marginPct = Math.round(cfg.style.margin_ratio * 1000) / 10;
   const accept = formats.length ? formats.join(',') : '.ttf,.otf,.ttc,.otc';
+  const imageAccept = (imageFormats.length ? imageFormats : ['.png', '.jpg', '.jpeg', '.webp']).join(',');
 
   return (
     <div style={{ position:'fixed', inset:0, zIndex:9999, background:'rgba(0,0,0,0.55)', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
          onMouseDown={event => { if (event.target === event.currentTarget) onClose(false); }}>
       <div style={{ width:560, maxWidth:'100%', maxHeight:'90vh', display:'flex', flexDirection:'column', overflow:'hidden', background:M.panel, border:`1px solid ${M.line}`, borderRadius:8 }}>
         <div style={{ padding:'14px 18px', display:'flex', alignItems:'center', borderBottom:`1px solid ${M.line}` }}>
-          <div style={{ fontSize:14, fontWeight:600 }}>文字水印</div>
+          <div style={{ display:'flex', gap:4 }}>
+            {[['text', '文字水印'], ['image', '图片水印']].map(([id, label]) => (
+              <button key={id} className="mn-btn mn-btn-ghost" onClick={() => patch({ renderer:id })}
+                      style={{ fontSize:12.5, padding:'4px 12px', borderRadius:5,
+                               color:cfg.renderer === id ? '#fff' : M.inkDim,
+                               background:cfg.renderer === id ? M.accent : 'transparent' }}>
+                {label}
+              </button>
+            ))}
+          </div>
           <button className="mn-btn mn-btn-ghost" title="关闭" onClick={() => onClose(false)} style={{ marginLeft:'auto', padding:'3px' }}>
             <MIcon name="x" size={16} />
           </button>
@@ -724,6 +781,7 @@ function WatermarkDialog({ onClose }) {
             启用
           </label>
 
+          {cfg.renderer === 'text' && (<>
           <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:12.5 }}>
             文字
             <textarea className="mn-input" rows={3} maxLength={512} value={cfg.text}
@@ -796,9 +854,48 @@ function WatermarkDialog({ onClose }) {
               </div>
             </label>
           </div>
+          </>)}
+
+          {cfg.renderer === 'image' && (<>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:8, alignItems:'end' }}>
+            <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:12.5, minWidth:0 }}>
+              水印图（透明背景 PNG 可直接使用）
+              <select className="mn-input" value={cfg.image.file_name} onChange={event => patchImage({ file_name:event.target.value })}>
+                <option value="">（未选择）</option>
+                {images.map(name => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </label>
+            <div style={{ display:'flex', gap:4 }}>
+              <input ref={imageInputRef} type="file" accept={imageAccept} style={{ display:'none' }} onChange={importImage} />
+              <button className="mn-btn" onClick={() => imageInputRef.current && imageInputRef.current.click()} disabled={importingImage} title="导入水印图" style={{ padding:'7px 10px' }}>
+                <MIcon name="upload" size={14} /> {importingImage ? '导入中…' : '导入'}
+              </button>
+              {cfg.image.file_name && (
+                <button className="mn-btn mn-btn-ghost" title="删除当前水印图" onClick={deleteImage} style={{ padding:'6px' }}>
+                  <MIcon name="x" size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+          {cfg.image.file_name && (
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <div style={{ width:120, height:120, display:'flex', alignItems:'center', justifyContent:'center',
+                            border:`1px solid ${M.line}`, borderRadius:6, overflow:'hidden', background:'#fff', flexShrink:0 }}>
+                <img src={'/api/watermark-image/' + encodeURIComponent(cfg.image.file_name)} alt="水印预览"
+                     style={{ maxWidth:'100%', maxHeight:'100%', objectFit:'contain' }} />
+              </div>
+              <div style={{ fontSize:11.5, color:M.inkDim, lineHeight:1.6 }}>
+                预览按原图渲染，透明区域保留 alpha（预览白底仅用于显示，实际合成按 alpha 混合）。
+              </div>
+            </div>
+          )}
+          </>)}
 
           {[
-            ['大小', sizePct, 1, 16, 0.5, value => patchStyle({ font_size_ratio:parseFloat(value) / 100 })],
+            ['大小', cfg.renderer === 'text' ? sizePct : imageSizePct, 1, cfg.renderer === 'text' ? 16 : 60, 0.5,
+             value => cfg.renderer === 'text'
+               ? patchStyle({ font_size_ratio:parseFloat(value) / 100 })
+               : patchStyle({ size_ratio:parseFloat(value) / 100 })],
             ['透明度', opacityPct, 5, 100, 1, value => patchStyle({ opacity:parseFloat(value) / 100 })],
             ['边距', marginPct, 0, 15, 0.5, value => patchStyle({ margin_ratio:parseFloat(value) / 100 })],
           ].map(([label, value, min, max, step, onChange]) => (
@@ -812,7 +909,7 @@ function WatermarkDialog({ onClose }) {
         </div>
         <div style={{ padding:'12px 18px', display:'flex', justifyContent:'flex-end', gap:8, borderTop:`1px solid ${M.line}` }}>
           <button className="mn-btn" onClick={() => onClose(false)}>取消</button>
-          <button className="mn-btn mn-btn-accent" onClick={save} disabled={saving || (cfg.enabled && !cfg.text.trim())}>
+          <button className="mn-btn mn-btn-accent" onClick={save} disabled={saving || (cfg.enabled && (cfg.renderer === 'text' ? !cfg.text.trim() : !((cfg.image || {}).file_name || '')))}>
             {saving ? '保存中…' : '保存'}
           </button>
         </div>
@@ -1823,7 +1920,7 @@ function MonoSingleApp() {
   const [llmReverseDialog, setLlmReverseDialog] = React.useState(false);
   const [llmReverseConfig, setLlmReverseConfig] = React.useState(null);
   const [llmSpecs, setLlmSpecs] = React.useState(null);
-  const [status, setStatus] = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, censor_mode: 'mosaic', censor_conf_threshold: 0.55, censor_bar_count: 4, scheduler: { enabled: false, next_fire_at: null, min_hours: 0.4, max_hours: 0.8, count: 1, sort: 'random', targets: 'civitai,pixiv', llm_reverse: false, llm_persona: '', llm_account: '', llm_content_mode: '' } });
+  const [status, setStatus] = React.useState({ mosaic_installed: false, mosaic_model_exists: false, censor_deps_ok: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, llm_reverse_enabled: false, llm_reverse_configured: false, censor_mode: 'mosaic', censor_conf_threshold: 0.55, censor_bar_count: 4, scheduler: { enabled: false, next_fire_at: null, min_hours: 0.4, max_hours: 0.8, count: 1, sort: 'random', targets: 'civitai,pixiv', llm_reverse: false, llm_persona: '', llm_account: '', llm_content_mode: '' } });
   const [isDark, setIsDark] = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
   const [pageDragging, setPageDragging] = React.useState(false);
   const [dropToast,    setDropToast]    = React.useState('');
@@ -2072,7 +2169,7 @@ function MonoSingleApp() {
           </div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span className="mn-chip">
+          <span className="mn-chip" title={status.mosaic_installed ? '打码就绪' : (!status.mosaic_model_exists ? '缺模型：models/auto_censor.pt' : '缺依赖：ultralytics / opencv-python')}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.mosaic_installed ? M.ok : M.inkFaint }} />
             R-18 mosaic {status.mosaic_installed ? 'ON' : 'OFF'}
           </span>
@@ -2415,7 +2512,10 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onWatermarkCon
         <div style={{ fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}>
           自动打码
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.mosaic_installed ? M.ok : M.red }} />
-          <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}>{status.mosaic_installed ? '已安装' : '未安装'}</span>
+          <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkDim }}
+                title={status.mosaic_installed ? '模型与依赖均就绪' : (!status.mosaic_model_exists ? '缺少 models/auto_censor.pt，点「R-18 mosaic 安装/检查」向导安装' : '缺少 Python 依赖（ultralytics / opencv-python），运行 pip install -r requirements.txt 或安装向导')}>
+            {status.mosaic_installed ? '已安装' : (!status.mosaic_model_exists ? '未安装（缺模型）' : '未安装（缺依赖）')}
+          </span>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
           <select className="mn-input" value={status.censor_preset || 'japan'}
@@ -2570,11 +2670,11 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onWatermarkCon
         </div>
       </>}
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
-        <div style={{ fontSize: 12.5 }}>文字水印</div>
+        <div style={{ fontSize: 12.5 }}>{status.watermark_renderer === 'image' ? '图片水印' : '文字水印'}</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.watermark_status === 'invalid' ? M.red : (status.watermark_enabled ? M.ok : M.inkFaint) }} />
           <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>
-            {status.watermark_status === 'invalid' ? '配置无效' : (status.watermark_enabled ? (status.watermark_font_file || '系统字体') : '关闭')}
+            {status.watermark_status === 'invalid' ? '配置无效' : (status.watermark_enabled ? (status.watermark_renderer === 'image' ? (status.watermark_file || '图片') : (status.watermark_font_file || '系统字体')) : '关闭')}
           </span>
           <button className="mn-btn mn-btn-ghost" onClick={onWatermarkConfigure} style={{ padding: '2px 8px', fontSize: 11 }}>配置</button>
         </div>

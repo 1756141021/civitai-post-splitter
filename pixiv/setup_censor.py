@@ -46,6 +46,14 @@ def ask(prompt: str, default: str = "y") -> bool:
             return False
 
 
+def ask_input(prompt: str) -> str:
+    """input() wrapper that returns '' instead of crashing on EOF (web mode)."""
+    try:
+        return input(prompt).strip()
+    except EOFError:
+        return ""
+
+
 def check_packages() -> tuple[list[str], list[str]]:
     """Return (installed, missing)."""
     installed = []
@@ -209,7 +217,7 @@ def main() -> int:
         else:
             api_key = os.environ.get("CIVITAI_API_KEY")
             if not api_key:
-                api_key = input("\n输入 CIVITAI_API_KEY: ").strip()
+                api_key = ask_input("\n输入 CIVITAI_API_KEY: ")
             if not download_model_civitai(api_key):
                 return 1
     else:
@@ -233,7 +241,7 @@ def main() -> int:
             print(f"       {CIVITAI_PAGE_URL}")
             print("  B) 设置 CIVITAI_API_KEY 环境变量后重跑此脚本自动下载。")
             print("       Civitai → 个人设置 → API Keys 创建一个。")
-            entered = input("\n或现在直接输入 API key 自动下载（留空跳过）: ").strip()
+            entered = ask_input("\n或现在直接输入 API key 自动下载（留空跳过）: ")
             if entered:
                 if not download_model_civitai(entered):
                     return 1

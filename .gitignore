@@ -23,6 +23,7 @@ config.json
 pixiv_censor.json
 watermark.json
 watermark_fonts/
+watermark_images/
 
 # X / xhs credentials — NEVER commit. auth_token + ct0 == full account access.
 x/cookies*.json
@@ -57,3 +58,7 @@ models/
 # Update check timestamp (per-machine)
 .last_update_check
 .gstack/
+
+# Pi agent session/task artifacts (local)
+.pi/
+.pi-subagents/

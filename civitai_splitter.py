@@ -17,7 +17,12 @@ import httpx
 from PIL import Image, PngImagePlugin
 from patchright.sync_api import sync_playwright
 
-from watermark import TextWatermarkSpec, WatermarkError, WatermarkService
+from watermark import (
+    ImageWatermarkSpec,
+    TextWatermarkSpec,
+    WatermarkError,
+    WatermarkService,
+)
 from pixiv.censor import CENSOR_CLASS_BY_NAME, CensorEngine, DEFAULT_CENSOR_CLASSES, DeepghsDetector, parse_class_set
 from pixiv.llm_reverse import (
     account_can_handle_age,
@@ -53,14 +58,17 @@ def _targets_need_copy(targets) -> bool:
 
 def _load_watermark_for_targets(
     targets: list[str],
-) -> tuple[WatermarkService | None, TextWatermarkSpec | None]:
+) -> tuple[WatermarkService | None, TextWatermarkSpec | ImageWatermarkSpec | None]:
     if not any(PLATFORM_RULES.get(target, {}).get("needs_sanitize") for target in targets):
         return None, None
     service = WatermarkService(SCRIPT_DIR)
     spec = service.load_config()
     if spec.enabled:
-        font_name = spec.font.file_name or "system"
-        log.info(f"文字水印: 已启用 (renderer={spec.renderer}, font={font_name})")
+        if spec.renderer == "image":
+            log.info(f"图片水印: 已启用 (renderer={spec.renderer}, image={spec.file_name})")
+        else:
+            font_name = spec.font.file_name or "system"
+            log.info(f"文字水印: 已启用 (renderer={spec.renderer}, font={font_name})")
     return service, spec
 
 
@@ -752,7 +760,7 @@ def create_upload_manifest(
     xhs_base_template: str = "default",
     ai_tags_by_platform: dict | None = None,
     watermark_service: WatermarkService | None = None,
-    watermark_spec: TextWatermarkSpec | None = None,
+    watermark_spec: TextWatermarkSpec | ImageWatermarkSpec | None = None,
     cancel_event=None,
 ) -> tuple[dict, bool]:
     _raise_if_canceled(cancel_event)
@@ -996,13 +1004,15 @@ def create_upload_manifest(
                     "status": "ok",
                     **watermark_service.render(Path(pixiv_clean.output_path), watermark_spec).to_dict(),
                 }
-                log.info("    文字水印: 已写入无元数据发布副本")
+                label = "图片水印" if watermark_spec.renderer == "image" else "文字水印"
+                log.info(f"    {label}: 已写入无元数据发布副本")
             except WatermarkError as exc:
                 watermark_failed = True
                 watermark_error = str(exc)
         if watermark_failed:
             watermark_result.update({"status": "failed", "error": watermark_error})
-            log.error(f"    文字水印失败: {watermark_error}")
+            label = "图片水印" if watermark_spec is not None and watermark_spec.renderer == "image" else "文字水印"
+            log.error(f"    {label}失败: {watermark_error}")
     _raise_if_canceled(cancel_event)
 
     x_payload = None

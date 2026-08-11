@@ -648,7 +648,7 @@ function MonoSingleApp() {
   const [taggerSetup,      setTaggerSetup]      = React.useState(false);
   const [taggerConfigured, setTaggerConfigured] = React.useState(true);
   const [schedulerDialog,  setSchedulerDialog]  = React.useState(false);
-  const [status,           setStatus]           = React.useState({ mosaic_installed: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
+  const [status,           setStatus]           = React.useState({ mosaic_installed: false, mosaic_model_exists: false, censor_deps_ok: false, upload_count: 0, has_api_key: false, pixiv_logged_in: false, civitai_logged_in: false, scheduler: { enabled: false, next_fire_at: null, min_hours: 1, max_hours: 3, count: 1, sort: 'random', targets: 'civitai,pixiv' } });
   const [isDark,           setIsDark]           = React.useState(() => localStorage.getItem('mn-theme') === 'dark');
   const [pageDragging,     setPageDragging]     = React.useState(false);
   const [dropToast,        setDropToast]        = React.useState('');
@@ -1063,7 +1063,8 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
   return (
     <div style={{ background: M.panel, padding: '12px 18px 14px', flexShrink: 0 }}>
       <div className="ms-section-label" style={{ marginBottom: 8 }}>settings</div>
-      <SetCompactRow label="Mosaic model" value={status.mosaic_installed ? 'installed' : 'not installed'} ok={status.mosaic_installed} />
+      <SetCompactRow label="Mosaic model" value={status.mosaic_installed ? 'installed' : 'not installed'} ok={status.mosaic_installed}
+                     hint={status.mosaic_installed ? 'model + ultralytics + opencv-python ready' : (!status.mosaic_model_exists ? 'missing models/auto_censor.pt - run the install wizard (cmd 4)' : 'missing Python deps: pip install ultralytics opencv-python')} />
       <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}` }}>
         <div style={{ fontSize: 12.5 }}>WD14 tagger</div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1164,13 +1165,13 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onTaggerSetup,
   );
 }
 
-function SetCompactRow({ label, value, ok, last }) {
+function SetCompactRow({ label, value, ok, last, hint }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', padding: '7px 0', borderBottom: last ? 'none' : `1px solid ${M.lineSoft}` }}>
       <div style={{ fontSize: 12.5 }}>{label}</div>
       <div style={{ marginLeft: 'auto', display: 'flex', gap: 7, alignItems: 'center' }}>
         {ok !== undefined && <span style={{ width: 6, height: 6, borderRadius: '50%', background: ok ? M.ok : M.red }} />}
-        <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{value}</span>
+        <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }} title={hint}>{value}</span>
       </div>
     </div>
   );

@@ -31,7 +31,12 @@ from pixiv.llm_reverse import (
 from pixiv.support import PIXIV_PROFILE_DIR
 from x.support   import X_DIR,   X_PROFILE_DIR
 from xhs.support import XHS_DIR, XHS_PROFILE_DIR
-from watermark import MAX_FONT_UPLOAD_BYTES, WatermarkError, WatermarkService
+from watermark import (
+    MAX_FONT_UPLOAD_BYTES,
+    MAX_IMAGE_UPLOAD_BYTES,
+    WatermarkError,
+    WatermarkService,
+)
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
 CIVITAI_PROFILE_DIR = Path.home() / ".civitai_splitter_chrome"
@@ -55,6 +60,25 @@ def _save_config(cfg: dict) -> None:
 
 def _watermark_service() -> WatermarkService:
     return WatermarkService(SCRIPT_DIR)
+
+
+_censor_deps_cache: tuple[float, bool] | None = None
+
+
+def _censor_deps_ok() -> bool:
+    """Whether ultralytics + opencv-python are importable (cached 30s)."""
+    global _censor_deps_cache
+    now = time.monotonic()
+    if _censor_deps_cache is not None and now - _censor_deps_cache[0] < 30:
+        return _censor_deps_cache[1]
+    try:
+        import cv2  # noqa: F401
+        import ultralytics  # noqa: F401
+        ok = True
+    except ImportError:
+        ok = False
+    _censor_deps_cache = (now, ok)
+    return ok
 
 
 def _watermark_local_only():
@@ -634,6 +658,57 @@ def api_watermark_font_delete(file_name: str):
         return jsonify({"error": str(exc)}), 400
 
 
+@app.route("/api/watermark-image", methods=["POST"])
+def api_watermark_image_import():
+    blocked = _watermark_local_only()
+    if blocked is not None:
+        return blocked
+    uploaded = request.files.get("image")
+    if uploaded is None or not uploaded.filename:
+        return jsonify({"error": "image file is required"}), 400
+    try:
+        data = uploaded.read(MAX_IMAGE_UPLOAD_BYTES + 1)
+        if len(data) > MAX_IMAGE_UPLOAD_BYTES:
+            maximum_mb = MAX_IMAGE_UPLOAD_BYTES // (1024 * 1024)
+            return jsonify({"error": f"Watermark images must be smaller than {maximum_mb} MB"}), 400
+        service = _watermark_service()
+        file_name = service.import_image(uploaded.filename, data)
+        return jsonify({"ok": True, "file_name": file_name, **service.config_payload()})
+    except WatermarkError as exc:
+        return jsonify({"error": str(exc)}), 400
+    finally:
+        uploaded.close()
+
+
+@app.route("/api/watermark-image/<path:file_name>", methods=["DELETE"])
+def api_watermark_image_delete(file_name: str):
+    blocked = _watermark_local_only()
+    if blocked is not None:
+        return blocked
+    try:
+        service = _watermark_service()
+        if not service.delete_image(file_name):
+            return jsonify({"error": "image not found"}), 404
+        return jsonify({"ok": True, **service.config_payload()})
+    except WatermarkError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.route("/api/watermark-image/<path:file_name>")
+def api_watermark_image_get(file_name: str):
+    """Serve the stored watermark image so the UI can preview it (PNG alpha intact)."""
+    blocked = _watermark_local_only()
+    if blocked is not None:
+        return blocked
+    try:
+        path = _watermark_service().image_store.path_for(file_name)
+    except WatermarkError as exc:
+        return jsonify({"error": str(exc)}), 400
+    if not path.is_file():
+        return jsonify({"error": "image not found"}), 404
+    return send_from_directory(path.parent, path.name)
+
+
 # Censor preset levels. Maps preset name → enabled_classes string. Class names
 # come from pixiv/censor.py CENSOR_CLASS_NAMES: anus, cum, dick, tits, vagina.
 _CENSOR_PRESETS = {
@@ -915,11 +990,17 @@ def api_status():
     cfg = _load_config()
     watermark_enabled = False
     watermark_font_file = ""
+    watermark_renderer = "text"
+    watermark_file = ""
     watermark_status = "disabled"
     try:
         watermark_spec = _watermark_service().load_config()
         watermark_enabled = watermark_spec.enabled
-        watermark_font_file = watermark_spec.font.file_name
+        watermark_renderer = watermark_spec.renderer
+        if watermark_spec.renderer == "image":
+            watermark_file = getattr(watermark_spec, "file_name", "")
+        else:
+            watermark_font_file = getattr(watermark_spec.font, "file_name", "")
         watermark_status = "enabled" if watermark_enabled else "disabled"
     except WatermarkError:
         watermark_status = "invalid"
@@ -961,7 +1042,9 @@ def api_status():
     from version import __version__
     return jsonify({
         "version":           __version__,
-        "mosaic_installed":  model_path.exists(),
+        "mosaic_installed":  model_path.exists() and _censor_deps_ok(),
+        "mosaic_model_exists": model_path.exists(),
+        "censor_deps_ok":   _censor_deps_ok(),
         "upload_count":      upload_count,
         "has_api_key":       bool(api_key),
         "api_key_masked":    masked,
@@ -985,6 +1068,8 @@ def api_status():
         "censor_secondary_enabled": censor_secondary_enabled,
         "watermark_enabled":  watermark_enabled,
         "watermark_font_file": watermark_font_file,
+        "watermark_renderer":  watermark_renderer,
+        "watermark_file":      watermark_file,
         "watermark_status":   watermark_status,
         "upload_defaults":    cfg.get("upload_defaults") or {},
         "xhs_manual_mode":   bool(cfg.get("xhs_manual_mode")),
