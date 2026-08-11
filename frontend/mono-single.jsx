@@ -823,19 +823,6 @@ function WatermarkDialog({ onClose }) {
             </label>
           )}
 
-          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-            <div style={{ fontSize:12.5 }}>位置</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0, 1fr))', border:`1px solid ${M.line}`, borderRadius:6, overflow:'hidden' }}>
-              {positions.map(([value, label], index) => (
-                <button key={value} className="mn-btn mn-btn-ghost" onClick={() => patchStyle({ position:value })}
-                        style={{ justifyContent:'center', padding:'6px 3px', borderRadius:0, border:0, borderRight:index < positions.length - 1 ? `1px solid ${M.line}` : 0,
-                                 color:cfg.style.position === value ? '#fff' : M.inkDim, background:cfg.style.position === value ? M.accent : 'transparent', fontSize:11 }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
             <label style={{ display:'flex', flexDirection:'column', gap:6, fontSize:12.5 }}>
               文字色
@@ -890,6 +877,19 @@ function WatermarkDialog({ onClose }) {
             </div>
           )}
           </>)}
+
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            <div style={{ fontSize:12.5 }}>位置</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(5, minmax(0, 1fr))', border:`1px solid ${M.line}`, borderRadius:6, overflow:'hidden' }}>
+              {positions.map(([value, label], index) => (
+                <button key={value} className="mn-btn mn-btn-ghost" onClick={() => patchStyle({ position:value })}
+                        style={{ justifyContent:'center', padding:'6px 3px', borderRadius:0, border:0, borderRight:index < positions.length - 1 ? `1px solid ${M.line}` : 0,
+                                 color:cfg.style.position === value ? '#fff' : M.inkDim, background:cfg.style.position === value ? M.accent : 'transparent', fontSize:11 }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {[
             ['大小', cfg.renderer === 'text' ? sizePct : imageSizePct, 1, cfg.renderer === 'text' ? 16 : 60, 0.5,
