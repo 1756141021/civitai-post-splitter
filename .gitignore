@@ -62,3 +62,10 @@ models/
 # Pi agent session/task artifacts (local)
 .pi/
 .pi-subagents/
+
+pixiv/validation_cases.json
+pixiv/logs/
+x/.cookies_synced_ts
+x/.last_publish_ts
+web.stdout.log
+web.stderr.log

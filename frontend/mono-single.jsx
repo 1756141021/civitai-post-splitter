@@ -77,7 +77,12 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
   const [llmContentByPlatform,  setLlmContentByPlatform]  = React.useState(ud.llm_content_modes_by_platform || { pixiv: ud.llm_content_mode || 'sfw', x: ud.llm_content_mode || 'sfw', xhs: ud.llm_content_mode || 'sfw' });
   const [xTemplate,    setXTemplate]    = React.useState(() => ud.x_template   ?? (localStorage.getItem('civitai-splitter:x-template')   || ''));
   const [xhsTemplate,  setXhsTemplate]  = React.useState(() => ud.xhs_template ?? (localStorage.getItem('civitai-splitter:xhs-template') || ''));
-  const [aiTagsByPlatform, setAiTagsByPlatform] = React.useState(ud.ai_tags_by_platform || { pixiv: true, x: true, xhs: true });
+  const [aiTagsByPlatform, setAiTagsByPlatform] = React.useState({ pixiv: true, x: false, xhs: true, ...(ud.ai_tags_by_platform || {}) });
+  const [groupSize, setGroupSize] = React.useState(() => ud.group_size !== undefined ? Number(ud.group_size) : 1);
+  const [stripMetadata, setStripMetadata] = React.useState(() => ud.strip_metadata !== undefined ? !!ud.strip_metadata : true);
+  const [civitaiStripAll, setCivitaiStripAll] = React.useState(() => !!ud.civitai_strip_all_metadata);
+  const [llmUserHint, setLlmUserHint] = React.useState('');
+  const [llmHintsByFile, setLlmHintsByFile] = React.useState({});
   const [saving,    setSaving]    = React.useState(false);
   const [savedAt,   setSavedAt]   = React.useState(0);
   const [templateOpts, setTemplateOpts] = React.useState({ x: [], x_default: 'en_sfw', xhs: [], xhs_default: 'default' });
@@ -203,7 +208,19 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
       ...(targetX   ? { x_template:   xTemplate   || templateOpts.x_default   || '' } : {}),
       ...(targetXhs ? { xhs_template: xhsTemplate || templateOpts.xhs_default || '' } : {}),
     };
-    const aiFields = { ai_tags_by_platform: aiTagsByPlatform };
+    const cleanFileHints = {};
+    Object.entries(llmHintsByFile || {}).forEach(([k, v]) => {
+      if (v && String(v).trim()) cleanFileHints[k] = String(v).trim();
+    });
+    const aiFields = {
+      ai_tags_by_platform: aiTagsByPlatform,
+      group_size: groupSize,
+      x_group: groupSize,
+      strip_metadata: stripMetadata,
+      civitai_strip_all_metadata: civitaiStripAll,
+      ...(llmUserHint.trim() ? { llm_user_hint: llmUserHint.trim() } : {}),
+      ...(Object.keys(cleanFileHints).length > 0 ? { llm_hints_by_file: cleanFileHints } : {}),
+    };
     if (llmMode === 'per_platform') {
       const platMap = { civitai: targetCivitai, pixiv: targetPixiv, x: targetX, xhs: targetXhs };
       const needsCopy = ['pixiv', 'x', 'xhs'].filter(p => platMap[p]);
@@ -233,6 +250,9 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
     x_template: xTemplate,
     xhs_template: xhsTemplate,
     ai_tags_by_platform: aiTagsByPlatform,
+    group_size: groupSize,
+    strip_metadata: stripMetadata,
+    civitai_strip_all_metadata: civitaiStripAll,
   });
 
   const _postDefaults = () =>
@@ -310,6 +330,15 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
                               whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', background:M.panel }}>
                   {f.name}
                 </div>
+                {llmReverse && (
+                  <input className="mn-input"
+                         value={llmHintsByFile[f.name] || ''}
+                         onClick={e => e.stopPropagation()}
+                         onChange={e => setLlmHintsByFile(prev => ({ ...prev, [f.name]: e.target.value }))}
+                         placeholder="这是谁?(可选)"
+                         title="单独告诉 AI 这张图的角色/作品（例如：流萤 / 崩坏星穹铁道）"
+                         style={{ width:'100%', fontSize:10, padding:'2px 4px', border:'none', borderTop:`1px solid ${M.lineSoft}`, borderRadius:0, background: (llmHintsByFile[f.name] || '').trim() ? M.accentSoft : M.panel }} />
+                )}
               </div>
             );
           })}
@@ -365,6 +394,13 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
                   <img src={imgUrl(f)} alt={f.name} loading="lazy"
                        style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
                   <span style={{ fontSize: 12, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                  {llmReverse && (
+                    <input className="mn-input"
+                           value={llmHintsByFile[f.name] || ''}
+                           onChange={e => setLlmHintsByFile(prev => ({ ...prev, [f.name]: e.target.value }))}
+                           placeholder="告诉 AI 角色/作品（如：流萤 崩铁）"
+                           style={{ width: 210, fontSize: 11, padding: '3px 6px', flexShrink: 0 }} />
+                  )}
                   <button className="mn-btn mn-btn-ghost" style={{ fontSize: 11, padding: '1px 6px', flexShrink: 0 }}
                           onClick={() => setOrderedFiles(prev => prev.filter((_, j) => j !== i))}>✕</button>
                 </div>
@@ -460,6 +496,36 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
             <input type="checkbox" checked={targetXhs} onChange={e => { const v = e.target.checked; setTargetXhs(v); _savePersistedTargets([targetCivitai&&'civitai', targetPixiv&&'pixiv', targetX&&'x', v&&'xhs'].filter(Boolean)); }} /> 小红书
             <span className="mn-mono" style={{ fontSize: 10, color: M.inkDim, marginLeft: 2 }}>(NSFW 跳过)</span>
           </label>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim }}>发帖方式</span>
+            <select className="mn-input" value={groupSize}
+                    onChange={e => setGroupSize(Number(e.target.value))}
+                    style={{ fontSize: 11, padding: '2px 6px' }}
+                    title="单图拆发=每1张图发1个帖；多图合发=将相邻多张图合并进同一个帖子发布（X单推上限4张）">
+              <option value={1}>1 张/帖（单图单帖）</option>
+              <option value={2}>2 张/帖（多图合帖）</option>
+              <option value={3}>3 张/帖（多图合帖）</option>
+              <option value={4}>4 张/帖（多图合帖）</option>
+              <option value={0}>全部合为 1 帖</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ padding: '8px 18px', borderTop: `1px solid ${M.lineSoft}`, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}
+                 title="上传前自动清除图片中的 EXIF、A1111/ComfyUI 提示词与工作流信息（本地反推与分级仍会在抹除前自动读取原图）">
+            <input type="checkbox" checked={stripMetadata}
+                   onChange={e => setStripMetadata(e.target.checked)} />
+            自动抹除元数据（防扒参 / 清除 EXIF & PNG Info）
+          </label>
+          {stripMetadata && targetCivitai && (
+            <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 11.5, color: M.inkDim, cursor: 'pointer' }}
+                   title="默认发 Civitai 会抹除正负面提示词但保留 LoRA 与采样设置以便平台自动挂载模型；勾选后连 LoRA 和参数也一并彻底清空">
+              <input type="checkbox" checked={civitaiStripAll}
+                     onChange={e => setCivitaiStripAll(e.target.checked)} />
+              Civitai 也抹除 LoRA/模型参数
+            </label>
+          )}
         </div>
 
         {(targetPixiv || targetX || targetXhs) && (
@@ -473,7 +539,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
             )}
             {targetX && (
               <label style={{ display: 'flex', gap: 5, alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
-                <input type="checkbox" checked={aiTagsByPlatform.x !== false}
+                <input type="checkbox" checked={!!aiTagsByPlatform.x}
                        onChange={e => setAiTagsByPlatform(prev => ({ ...prev, x: e.target.checked }))} /> X
               </label>
             )}
@@ -491,7 +557,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, whiteSpace: 'nowrap' }}>
                 <input type="checkbox" checked={llmReverse} onChange={e => setLlmReverse(e.target.checked)} />
-                LLM 标题/简介
+                AI 识图（标题/简介 + P站/X 热点Tag）
               </label>
               {llmReverse && (
                 <button className="mn-btn mn-btn-ghost"
@@ -540,6 +606,20 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
                 )}
               </div>
             )}
+            {llmReverse && (
+              <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span className="mn-mono" style={{ fontSize: 11, color: M.inkDim, whiteSpace: 'nowrap' }}>告诉AI这是谁</span>
+                <input className="mn-input"
+                       value={llmUserHint}
+                       onChange={e => setLlmUserHint(e.target.value)}
+                       placeholder="可选：输入角色名 / 作品名 / 补充设定（如：千织 原神 / 玛奇玛 电锯人；也可直接在上方每张图底部单独填）"
+                       style={{ fontSize: 12, flex: 1, padding: '4px 8px' }} />
+                {llmUserHint && (
+                  <button className="mn-btn mn-btn-ghost" onClick={() => setLlmUserHint('')}
+                          style={{ fontSize: 11, padding: '2px 6px' }}>清空</button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -565,7 +645,7 @@ function ImagePickerDialog({ cmd, llmConfig, uploadDefaults, onConfirm, onCancel
           </button>
           <button className="mn-btn mn-btn-accent" onClick={go}
                   disabled={uploadCount === 0} style={{ opacity: uploadCount === 0 ? 0.5 : 1 }}>
-            上传 {uploadCount} 张
+            上传 {uploadCount} 张{uploadCount > 1 && groupSize !== 1 ? (groupSize === 0 ? ' (合1帖)' : ` (合${Math.ceil(uploadCount / groupSize)}帖)`) : ''}
           </button>
         </div>
       </div>
@@ -1391,6 +1471,7 @@ function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
         {/* Model connection (collapsible) */}
         <div style={{ borderBottom: `1px solid ${M.lineSoft}` }}>
           {(() => {
+            const followCc = cfg.follow_cc_switch !== false;
             const missing = [];
             if (!cfg.has_api_key) missing.push('API key');
             if (!cfg.base_url) missing.push('base URL');
@@ -1402,9 +1483,9 @@ function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
                 <span style={{ fontSize: 10 }}>{modelOpen ? '▾' : '▸'}</span>
                 模型连接
                 <span className="mn-mono" style={{ marginLeft: 'auto', fontSize: 10.5, color: incomplete ? M.red : M.inkFaint }}>
-                  {incomplete
-                    ? `缺：${missing.join(' · ')}`
-                    : `${cfg.model} · key ${cfg.api_key_masked}`}
+                  {followCc
+                    ? (incomplete ? 'CC Switch 未检测到可用配置（点此切为手动填写）' : `[跟随 CC Switch${cfg.cc_switch_provider ? ': ' + cfg.cc_switch_provider : ''}] ${cfg.model}`)
+                    : (incomplete ? `缺：${missing.join(' · ')}` : `[手动填写] ${cfg.model} · key ${cfg.api_key_masked}`)}
                 </span>
                 {incomplete && (
                   <button className="mn-btn mn-btn-accent"
@@ -1417,7 +1498,39 @@ function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
             );
           })()}
           {modelOpen && (
-            <div style={{ padding: '0 20px 12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div style={{ padding: '0 20px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12, padding: '4px 0' }}>
+                <span style={{ color: M.inkDim }}>配置来源：</span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                  <input type="radio" checked={cfg.follow_cc_switch !== false}
+                         onChange={() => setCfg({ ...cfg, follow_cc_switch: true })} />
+                  跟随本机 CC Switch 当前模型
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                  <input type="radio" checked={cfg.follow_cc_switch === false}
+                         onChange={() => setCfg({ ...cfg, follow_cc_switch: false })} />
+                  在页面直接填写 API
+                </label>
+                {cfg.follow_cc_switch !== false && cfg.model && (
+                  <span className="mn-mono" style={{ marginLeft: 'auto', fontSize: 11, color: M.ok }}>
+                    ● 当前同步：{cfg.cc_switch_provider ? `${cfg.cc_switch_provider} / ` : ''}{cfg.model}
+                  </span>
+                )}
+              </div>
+              {cfg.follow_cc_switch !== false ? (
+                <div style={{ padding: '8px 12px', borderRadius: 6, background: M.bg, border: `1px solid ${M.lineSoft}`, fontSize: 11.5, color: M.inkDim, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    已开启实时跟随本机 <span className="mn-mono">~/.cc-switch</span>（及 <span className="mn-mono">~/.codex</span>）当前激活的渠道与模型，API Key 不会明文写入项目配置文件。
+                  </div>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 11 }}>超时(秒)</span>
+                    <input className="mn-input" value={cfg.timeout_seconds || 45}
+                           onChange={e => setCfg({ ...cfg, timeout_seconds: Number(e.target.value) || 45 })}
+                           style={{ fontSize: 12, width: 64 }} />
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <select className="mn-input" value={cfg.provider || 'openai_compatible'}
                       onChange={e => {
                         const p = e.target.value;
@@ -1484,6 +1597,8 @@ function LlmReverseDialog({ initialCfg, initialSpecs, onClose }) {
               <input className="mn-input" value={cfg.timeout_seconds || 45}
                      onChange={e => setCfg({ ...cfg, timeout_seconds: Number(e.target.value) || 45 })}
                      placeholder="超时 (秒)" style={{ fontSize: 12 }} />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1678,10 +1793,11 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
   const [llmContentMode,setLlmContentMode]= React.useState(sched.llm_content_mode || 'sfw');
   const [xhsLlmPersona,    setXhsLlmPersona]    = React.useState(sched.xhs_llm_persona || '');
   const [xhsLlmContentMode,setXhsLlmContentMode]= React.useState(sched.xhs_llm_content_mode || '');
-  const _initAiTags = sched.ai_tags_by_platform || { pixiv: true, x: true, xhs: true };
+  const _initAiTags = { pixiv: true, x: false, xhs: true, ...(sched.ai_tags_by_platform || {}) };
   const [aiPixiv,       setAiPixiv]       = React.useState(_initAiTags.pixiv !== false);
-  const [aiX,           setAiX]           = React.useState(_initAiTags.x !== false);
+  const [aiX,           setAiX]           = React.useState(!!_initAiTags.x);
   const [aiXhs,         setAiXhs]         = React.useState(_initAiTags.xhs !== false);
+  const [stripMetadata, setStripMetadata] = React.useState(sched.strip_metadata !== false);
   const [saving,        setSaving]        = React.useState(false);
   const [err,           setErr]           = React.useState('');
 
@@ -1703,6 +1819,7 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
         llm_reverse: llmReverse, llm_persona: llmPersona, llm_content_mode: llmContentMode,
         xhs_llm_persona: xhsLlmPersona, xhs_llm_content_mode: xhsLlmContentMode,
         ai_tags_by_platform: { pixiv: aiPixiv, x: aiX, xhs: aiXhs },
+        strip_metadata: stripMetadata,
       }),
     })
       .then(r => r.json())
@@ -1755,6 +1872,13 @@ function SchedulerDialog({ current, llmConfig, onClose, onSave }) {
               <input type="checkbox" checked={xhs} onChange={e => setXhs(e.target.checked)} /> 小红书
             </label>
           </div>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5, cursor: 'pointer' }}>
+            <input type="checkbox" checked={stripMetadata} onChange={e => setStripMetadata(e.target.checked)} />
+            自动抹除图片元数据（EXIF / PNG Info / 工作流）
+          </label>
         </div>
 
         {(pixiv || xTarget || xhs) && (
@@ -2449,6 +2573,7 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onWatermarkCon
   const [civitaiMsg,       setCivitaiMsg]       = React.useState('');
   const [pixivOpening,     setPixivOpening]     = React.useState(false);
   const [pixivGuideOpen,   setPixivGuideOpen]   = React.useState(false);
+  const [pixivSession, setPixivSession] = React.useState('');
   const [civitaiOpening,   setCivitaiOpening]   = React.useState(false);
   const [civitaiGuideOpen, setCivitaiGuideOpen] = React.useState(false);
   const [xCookies,   setXCookies]   = React.useState('');
@@ -2703,7 +2828,8 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onWatermarkCon
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
             {pixivMsg && <span className="mn-mono" style={{ fontSize: 10.5, color: M.red }}>{pixivMsg}</span>}
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: status.pixiv_logged_in ? M.ok : M.inkFaint }} />
-            <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.pixiv_logged_in ? '已登录' : '未设置'}</span>
+            <span className="mn-mono" style={{ fontSize: 11.5, color: M.inkDim }}>{status.pixiv_logged_in ? '已有会话（待验证）' : '未设置'}</span>
+            <button className="mn-btn mn-btn-ghost" onClick={() => setPixivGuideOpen(v => !v)} style={{padding: '2px 8px', fontSize: 11}}>导入会话</button>
             {status.pixiv_logged_in ? (
               <button className="mn-btn mn-btn-ghost" disabled={pixivSwitching}
                       onClick={() => {
@@ -2724,8 +2850,17 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onWatermarkCon
             )}
           </div>
         </div>
-        {!status.pixiv_logged_in && pixivGuideOpen && (
+        {pixivGuideOpen && (
           <div style={{ marginTop: 8, fontSize: 11.5, color: M.inkDim, lineHeight: 1.7 }}>
+            <div>推荐：在平时的浏览器登录 <a href="https://www.pixiv.net/" target="_blank" rel="noreferrer">Pixiv</a>，按 F12 → Application（应用）→ Cookies → https://www.pixiv.net，复制 PHPSESSID 的 Value。</div>
+            <div>Cookie 等同登录凭据，仅粘贴到本机这里，不要发送到聊天。保存表示已导入，是否有效会在上传时检查。</div>
+            <input className="mn-input" type="password" autoComplete="off" placeholder="PHPSESSID 的值" value={pixivSession} onChange={e => setPixivSession(e.target.value)} />
+            <button className="mn-btn mn-btn-accent" disabled={!pixivSession.trim()} onClick={() => {
+              fetch('/api/pixiv-save-session', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({session: pixivSession})})
+                .then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); setPixivSession(''); setPixivMsg('会话已导入'); onStatusReload && onStatusReload(); })
+                .catch(e => setPixivMsg(e.message));
+            }}>保存浏览器会话</button>
+            <div style={{marginTop: 8}}>也可使用原来的专用登录窗口：</div>
             <div>1. 点击「打开登录窗口」，Chrome 窗口会弹出</div>
             <div>2. 在窗口里完成 Pixiv 登录</div>
             <div>3. 登录成功后关闭浏览器窗口，状态自动更新</div>
@@ -2945,6 +3080,34 @@ function SettingsZone({ status, onStatusReload, taggerConfigured, onWatermarkCon
             )}
           </div>
         )}
+      </div>
+      <div style={{ padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', alignItems: 'center' }}>
+        <div style={{ fontSize: 12.5 }}>自动抹除元数据</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className="mn-mono" style={{ fontSize: 10.5, color: M.inkFaint }}>
+            {status.strip_metadata !== false ? '清除 EXIF / 提示词参数' : '保留原图元数据'}
+          </span>
+          <label style={{ position: 'relative', display: 'inline-block', width: 32, height: 18, cursor: 'pointer' }}>
+            <input type="checkbox" checked={status.strip_metadata !== false}
+                   onChange={e => {
+                     const v = e.target.checked;
+                     fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ strip_metadata: v }) })
+                       .then(() => onStatusReload && onStatusReload());
+                   }}
+                   style={{ opacity: 0, width: 0, height: 0 }} />
+            <span style={{
+              position: 'absolute', inset: 0, borderRadius: 9,
+              background: status.strip_metadata !== false ? M.accent : M.lineSoft,
+              transition: 'background 0.2s',
+            }} />
+            <span style={{
+              position: 'absolute', top: 2, left: status.strip_metadata !== false ? 16 : 2,
+              width: 14, height: 14, borderRadius: '50%', background: '#fff',
+              transition: 'left 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+            }} />
+          </label>
+        </div>
       </div>
       <div style={{ padding: '7px 0', borderBottom: `1px solid ${M.lineSoft}`, display: 'flex', alignItems: 'center' }}>
         <div style={{ fontSize: 12.5 }}>小红书手动模式</div>

@@ -37,6 +37,8 @@ MAX_FEW_SHOT_SAMPLES = 4
 def default_llm_reverse_config() -> dict[str, Any]:
     return {
         "enabled": False,
+        "follow_cc_switch": True,
+        "cc_switch_provider": "",
         "provider": "openai_compatible",
         "base_url": "",
         "api_key": "",
@@ -48,13 +50,13 @@ def default_llm_reverse_config() -> dict[str, Any]:
         "personas": [
             {
                 "id": "pixiv_soft",
-                "label": "Pixiv 软系",
-                "platform": "pixiv",
+                "label": "AI 识图 (P站 + X 热点Tag)",
+                "platform": ["pixiv", "x"],
                 "default_content_mode": "sfw",
-                "voice": "短诗体标题，轻描淡写的简介。语气克制，避免感叹号堆叠。",
-                "sfw_prompt": "Write clean Pixiv-friendly copy for this illustration.",
-                "nsfw_prompt": "Write direct adult-oriented Pixiv copy for this illustration when the platform allows it.",
-                "extra_prompt": "Do not discuss politics, countries, governments, parties, ideology, war, territorial disputes, or real-world national issues.",
+                "voice": "贴合二次元插画氛围的日文标题与简介，精准提取 Pixiv 站内高搜日文标签与 X (Twitter) 热门圈层标签。",
+                "sfw_prompt": "Analyze the illustration visually. Generate catchy Japanese/Chinese titles & descriptions, 6-10 high-traffic Pixiv Japanese tags (`keywords`), an engaging X tweet (`tweet`), and 2-3 trending X hashtags (`x_tags`).",
+                "nsfw_prompt": "Analyze the adult/R-18 illustration visually. Generate alluring Pixiv titles/descriptions, high-traffic Pixiv Japanese fetish/character tags (`keywords`), an engaging X post (`tweet`), and trending X hashtags (`x_tags`).",
+                "extra_prompt": "Always prioritize authentic Japanese Pixiv search tags (official IP Japanese name, character name, and popular Pixiv aesthetic/fetish tags like 女の子, 魅惑のふともも, 極上の乳, ツインテール, ドヤ顔, 光と影) over literal English Danbooru tags.",
                 "avoid": ["politics", "national politics", "state or government commentary"],
                 "samples": [],
             }
@@ -73,7 +75,108 @@ def default_llm_reverse_config() -> dict[str, Any]:
     }
 
 
-def normalize_llm_reverse_config(config: dict[str, Any] | None) -> dict[str, Any]:
+
+def _resolve_cc_switch_llm_config() -> dict[str, str]:
+    """Dynamically read the currently active model/base_url/api_key from CC Switch (~/.cc-switch/cc-switch.db)
+    with fallback to ~/.codex/config.toml + ~/.codex/auth.json."""
+    import sqlite3
+    import tomllib
+
+    home = Path.home()
+    cc_dir = home / ".cc-switch"
+    db_path = cc_dir / "cc-switch.db"
+    settings_path = cc_dir / "settings.json"
+
+    def _parse_codex_toml_and_auth(toml_str: str, auth_obj: dict[str, Any] | None, provider_name: str = "") -> dict[str, str]:
+        if not toml_str.strip():
+            return {}
+        try:
+            parsed = tomllib.loads(toml_str)
+        except Exception:
+            parsed = {}
+        model = str(parsed.get("model") or "").strip()
+        if not model:
+            m = re.search(r'^\s*model\s*=\s*["\']([^"\']+)["\']', toml_str, re.MULTILINE)
+            if m:
+                model = m.group(1).strip()
+        mp = str(parsed.get("model_provider") or "").strip()
+        providers_map = parsed.get("model_providers") or {}
+        pblock = providers_map.get(mp) if isinstance(providers_map, dict) else None
+        if not isinstance(pblock, dict) and isinstance(providers_map, dict) and providers_map:
+            pblock = next(iter(providers_map.values()), {})
+        if not isinstance(pblock, dict):
+            pblock = {}
+        base_url = str(pblock.get("base_url") or parsed.get("base_url") or "").strip()
+        if not base_url:
+            m = re.search(r'^\s*base_url\s*=\s*["\']([^"\']+)["\']', toml_str, re.MULTILINE)
+            if m:
+                base_url = m.group(1).strip()
+        api_key = ""
+        if isinstance(auth_obj, dict):
+            api_key = str(auth_obj.get("OPENAI_API_KEY") or auth_obj.get("api_key") or "").strip()
+        if not api_key:
+            api_key = str(pblock.get("experimental_bearer_token") or "").strip()
+        if model and base_url and api_key:
+            return {
+                "model": model,
+                "base_url": base_url,
+                "api_key": api_key,
+                "provider_name": provider_name,
+            }
+        return {}
+
+    if db_path.exists():
+        try:
+            target_id = ""
+            if settings_path.exists():
+                try:
+                    s_data = json.loads(settings_path.read_text(encoding="utf-8"))
+                    target_id = str(s_data.get("currentProviderCodex") or "").strip()
+                except Exception:
+                    pass
+            conn = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True, timeout=2.0)
+            try:
+                row = conn.execute(
+                    "SELECT id, name, settings_config FROM providers WHERE app_type = 'codex' AND is_current = 1 LIMIT 1"
+                ).fetchone()
+                if not row and target_id:
+                    row = conn.execute(
+                        "SELECT id, name, settings_config FROM providers WHERE app_type = 'codex' AND id = ? LIMIT 1",
+                        (target_id,),
+                    ).fetchone()
+                if row:
+                    raw_cfg = json.loads(row[2] or "{}")
+                    resolved = _parse_codex_toml_and_auth(
+                        str(raw_cfg.get("config") or ""),
+                        raw_cfg.get("auth") if isinstance(raw_cfg.get("auth"), dict) else {},
+                        provider_name=str(row[1] or row[0] or ""),
+                    )
+                    if resolved:
+                        return resolved
+            finally:
+                conn.close()
+        except Exception:
+            pass
+
+    codex_dir = home / ".codex"
+    cfg_toml = codex_dir / "config.toml"
+    auth_json = codex_dir / "auth.json"
+    if cfg_toml.exists():
+        try:
+            auth_data = json.loads(auth_json.read_text(encoding="utf-8")) if auth_json.exists() else {}
+            resolved = _parse_codex_toml_and_auth(
+                cfg_toml.read_text(encoding="utf-8"),
+                auth_data if isinstance(auth_data, dict) else {},
+                provider_name="codex_config",
+            )
+            if resolved:
+                return resolved
+        except Exception:
+            pass
+    return {}
+
+
+def normalize_llm_reverse_config(config: dict[str, Any] | None, *, resolve_cc_switch: bool = True) -> dict[str, Any]:
     merged = default_llm_reverse_config()
     if isinstance(config, dict):
         for key, value in config.items():
@@ -84,6 +187,19 @@ def normalize_llm_reverse_config(config: dict[str, Any] | None) -> dict[str, Any
                 continue  # mask 输出字段，不持久化
             else:
                 merged[key] = value
+    merged["follow_cc_switch"] = bool(merged.get("follow_cc_switch", True))
+    if merged["follow_cc_switch"] and resolve_cc_switch:
+        cc = _resolve_cc_switch_llm_config()
+        if cc:
+            merged["provider"] = "openai_compatible"
+            merged["base_url"] = cc["base_url"]
+            merged["api_key"] = cc["api_key"]
+            merged["model"] = cc["model"]
+            merged["cc_switch_provider"] = cc.get("provider_name", "")
+        else:
+            merged["cc_switch_provider"] = ""
+    elif not merged["follow_cc_switch"]:
+        merged["cc_switch_provider"] = ""
     merged["personas"] = [_migrate_persona(p) for p in merged.get("personas", []) if isinstance(p, dict)]
     merged["accounts"] = [_clean_account(a) for a in merged.get("accounts", []) if isinstance(a, dict)]
     merged["default_content_mode"] = _normalize_content_mode(merged.get("default_content_mode", "sfw"))
@@ -171,15 +287,8 @@ def account_can_handle_age(account: dict[str, Any] | None, image_age: str) -> bo
 
 
 def content_mode_can_handle_age(content_mode: str, image_age: str) -> bool:
-    """Check if the requested content_mode covers the image's age level.
-
-    nsfw → handles all ages. sfw → only handles sfw/all_ages (tier 0).
-    This is the user-facing gate: what the user asked to generate determines
-    which images get LLM inference, not the account's backend capability.
-    """
-    if _normalize_content_mode(content_mode) == "nsfw":
-        return True
-    return _NSFW_TIER.get(image_age, 0) == 0
+    """Allow AI vision tagging/copy for all image ages (auto-upgrades prompt tone when r18)."""
+    return True
 
 
 def resolve_account(
@@ -318,6 +427,11 @@ def infer_image_copy(
 
         with httpx.Client(timeout=timeout, follow_redirects=True) as client:
             response = client.post(endpoint, headers=headers, json=payload)
+            if response.status_code in (400, 404, 405) and provider not in ("google_gemini", "anthropic"):
+                resp_endpoint, resp_payload = _build_openai_responses_fallback(str(cfg.get("base_url", "")), payload)
+                resp2 = client.post(resp_endpoint, headers=headers, json=resp_payload)
+                if resp2.is_success:
+                    response = resp2
             response.raise_for_status()
             data = response.json()
         _raise_if_canceled(cancel_event)
@@ -351,13 +465,51 @@ def infer_image_copy(
 
 
 def apply_llm_result_to_pixiv_payload(payload: dict[str, Any], result: dict[str, Any]) -> None:
-    if result.get("status") != "ok":
+    if result.get("status") != "ok" or not payload:
         return
-    fields = result.get("fields") or {k: result.get(k) for k in ("title_ja", "title_zh", "caption_ja", "caption_zh")}
+    fields = result.get("fields") or {k: result.get(k) for k in ("title_ja", "title_zh", "caption_ja", "caption_zh", "keywords")}
     for key in ("title_ja", "title_zh", "caption_ja", "caption_zh"):
         value = str(fields.get(key, "") or "").strip()
         if value:
             payload[key] = value
+
+    raw_kw = fields.get("keywords") or result.get("keywords") or []
+    if isinstance(raw_kw, list) and raw_kw:
+        ai_tags: list[str] = []
+        for item in raw_kw:
+            cleaned = str(item or "").strip().lstrip("#＃").strip()
+            if cleaned and cleaned not in ai_tags:
+                ai_tags.append(cleaned)
+        if ai_tags:
+            existing_final = list(payload.get("final_tags") or [])
+            entity_tags = list(payload.get("entity_tags") or [])
+            age = payload.get("age_restriction", "all_ages")
+            merged: list[str] = []
+
+            def _add_tag(t: str) -> None:
+                t_clean = str(t or "").strip().lstrip("#＃").strip()
+                if not t_clean:
+                    return
+                if age == "all_ages" and t_clean.upper() in {"R-18", "R18", "R-18G", "R18G", "NSFW"}:
+                    return
+                if t_clean.lower() not in {x.lower() for x in merged} and len(merged) < 10:
+                    merged.append(t_clean)
+
+            if age == "r18":
+                _add_tag("R-18")
+            elif age == "r18g":
+                _add_tag("R-18G")
+
+            # Keep high-confidence IP/character entity tags first, then AI vision hot tags, then fallback local tags
+            for et in entity_tags[:3]:
+                _add_tag(et)
+            for kw in ai_tags:
+                _add_tag(kw)
+            for ft in existing_final:
+                _add_tag(ft)
+
+            payload["llm_keywords"] = ai_tags
+            payload["final_tags"] = merged
 
 
 def empty_copy_block() -> dict[str, Any]:
@@ -371,6 +523,8 @@ def empty_copy_block() -> dict[str, Any]:
     return {
         "title": {"ja": "", "en": "", "zh": ""},
         "caption": {"ja": "", "en": "", "zh": ""},
+        "x_tags": [],
+        "pixiv_tags": [],
         "xhs": {"title": "", "body": "", "tags": []},
         "llm_reverse": {
             "status": "",
@@ -426,8 +580,15 @@ def apply_llm_result_to_copy_block(
             _set("title",   "zh", fields.get("title_zh"))
             _set("caption", "ja", fields.get("caption_ja"))
             _set("caption", "zh", fields.get("caption_zh"))
+            kw_raw = fields.get("keywords") or []
+            if isinstance(kw_raw, list) and kw_raw:
+                copy["pixiv_tags"] = [str(t).strip().lstrip("#＃") for t in kw_raw if str(t).strip()]
         elif pid == "x":
             _set("caption", "en", fields.get("tweet"))
+            _set("caption", "ja", fields.get("tweet") if not copy["caption"].get("ja") else copy["caption"].get("ja"))
+            x_tags_raw = fields.get("x_tags") or []
+            if isinstance(x_tags_raw, list) and x_tags_raw:
+                copy["x_tags"] = [str(t).strip() for t in x_tags_raw if str(t).strip()]
         elif pid == "xhs":
             xhs_block = copy.setdefault("xhs", {"title": "", "body": "", "tags": []})
             xhs_title = str(fields.get("xhs_title") or "").strip()
@@ -708,12 +869,58 @@ def _extract_anthropic_content(data: dict[str, Any]) -> str:
 
 
 def _image_to_data_url(path: Path) -> str:
-    mime = mimetypes.guess_type(str(path))[0] or "image/png"
-    data = base64.b64encode(path.read_bytes()).decode("ascii")
-    return f"data:{mime};base64,{data}"
+    try:
+        import io
+        from PIL import Image
+        with Image.open(path) as im:
+            if im.mode != "RGB":
+                im = im.convert("RGBA")
+                bg = Image.new("RGBA", im.size, (255, 255, 255, 255))
+                bg.alpha_composite(im)
+                im = bg.convert("RGB")
+            im.thumbnail((1024, 1024), Image.LANCZOS)
+            buf = io.BytesIO()
+            im.save(buf, format="JPEG", quality=82, optimize=True)
+            data = base64.b64encode(buf.getvalue()).decode("ascii")
+            return f"data:image/jpeg;base64,{data}"
+    except Exception:
+        mime = mimetypes.guess_type(str(path))[0] or "image/png"
+        data = base64.b64encode(path.read_bytes()).decode("ascii")
+        return f"data:{mime};base64,{data}"
+
+
+def _build_openai_responses_fallback(base_url: str, chat_payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    base = base_url.strip().rstrip("/")
+    if base.lower().endswith("/responses"):
+        endpoint = base
+    else:
+        endpoint = f"{base}/responses"
+    content_parts = ((chat_payload.get("messages") or [{}])[0]).get("content") or []
+    resp_content: list[dict[str, Any]] = []
+    for part in content_parts:
+        if part.get("type") == "text":
+            resp_content.append({"type": "input_text", "text": part.get("text", "")})
+        elif part.get("type") == "image_url":
+            url_val = (part.get("image_url") or {}).get("url") or ""
+            resp_content.append({"type": "input_image", "image_url": url_val})
+    return endpoint, {
+        "model": chat_payload.get("model", ""),
+        "input": [{"role": "user", "content": resp_content}],
+    }
 
 
 def _extract_message_content(data: dict[str, Any]) -> str:
+    if isinstance(data.get("output_text"), str) and data["output_text"].strip():
+        return data["output_text"]
+    if isinstance(data.get("output"), list):
+        out_parts: list[str] = []
+        for item in data["output"]:
+            if isinstance(item, dict):
+                for c in item.get("content") or []:
+                    if isinstance(c, dict) and c.get("text"):
+                        out_parts.append(str(c["text"]))
+        if out_parts:
+            return "\n".join(out_parts)
     choices = data.get("choices") or []
     if not choices:
         raise ValueError("empty choices")

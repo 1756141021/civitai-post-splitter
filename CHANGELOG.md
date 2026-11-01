@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026.11.01
+
+### Added
+- **PixAI Tagger v1.0 升级支持 (pixiv/pixai_tagger.py)**：适配 
+octurna/pixai-tagger-v1.0-onnx（1008×1008 
+escale_pad 等比缩放补白预处理、30,877 标签库，完整支持 general / character / copyright / style / meta / 
+ating 分类），向后兼容 v0.9。Web 端一键安装接口 (/api/install-pixai-tagger) 默认拉取 v1.0 并自动生成标签映射表。
+- **AI 视觉识图生成 Pixiv & X 热点标签 (pixiv/llm_platforms.py, pixiv/llm_reverse.py, x/support.py)**：
+  - 识图时除生成中日双语标题与简介外，自动根据画面视觉特征识别角色/IP/画风萌点，输出 Pixiv 站内高搜索量日文标签 (keywords) 与 X 趋势 Hashtag (x_tags)，并智能合并进最终发帖标签。
+  - 发送给大模型的图片自动通过 _image_to_data_url 压缩为 <=1024px JPEG，大幅降低 Token 消耗与请求耗时。
+- **手动补充角色/作品提示框 (rontend/mono-single.jsx, civitai_splitter.py)**：针对生僻/新番角色反推认不出的情况，在选图发布窗口新增「告诉AI这是谁」全局提示框及单图底部独立标注框，作为最高优先级注入给 LLM 生成对应官方日文/英文标签与文案。
+- **LLM API 双模式：实时跟随 CC Switch / 页面直接填写 (pixiv/llm_reverse.py, web_server.py, rontend/mono-single.jsx)**：
+  - 支持一键切换「跟随本机 CC Switch 当前模型」（动态读取 ~/.cc-switch/cc-switch.db 与 ~/.codex/config.toml 当前激活渠道，API Key 不落盘写入 config.json）或「在页面直接填写 API」。
+  - 新增 OpenAI /responses 协议自动回退兼容。
+- **全平台多图自由合帖 / 单图拆帖 (civitai_splitter.py, pixiv/support.py, rontend/mono-single.jsx)**：选图发布栏支持选择 1张/帖（单图单帖）、2张/帖、3张/帖、4张/帖 或 全部合为1帖，Pixiv、X、Civitai 均支持按组批量合帖发布。
+- **自动抹除图片元数据可选开关 (pixiv/support.py, civitai_splitter.py, rontend/mono-single.jsx)**：
+  - 在选图弹窗、自动调度弹窗与右侧设置面板均提供「自动抹除元数据」开关（通过像素重建彻底剥离 EXIF、A1111 parameters、ComfyUI workflow 等元数据，同时不影响抹除前本地读取原图参数用于反推/分级）。
+  - 支持额外勾选「Civitai 也抹除 LoRA/模型参数」。
+
+### Changed
+- **X (Twitter) 默认关闭 AI 绘画标签**：X 平台 i_tags_by_platform.x 默认设为 False，未勾选时自动拦截 #AIart、#AIイラスト、#AI绘画 等 AI 类标签，仅保留作品/角色/插画类热点标签。
+
+### Fixed
+- **X (Twitter) 每次打开浏览器要求重新登录 (x/support.py, web_server.py)**：修复 open_x_browser 无条件用旧 x/cookies.json 覆盖持久化浏览器 Profile 中有效会话、以及缺少 xpirationDate 变成临时会话 Cookie 的问题；登录或发帖后自动将最新有效 uth_token / ct0 同步回写并补齐 1 年有效期。
+- **布尔参数解析兼容 (civitai_splitter.py)**：修复 parse_bool_flag 接收前端布尔值时触发 'bool' object has no attribute 'strip' 的异常。
+
+
 ## 2026.05.19
 
 ### Added

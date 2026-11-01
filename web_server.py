@@ -28,7 +28,7 @@ from pixiv.llm_reverse import (
     normalize_llm_reverse_config,
     validate_llm_reverse_config,
 )
-from pixiv.support import PIXIV_PROFILE_DIR
+from pixiv.support import PIXIV_PROFILE_DIR, PIXIV_SESSION_FILE, pixiv_has_session
 from x.support   import X_DIR,   X_PROFILE_DIR
 from xhs.support import XHS_DIR, XHS_PROFILE_DIR
 from watermark import (
@@ -384,9 +384,15 @@ def _run_task_locked(task_id: str, cmd: int, params: dict) -> None:
                 llm_mode=params.get("llm_mode", "unified"),
                 llm_personas_by_platform=params.get("llm_personas_by_platform") or {},
                 llm_content_modes_by_platform=params.get("llm_content_modes_by_platform") or {},
+                llm_user_hint=str(params.get("llm_user_hint", "") or "").strip(),
+                llm_hints_by_file=params.get("llm_hints_by_file") or {},
                 ai_tags_by_platform=params.get("ai_tags_by_platform") or {},
                 x_template=params.get("x_template", ""),
                 xhs_template=params.get("xhs_template", ""),
+                group_size=params.get("group_size", params.get("x_group", 1)),
+                x_group=params.get("group_size", params.get("x_group", 1)),
+                strip_metadata=params.get("strip_metadata", _run_cfg.get("strip_metadata", True)),
+                civitai_strip_all_metadata=params.get("civitai_strip_all_metadata", _run_cfg.get("civitai_strip_all_metadata", False)),
                 xhs_manual_mode=_xhs_manual,
                 xhs_manual_callback=_xhs_manual_cb if _xhs_manual else None,
                 cancel_event=cancel_event,
@@ -594,6 +600,10 @@ def api_settings():
         os.environ["CIVITAI_API_KEY"] = cfg["api_key"]
     if "xhs_manual_mode" in body:
         cfg["xhs_manual_mode"] = bool(body["xhs_manual_mode"])
+    if "strip_metadata" in body:
+        cfg["strip_metadata"] = bool(body["strip_metadata"])
+    if "civitai_strip_all_metadata" in body:
+        cfg["civitai_strip_all_metadata"] = bool(body["civitai_strip_all_metadata"])
     _save_config(cfg)
     return jsonify({"ok": True})
 
@@ -897,7 +907,8 @@ def api_llm_reverse_config_get():
 def api_llm_reverse_config_post():
     body = request.get_json(silent=True) or {}
     cfg = _load_config()
-    current = normalize_llm_reverse_config(cfg.get("llm_reverse"))
+    raw_saved = cfg.get("llm_reverse") if isinstance(cfg.get("llm_reverse"), dict) else {}
+    current = normalize_llm_reverse_config(raw_saved, resolve_cc_switch=False)
     if body.pop("clear_api_key", False):
         body["api_key"] = ""
     else:
@@ -906,13 +917,21 @@ def api_llm_reverse_config_post():
             body.pop("api_key", None)
         elif api_key is None:
             body["api_key"] = current.get("api_key", "")
-    next_cfg = normalize_llm_reverse_config({**current, **body})
-    errors = validate_llm_reverse_config(next_cfg)
+    merged_input = {**current, **body}
+    resolved_cfg = normalize_llm_reverse_config(merged_input, resolve_cc_switch=True)
+    errors = validate_llm_reverse_config(resolved_cfg)
     if errors:
         return jsonify({"error": "; ".join(errors)}), 400
-    cfg["llm_reverse"] = next_cfg
+    persist_cfg = normalize_llm_reverse_config(merged_input, resolve_cc_switch=False)
+    if persist_cfg.get("follow_cc_switch", True):
+        # Do not persist CC Switch secrets into config.json; keep any manually-typed key only if provided
+        if not body.get("api_key"):
+            persist_cfg["api_key"] = raw_saved.get("api_key", "") if not raw_saved.get("follow_cc_switch", True) else ""
+            persist_cfg["base_url"] = raw_saved.get("base_url", "") if not raw_saved.get("follow_cc_switch", True) else ""
+            persist_cfg["model"] = raw_saved.get("model", "") if not raw_saved.get("follow_cc_switch", True) else ""
+    cfg["llm_reverse"] = persist_cfg
     _save_config(cfg)
-    return jsonify(mask_llm_config(next_cfg))
+    return jsonify(mask_llm_config(resolved_cfg))
 
 
 def _list_upload_dir(folder: Path, source: str) -> list:
@@ -1048,7 +1067,7 @@ def api_status():
         "upload_count":      upload_count,
         "has_api_key":       bool(api_key),
         "api_key_masked":    masked,
-        "pixiv_logged_in":   PIXIV_PROFILE_DIR.exists(),
+        "pixiv_logged_in":   pixiv_has_session(),
         "civitai_logged_in": CIVITAI_PROFILE_DIR.exists(),
         "x_logged_in":       (X_DIR / "cookies.json").exists(),
         "xhs_logged_in":     XHS_PROFILE_DIR.exists(),
@@ -1073,6 +1092,8 @@ def api_status():
         "watermark_status":   watermark_status,
         "upload_defaults":    cfg.get("upload_defaults") or {},
         "xhs_manual_mode":   bool(cfg.get("xhs_manual_mode")),
+        "strip_metadata":    bool(cfg.get("strip_metadata", True)),
+        "civitai_strip_all_metadata": bool(cfg.get("civitai_strip_all_metadata", False)),
     })
 
 
@@ -1186,7 +1207,7 @@ def api_install_pixai_tagger():
     body = request.get_json(silent=True) or {}
     target_dir = body.get("target_dir", "").strip()
     if not target_dir:
-        target_dir = str(SCRIPT_DIR / "models" / "pixai_tagger")
+        target_dir = str(SCRIPT_DIR / "models" / "pixai_tagger_v1.0")
 
     task_id = uuid.uuid4().hex[:8]
 
@@ -1199,10 +1220,12 @@ def api_install_pixai_tagger():
                     _pixai_tasks[task_id] = {"status": "error", "error": "huggingface_hub 未安装，请先 pip install huggingface_hub"}
                 return
             snapshot_download(
-                repo_id="deepghs/pixai-tagger-v0.9-onnx",
+                repo_id="nocturna/pixai-tagger-v1.0-onnx",
                 local_dir=target_dir,
                 ignore_patterns=["*.md", ".git*"],
             )
+            from pixiv.pixai_tagger import ensure_v10_tags_csv
+            ensure_v10_tags_csv(Path(target_dir))
             _save_haintag_settings({"pixai_tagger_model_dir": target_dir})
             with _pixai_tasks_lock:
                 _pixai_tasks[task_id] = {"status": "done", "model_dir": target_dir}
@@ -1281,6 +1304,22 @@ def api_pixiv_logout():
     if running_pixiv:
         return jsonify({"error": "pixiv task is running"}), 400
     shutil.rmtree(PIXIV_PROFILE_DIR, ignore_errors=True)
+    PIXIV_SESSION_FILE.unlink(missing_ok=True)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/pixiv-save-session", methods=["POST"])
+def api_pixiv_save_session():
+    if request.remote_addr not in {"127.0.0.1", "::1"}:
+        return jsonify({"error": "仅允许本机导入"}), 403
+    origin = request.headers.get("Origin")
+    if origin and origin != request.host_url.rstrip("/"):
+        return jsonify({"error": "来源不匹配"}), 403
+    data = request.get_json(silent=True) or {}
+    value = str(data.get("session", "")).strip()
+    if not value or len(value) > 4096 or re.search(r"[\s;\r\n]", value):
+        return jsonify({"error": "请填写 PHPSESSID 的值，不含名称或分号"}), 400
+    PIXIV_SESSION_FILE.write_text(json.dumps({"PHPSESSID": value}), encoding="utf-8")
     return jsonify({"ok": True})
 
 
@@ -1305,7 +1344,7 @@ def api_pixiv_open_login():
             with sync_playwright() as pw:
                 context = pw.chromium.launch_persistent_context(
                     str(PIXIV_PROFILE_DIR),
-                    channel="chrome",
+                    channel="chrome", executable_path=os.environ.get("CHROME_PATH"),
                     headless=False,
                     args=["--start-maximized", "--disable-sync", "--no-first-run"],
                     ignore_default_args=["--enable-automation", "--no-sandbox"],
@@ -1321,7 +1360,7 @@ def api_pixiv_open_login():
                         time.sleep(1)
                 except Exception:
                     pass
-                _broadcast_sse("status_update", {"pixiv_logged_in": PIXIV_PROFILE_DIR.exists()})
+                _broadcast_sse("status_update", {"pixiv_logged_in": pixiv_has_session()})
         except Exception as exc:
             import logging as _log
             _log.getLogger(__name__).warning(f"pixiv login browser: {exc}")
@@ -1339,7 +1378,7 @@ def api_civitai_open_login():
             with sync_playwright() as pw:
                 context = pw.chromium.launch_persistent_context(
                     str(CIVITAI_PROFILE_DIR),
-                    channel="chrome",
+                    channel="chrome", executable_path=os.environ.get("CHROME_PATH"),
                     headless=False,
                     args=["--start-maximized", "--disable-sync", "--no-first-run"],
                     ignore_default_args=["--enable-automation", "--no-sandbox"],
@@ -1398,6 +1437,7 @@ def api_x_save_cookies():
 @app.route("/api/x-logout", methods=["POST"])
 def api_x_logout():
     (X_DIR / "cookies.json").unlink(missing_ok=True)
+    (X_DIR / ".cookies_synced_ts").unlink(missing_ok=True)
     shutil.rmtree(X_PROFILE_DIR, ignore_errors=True)
     return jsonify({"ok": True})
 
@@ -1551,7 +1591,8 @@ def _sched_default() -> dict:
             "min_hours": 0.4, "max_hours": 0.8, "next_fire_at": None,
             "llm_reverse": False, "llm_persona": "", "llm_account": "", "llm_content_mode": "",
             "xhs_llm_persona": "", "xhs_llm_content_mode": "",
-            "ai_tags_by_platform": {"pixiv": True, "x": True, "xhs": True}}
+            "ai_tags_by_platform": {"pixiv": True, "x": False, "xhs": True},
+            "strip_metadata": True, "civitai_strip_all_metadata": False}
 
 
 def _broadcast_scheduler(sched: dict) -> None:
@@ -1621,6 +1662,8 @@ def _scheduler_fire() -> None:
             "llm_account": sched.get("llm_account", ""),
             "llm_content_mode": sched.get("llm_content_mode", ""),
             "ai_tags_by_platform": sched.get("ai_tags_by_platform") or {},
+            "strip_metadata": bool(sched.get("strip_metadata", cfg.get("strip_metadata", True))),
+            "civitai_strip_all_metadata": bool(sched.get("civitai_strip_all_metadata", cfg.get("civitai_strip_all_metadata", False))),
         }
         xhs_persona = sched.get("xhs_llm_persona", "")
         xhs_mode = sched.get("xhs_llm_content_mode", "") or sched.get("llm_content_mode", "sfw")
@@ -1693,6 +1736,10 @@ def api_scheduler():
         sched["xhs_llm_content_mode"] = body["xhs_llm_content_mode"] if body["xhs_llm_content_mode"] in ("sfw", "nsfw", "") else ""
     if "ai_tags_by_platform" in body and isinstance(body["ai_tags_by_platform"], dict):
         sched["ai_tags_by_platform"] = {k: bool(v) for k, v in body["ai_tags_by_platform"].items() if k in ("pixiv", "x", "xhs")}
+    if "strip_metadata" in body:
+        sched["strip_metadata"] = bool(body["strip_metadata"])
+    if "civitai_strip_all_metadata" in body:
+        sched["civitai_strip_all_metadata"] = bool(body["civitai_strip_all_metadata"])
     if sched.get("min_hours", 1.0) > sched.get("max_hours", 3.0):
         return jsonify({"error": "min_hours > max_hours"}), 400
     if any(k in body for k in ("enabled", "min_hours", "max_hours")):
@@ -1776,7 +1823,7 @@ def main() -> None:
     print(f"Starting web server at {url}")
     print("Press Ctrl+C to stop.")
     threading.Timer(1.5, webbrowser.open, args=[url]).start()
-    app.run(host="0.0.0.0", port=PORT, threaded=True, use_reloader=False)
+    app.run(host=os.environ.get("WEB_HOST", "127.0.0.1"), port=PORT, threaded=True, use_reloader=False)
 
 
 if __name__ == "__main__":

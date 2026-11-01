@@ -3,39 +3,48 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-# Platform-specific output schema and prompt scaffolding for LLM image-reverse.
-#
-# Adding a new platform = adding one entry here. Backend prompt template,
-# output normalization, and frontend persona editor all read from this map.
-# No platform-specific if/else should appear in business code; everything
-# routes through PLATFORM_SPECS[persona["platform"]].
-
 PLATFORM_SPECS: dict[str, dict[str, Any]] = {
     "pixiv": {
         "label": "Pixiv",
         "fields": [
-            {"key": "title_ja",   "label": "标题（日）", "kind": "text",      "max": 60},
-            {"key": "title_zh",   "label": "标题（中）", "kind": "text",      "max": 60},
-            {"key": "caption_ja", "label": "简介（日）", "kind": "multiline", "max": 500},
-            {"key": "caption_zh", "label": "简介（中）", "kind": "multiline", "max": 500},
+            {"key": "title_ja",   "label": "日文标题", "kind": "text",      "max": 32},
+            {"key": "title_zh",   "label": "中文标题", "kind": "text",      "max": 32},
+            {"key": "caption_ja", "label": "日文简介", "kind": "multiline", "max": 280},
+            {"key": "caption_zh", "label": "中文简介", "kind": "multiline", "max": 280},
+            {"key": "keywords",   "label": "Pixiv热点日文Tag", "kind": "tags", "max_count": 10, "max": 40},
         ],
         "extra_fields": [
-            {"key": "description", "label": "扩展描述", "kind": "multiline", "max": 1000},
-            {"key": "keywords",    "label": "关键词",   "kind": "tags",      "max_count": 20, "max": 50},
+            {"key": "description", "label": "画面描述", "kind": "multiline", "max": 400},
         ],
-        "prompt_intro": "Analyze the image and write Pixiv post copy.",
-        "policy_notes": "Never identify real people. Avoid copyrighted character names unless visually obvious.",
+        "prompt_intro": (
+            "Analyze the anime illustration visually (combining any character/IP hints from metadata) "
+            "and write Pixiv post copy plus high-traffic Japanese Pixiv tags (`keywords`)."
+        ),
+        "policy_notes": (
+            "For `keywords`, output 6-10 authentic, high-search-volume Japanese Pixiv tags (NO # prefix): "
+            "include official Japanese IP/copyright name, character name (e.g. 胡桃(原神)), and trending Pixiv "
+            "visual/aesthetic/fetish tags that match the image (e.g. 女の子, 魅惑のふともも, ドヤ顔, ツインテール, "
+            "光と影, 極上の乳, 透明感, 背景美). Never identify real people."
+        ),
     },
     "x": {
         "label": "X / Twitter",
         "fields": [
-            {"key": "tweet", "label": "推文", "kind": "multiline", "max": 280},
+            {"key": "tweet",  "label": "推文正文(不含#标签)", "kind": "multiline", "max": 220},
+            {"key": "x_tags", "label": "X热点标签",          "kind": "tags",      "max_count": 3, "max": 40},
         ],
         "extra_fields": [
             {"key": "alt_text", "label": "替代文本", "kind": "multiline", "max": 1000},
         ],
-        "prompt_intro": "Write a single English or Japanese tweet describing this image.",
-        "policy_notes": "Stay within 280 characters total. Use 1-3 hashtags max.",
+        "prompt_intro": (
+            "Write a high-engagement X (Twitter) post (`tweet`, without hashtags in body) "
+            "and 2-3 trending X hashtags (`x_tags`) for this illustration."
+        ),
+        "policy_notes": (
+            "Keep `tweet` concise and engaging (1-2 lines, no hashtags inside `tweet`). "
+            "For `x_tags`, output 2-3 high-traffic X hashtags with # prefix matching the character/IP and art community "
+            "(e.g. #HuTao, #GenshinImpact, #原神, #illustration, #イラスト). Do NOT include AI-related hashtags like #AIart or #AIイラスト."
+        ),
     },
     "xhs": {
         "label": "小红书",
@@ -67,11 +76,7 @@ def normalize_platform_id(value: Any) -> str:
 
 
 def normalize_platform_ids(value: Any) -> list[str]:
-    """Normalize platform field to a deduplicated list of valid platform IDs.
-
-    Accepts a single string (legacy) or a list. Invalid IDs fall back to
-    DEFAULT_PLATFORM_ID. Always returns at least one element.
-    """
+    """Normalize platform field to a deduplicated list of valid platform IDs."""
     raw = value if isinstance(value, list) else [value]
     seen: set[str] = set()
     result: list[str] = []
@@ -85,11 +90,7 @@ def normalize_platform_ids(value: Any) -> list[str]:
 
 
 def get_merged_spec(platform_ids: list[str]) -> dict[str, Any]:
-    """Merge platform specs for multiple platforms into one combined spec.
-
-    Fields and extra_fields are deduplicated by key in order of appearance.
-    For a single platform, equivalent to get_platform_spec.
-    """
+    """Merge platform specs for multiple platforms into one combined spec."""
     if not platform_ids:
         return get_platform_spec(DEFAULT_PLATFORM_ID)
     if len(platform_ids) == 1:
