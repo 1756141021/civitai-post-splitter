@@ -25,6 +25,25 @@ log = logging.getLogger("civitai_splitter")
 PIXIV_BASE = "https://www.pixiv.net"
 PIXIV_UPLOAD_URL = f"{PIXIV_BASE}/upload.php"
 PIXIV_PROFILE_DIR = Path.home() / ".civitai_splitter_pixiv_chrome"
+PIXIV_SESSION_FILE = Path.home() / ".civitai_splitter_pixiv_session.json"
+
+
+def pixiv_session_cookies():
+    if not PIXIV_SESSION_FILE.exists():
+        return []
+    try:
+        value = json.loads(PIXIV_SESSION_FILE.read_text(encoding="utf-8")).get("PHPSESSID", "")
+        if value:
+            return [{"name": "PHPSESSID", "value": value, "domain": ".pixiv.net", "path": "/", "secure": True, "httpOnly": True, "sameSite": "Lax"}]
+    except (ValueError, OSError):
+        pass
+    return []
+
+
+def pixiv_has_session():
+    if pixiv_session_cookies():
+        return True
+    return (PIXIV_PROFILE_DIR / "Default" / "Network" / "Cookies").exists()
 PIXIV_RULE_FIT_PROFILE_DIR = Path.home() / ".civitai_splitter_pixiv_rule_fit_chrome"
 H_UINT_RE = re.compile(r"^\d+$")
 LORA_RE = re.compile(r"<lora:([^:>]+):([^>]+)>")
@@ -1109,13 +1128,38 @@ class HainTagTaggerBridge:
         return payload.get("settings", payload) if isinstance(payload, dict) else {}
 
 
-def sanitize_image_for_pixiv(src: Path, dest_dir: Path) -> CleanResult:
-    dest_dir.mkdir(exist_ok=True)
+def strip_all_image_metadata(src: Path, dest: Path) -> tuple[int, int]:
+    """Create a pixel-only RGB PNG copy with zero EXIF, PNG text chunks, XMP, ICC, or C2PA metadata."""
+    from PIL import ImageOps, PngImagePlugin
+    dest.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(src) as img:
-        image = img.convert("RGB")
-        dest = dest_dir / f"{src.stem}_pixiv_clean.png"
-        image.save(dest, "PNG")
-        return CleanResult(output_path=dest, width=image.width, height=image.height)
+        img = ImageOps.exif_transpose(img)
+        if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
+            rgba = img.convert("RGBA")
+            bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+            bg.alpha_composite(rgba)
+            rgb = bg.convert("RGB")
+        else:
+            rgb = img.convert("RGB")
+        clean = Image.frombytes("RGB", rgb.size, rgb.tobytes())
+        clean.save(dest, "PNG", pnginfo=PngImagePlugin.PngInfo())
+        return clean.width, clean.height
+
+
+def sanitize_image_for_pixiv(src: Path, dest_dir: Path, strip_metadata: bool = True) -> CleanResult:
+    dest_dir.mkdir(exist_ok=True)
+    dest = dest_dir / f"{src.stem}_pixiv_clean.png"
+    if strip_metadata:
+        w, h = strip_all_image_metadata(src, dest)
+        return CleanResult(output_path=dest, width=w, height=h)
+    import shutil
+    with Image.open(src) as img:
+        w, h = img.width, img.height
+        if src.suffix.lower() == ".png":
+            shutil.copy2(src, dest)
+        else:
+            img.convert("RGB").save(dest, "PNG")
+        return CleanResult(output_path=dest, width=w, height=h)
 
 
 def split_prompt_tokens(text: str) -> list[str]:
@@ -2342,7 +2386,7 @@ def open_pixiv_browser(pw, profile_dir: Path | None = None):
     target_profile = profile_dir or PIXIV_PROFILE_DIR
     context = pw.chromium.launch_persistent_context(
         str(target_profile),
-        channel="chrome",
+        channel="chrome", executable_path=os.environ.get("CHROME_PATH"),
         headless=False,
         args=[
             "--start-minimized",
@@ -2351,6 +2395,9 @@ def open_pixiv_browser(pw, profile_dir: Path | None = None):
         ],
         ignore_default_args=["--enable-automation", "--no-sandbox"],
     )
+    cookies = pixiv_session_cookies()
+    if cookies:
+        context.add_cookies(cookies)
     page = context.pages[0] if context.pages else context.new_page()
     page.set_viewport_size({"width": 1920, "height": 1080})
     try:
@@ -3690,13 +3737,17 @@ def create_pixiv_post(
         record(PixivStep("select_file", False, "selector_miss", str(PIXIV_SELECTORS["file_input"])))
         return None, steps
     try:
-        file_input.set_input_files(str(image_path))
-        record(PixivStep("select_file", True, detail=image_path.name))
+        if isinstance(image_path, (list, tuple)):
+            _img_paths = [Path(p) for p in image_path]
+        else:
+            _img_paths = [Path(image_path)]
+        file_input.set_input_files([str(p) for p in _img_paths])
+        record(PixivStep("select_file", True, detail=", ".join(p.name for p in _img_paths)))
     except Exception as exc:
         record(PixivStep("select_file", False, "exception", f"{type(exc).__name__}: {exc}"))
         return None, steps
 
-    _jsleep(4.0, cancel_event=cancel_event)
+    _jsleep(4.0 + min(8.0, 1.5 * max(0, len(_img_paths) - 1)), cancel_event=cancel_event)
 
     record(_fill_if_found(
         page, "fill_title", PIXIV_SELECTORS["title"],

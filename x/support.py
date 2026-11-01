@@ -11,6 +11,8 @@ Tag picker is intentionally simple (2 hashtags, hard cap):
 
 from __future__ import annotations
 
+import os
+
 import json
 import logging
 import random
@@ -287,7 +289,7 @@ def build_x_payload(
     base_template: str | None = None,
     age_restriction: str = "all_ages",
     copy: dict[str, Any] | None = None,
-    ai_tags_enabled: bool = True,
+    ai_tags_enabled: bool = False,
 ) -> dict[str, Any]:
     """Assemble manifest['x'] for a single image. Pure transform (no browser).
 
@@ -303,12 +305,40 @@ def build_x_payload(
     lang = template.get("lang", "en")
 
     entity_tags = (pixiv_payload or {}).get("entity_tags") or []
+    llm_x_tags = [str(t).strip() for t in ((copy or {}).get("x_tags") or []) if str(t).strip()]
     tag_template = template if ai_tags_enabled else {"core": "", "social": ""}
-    tag_pick = pick_x_tags(
-        entity_tags=entity_tags,
-        template=tag_template,
-        limit=int(settings.get("tag_limit", 2)),
-    )
+    tag_limit = int(settings.get("tag_limit", 3))
+    if llm_x_tags:
+        picked_llm: list[str] = []
+        seen_llm: set[str] = set()
+        core_norm = normalize_hashtag(template.get("core", "")) if ai_tags_enabled else ""
+        reserve_core = 1 if (core_norm and all(normalize_hashtag(t).lower() != core_norm.lower() for t in llm_x_tags)) else 0
+        max_llm = max(1, tag_limit - reserve_core)
+        for raw_t in llm_x_tags:
+            norm_t = normalize_hashtag(raw_t)
+            if not norm_t or norm_t.lower() in seen_llm:
+                continue
+            if not ai_tags_enabled and (
+                norm_t.lower() in {"#aiart", "#aiイラスト", "#ai绘画", "#ai插画", "#aiartcommunity", "#aiartwork", "#aigenerated", "#aigirl", "#ai美女", "#ai創作", "#ai创作", "#novelai", "#stablediffusion"}
+                or norm_t.lower().startswith(("#aiart", "#aiイラスト", "#ai絵", "#ai画", "#ai绘"))
+            ):
+                continue
+            picked_llm.append(norm_t)
+            seen_llm.add(norm_t.lower())
+            if len(picked_llm) >= max_llm:
+                break
+        if core_norm and core_norm.lower() not in seen_llm and len(picked_llm) < tag_limit:
+            picked_llm.append(core_norm)
+        tag_pick = {
+            "tags": picked_llm,
+            "sources": {"character_tags": picked_llm, "template_tag": template.get("core", ""), "social_tag": "llm_vision"},
+        }
+    else:
+        tag_pick = pick_x_tags(
+            entity_tags=entity_tags,
+            template=tag_template,
+            limit=tag_limit,
+        )
     tags = tag_pick["tags"]
 
     # Title / caption: prefer manifest.copy when present, fall back to
@@ -384,6 +414,9 @@ def build_x_payload(
 # ----- Playwright (browser layer) --------------------------------------------
 
 
+_COOKIES_SYNC_STAMP = Path(__file__).parent / ".cookies_synced_ts"
+
+
 def _load_cookies_into_context(context, cookies_path: Path) -> int:
     """Import cookies exported by Cookie-Editor / EditThisCookie (JSON array)."""
     try:
@@ -401,6 +434,7 @@ def _load_cookies_into_context(context, cookies_path: Path) -> int:
         "lax": "Lax",
         "strict": "Strict",
     }
+    default_expires = int(time.time()) + 365 * 86400
     cookies: list[dict[str, Any]] = []
     for entry in raw:
         if not isinstance(entry, dict):
@@ -409,7 +443,7 @@ def _load_cookies_into_context(context, cookies_path: Path) -> int:
         value = entry.get("value")
         if not name or value is None:
             continue
-        domain = entry.get("domain") or ""
+        domain = entry.get("domain") or ".x.com"
         path = entry.get("path") or "/"
         cookie: dict[str, Any] = {
             "name": str(name),
@@ -418,11 +452,14 @@ def _load_cookies_into_context(context, cookies_path: Path) -> int:
             "path": str(path),
         }
         expiration = entry.get("expirationDate")
-        if expiration is not None and not entry.get("session"):
+        if expiration is None:
+            expiration = entry.get("expires")
+        if not entry.get("session"):
             try:
-                cookie["expires"] = int(float(expiration))
+                exp_int = int(float(expiration)) if expiration is not None else default_expires
+                cookie["expires"] = exp_int if exp_int > int(time.time()) else default_expires
             except (TypeError, ValueError):
-                pass
+                cookie["expires"] = default_expires
         if "httpOnly" in entry:
             cookie["httpOnly"] = bool(entry["httpOnly"])
         if "secure" in entry:
@@ -443,12 +480,68 @@ def _load_cookies_into_context(context, cookies_path: Path) -> int:
     return len(cookies)
 
 
+def _profile_has_valid_auth_token(context) -> bool:
+    """Return True if the persistent Chrome context already has a live X auth_token."""
+    try:
+        now = time.time()
+        for c in context.cookies(["https://x.com", "https://twitter.com"]):
+            if c.get("name") == "auth_token" and c.get("value"):
+                exp = c.get("expires")
+                if exp is None or float(exp) < 0 or float(exp) > now + 60:
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def _should_inject_cookies_file(context, cookies_path: Path) -> bool:
+    """Inject cookies.json only when profile has no auth_token or user imported a newer cookies.json."""
+    if not cookies_path.exists():
+        return False
+    if not _profile_has_valid_auth_token(context):
+        return True
+    try:
+        cookies_mtime = cookies_path.stat().st_mtime
+        synced_ts = float(_COOKIES_SYNC_STAMP.read_text(encoding="utf-8").strip())
+        return cookies_mtime > synced_ts + 2.0
+    except Exception:
+        return False
+
+
+def _save_cookies_from_context(context, cookies_path: Path) -> None:
+    """Persist active X cookies from browser context back to cookies.json."""
+    try:
+        raw_cookies = context.cookies(["https://x.com", "https://twitter.com"])
+        has_auth = any(c.get("name") == "auth_token" and c.get("value") for c in raw_cookies)
+        if not has_auth:
+            return
+        default_exp = float(int(time.time()) + 365 * 86400)
+        out: list[dict[str, Any]] = []
+        for c in raw_cookies:
+            entry: dict[str, Any] = {
+                "name": c.get("name", ""),
+                "value": c.get("value", ""),
+                "domain": c.get("domain") or ".x.com",
+                "path": c.get("path") or "/",
+                "httpOnly": bool(c.get("httpOnly", False)),
+                "secure": bool(c.get("secure", True)),
+                "sameSite": c.get("sameSite") or "Lax",
+            }
+            exp = c.get("expires")
+            entry["expirationDate"] = float(exp) if (exp is not None and float(exp) > time.time()) else default_exp
+            out.append(entry)
+        cookies_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+        _COOKIES_SYNC_STAMP.write_text(str(time.time()), encoding="utf-8")
+    except Exception as exc:
+        log.debug(f"X: 同步保存 cookies.json 失败: {exc}")
+
+
 def open_x_browser(pw, profile_dir: Path | None = None):
     """Launch persistent Chrome context for X with light anti-detection."""
     target_profile = profile_dir or X_PROFILE_DIR
     context = pw.chromium.launch_persistent_context(
         str(target_profile),
-        channel="chrome",
+        channel="chrome", executable_path=os.environ.get("CHROME_PATH"),
         headless=False,
         args=[
             "--start-minimized",
@@ -459,10 +552,16 @@ def open_x_browser(pw, profile_dir: Path | None = None):
     )
 
     cookies_path = X_DIR / "cookies.json"
-    if cookies_path.exists():
+    if _should_inject_cookies_file(context, cookies_path):
         n = _load_cookies_into_context(context, cookies_path)
         if n > 0:
             log.info(f"X: 注入 {n} 条 cookies（来自 x/cookies.json）")
+            try:
+                _COOKIES_SYNC_STAMP.write_text(str(time.time()), encoding="utf-8")
+            except OSError:
+                pass
+    else:
+        log.info("X: 复用浏览器配置目录中的现有登录会话")
 
     page = context.pages[0] if context.pages else context.new_page()
     page.set_viewport_size({"width": 1920, "height": 1080})
@@ -470,21 +569,38 @@ def open_x_browser(pw, profile_dir: Path | None = None):
     return context, page
 
 
+def _wait_for_compose_ready(page, timeout_sec: int = 18) -> bool:
+    textarea_sel = X_SELECTORS["compose_textarea"]
+    for i in range(timeout_sec):
+        time.sleep(1)
+        try:
+            if page.locator(textarea_sel).count() > 0:
+                return True
+            url_now = (page.url or "").lower()
+            if i >= 5 and ("/i/flow/login" in url_now or "/login" in url_now):
+                return False
+        except Exception:
+            pass
+    return False
+
+
 def ensure_x_logged_in(page) -> None:
     """Open compose; if textarea doesn't appear, block on manual login."""
+    cookies_path = X_DIR / "cookies.json"
     try:
         page.goto(X_COMPOSE_URL, wait_until="commit", timeout=30000)
     except Exception:
         pass
 
-    textarea_sel = X_SELECTORS["compose_textarea"]
-    for _ in range(8):
-        time.sleep(1)
-        try:
-            if page.locator(textarea_sel).count() > 0:
-                return
-        except Exception:
-            pass
+    if _wait_for_compose_ready(page, timeout_sec=18):
+        _save_cookies_from_context(page.context, cookies_path)
+        return
+
+    try:
+        page.bring_to_front()
+        page.evaluate("window.moveTo(120, 80); window.resizeTo(1280, 900);")
+    except Exception:
+        pass
 
     print()
     print("=" * 64)
@@ -506,13 +622,9 @@ def ensure_x_logged_in(page) -> None:
         page.goto(X_COMPOSE_URL, wait_until="commit", timeout=30000)
     except Exception:
         pass
-    for _ in range(8):
-        time.sleep(1)
-        try:
-            if page.locator(textarea_sel).count() > 0:
-                return
-        except Exception:
-            pass
+    if _wait_for_compose_ready(page, timeout_sec=18):
+        _save_cookies_from_context(page.context, cookies_path)
+        return
     log.warning("登录后 compose textarea 仍未出现 — 继续发布流程，可能会失败")
 
 

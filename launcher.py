@@ -394,7 +394,7 @@ def cmd_pixiv_logout() -> None:
     with sync_playwright() as pw:
         context = pw.chromium.launch_persistent_context(
             str(PIXIV_PROFILE_DIR),
-            channel="chrome",
+            channel="chrome", executable_path=os.environ.get("CHROME_PATH"),
             headless=False,
             args=["--disable-sync", "--no-first-run"],
             ignore_default_args=["--enable-automation", "--no-sandbox"],
@@ -419,7 +419,7 @@ def cmd_civitai_login() -> None:
     with sync_playwright() as pw:
         context = pw.chromium.launch_persistent_context(
             str(profile),
-            channel="chrome",
+            channel="chrome", executable_path=os.environ.get("CHROME_PATH"),
             headless=False,
             args=[],
             ignore_default_args=["--enable-automation", "--no-sandbox"],

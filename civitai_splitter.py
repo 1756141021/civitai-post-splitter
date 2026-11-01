@@ -75,10 +75,15 @@ def _load_watermark_for_targets(
 def _build_llm_extra_context(
     pixiv_payload: dict | None,
     source_meta: dict | None = None,
+    user_hint: str = "",
 ) -> str:
-    if not pixiv_payload and not source_meta:
+    if not pixiv_payload and not source_meta and not user_hint:
         return ""
     parts: list[str] = []
+    if user_hint and str(user_hint).strip():
+        parts.append(
+            f"USER-PROVIDED CHARACTER / IP IDENTITY (HIGHEST PRIORITY — MUST use this exact character/series for titles, captions, Pixiv Japanese tags, and X hashtags): {str(user_hint).strip()}"
+        )
     if pixiv_payload:
         domain = str(pixiv_payload.get("domain", "") or "").strip()
         if domain:
@@ -261,18 +266,18 @@ def _make_bridges():
     settings = _load_haintag_settings()
     tagger = None
     pixai_dir = settings.get("pixai_tagger_model_dir", "")
+    if not pixai_dir or not (Path(pixai_dir) / "model.onnx").exists():
+        for _cand in (SCRIPT_DIR / "models" / "pixai_tagger_v1.0", SCRIPT_DIR / "models" / "pixai_tagger"):
+            if (_cand / "model.onnx").exists():
+                pixai_dir = str(_cand)
+                break
     if pixai_dir and (Path(pixai_dir) / "model.onnx").exists():
         try:
             t = PixAITaggerBridge(Path(pixai_dir))
-            sample = Path(pixai_dir) / "sample.webp"
-            if sample.exists():
-                probe = t.predict_tags(sample)
-                if probe.get("available"):
-                    tagger = t
-                else:
-                    log.info(f"PixAI tagger 加载失败 ({probe.get('status')}), 尝试 WD14 回退")
-            else:
+            if t._ensure_loaded():
                 tagger = t
+            else:
+                log.info(f"PixAI tagger 加载失败 ({t._status}), 尝试 WD14 回退")
         except Exception as exc:
             log.info(f"PixAI tagger 异常 ({exc}), 尝试 WD14 回退")
     if tagger is None and settings.get("tagger_model_dir"):
@@ -404,7 +409,12 @@ def build_a1111_params(meta: dict) -> str:
     return "\n".join(parts)
 
 
-def strip_prompts_keep_lora(image_path: Path, dest_dir: Path) -> Path:
+def strip_prompts_keep_lora(image_path: Path, dest_dir: Path, strip_all: bool = False) -> Path:
+    if strip_all:
+        dest = dest_dir / f"{image_path.stem}.png"
+        from pixiv.support import strip_all_image_metadata
+        strip_all_image_metadata(image_path, dest)
+        return dest
     pil_img = Image.open(image_path)
     old_params = pil_img.info.get("parameters", "")
     if not old_params:
@@ -562,7 +572,7 @@ def make_temp_dir(prefix: str) -> Path:
 def open_civitai_browser(pw):
     context = pw.chromium.launch_persistent_context(
         str(CHROME_PROFILE_DIR),
-        channel="chrome",
+        channel="chrome", executable_path=os.environ.get("CHROME_PATH"),
         headless=False,
         args=["--start-minimized"],
         ignore_default_args=["--enable-automation", "--no-sandbox"],
@@ -622,7 +632,8 @@ def create_civitai_post(page, image_path: Path, delay: float, cancel_event=None)
         return None
 
     try:
-        file_input.set_input_files(str(image_path))
+        _civ_paths = [Path(p) for p in image_path] if isinstance(image_path, (list, tuple)) else [Path(image_path)]
+        file_input.set_input_files([str(p) for p in _civ_paths])
     except Exception as exc:
         log.error(f"    上传失败: {exc}")
         log.debug(traceback.format_exc())
@@ -679,8 +690,12 @@ def parse_targets(raw: str) -> list[str]:
     return targets or ["civitai"]
 
 
-def parse_bool_flag(raw: str) -> bool:
-    lowered = raw.strip().lower()
+def parse_bool_flag(raw: str | bool | int) -> bool:
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, int):
+        return bool(raw)
+    lowered = str(raw).strip().lower()
     if lowered in {"1", "true", "yes", "on"}:
         return True
     if lowered in {"0", "false", "no", "off"}:
@@ -750,6 +765,7 @@ def create_upload_manifest(
     llm_content_mode: str = "",
     llm_personas_by_platform: dict | None = None,
     llm_content_modes_by_platform: dict | None = None,
+    llm_user_hint: str = "",
     x_dir: Path | None = None,
     x_settings: dict | None = None,
     x_templates: dict | None = None,
@@ -759,6 +775,8 @@ def create_upload_manifest(
     xhs_templates: dict | None = None,
     xhs_base_template: str = "default",
     ai_tags_by_platform: dict | None = None,
+    strip_metadata: bool = True,
+    civitai_strip_all_metadata: bool = False,
     watermark_service: WatermarkService | None = None,
     watermark_spec: TextWatermarkSpec | ImageWatermarkSpec | None = None,
     cancel_event=None,
@@ -776,12 +794,17 @@ def create_upload_manifest(
         if civitai_blocked:
             log.info(f"    Civitai 安全过滤：{civitai_block_reason}")
 
-    civitai_copy = strip_prompts_keep_lora(image_path, civitai_dir) if "civitai" in targets else None
+    civitai_copy = (
+        strip_prompts_keep_lora(image_path, civitai_dir, strip_all=(strip_metadata and civitai_strip_all_metadata))
+        if "civitai" in targets else None
+    )
     _raise_if_canceled(cancel_event)
     # Sanitize / tag pipeline runs if ANY target needs it (PLATFORM_RULES table).
     needs_sanitize = any(PLATFORM_RULES.get(t, {}).get("needs_sanitize") for t in targets)
     needs_pixiv_payload = any(PLATFORM_RULES.get(t, {}).get("needs_copy") for t in targets)
-    pixiv_clean = sanitize_image_for_pixiv(image_path, pixiv_dir) if needs_sanitize else None
+    pixiv_clean = sanitize_image_for_pixiv(image_path, pixiv_dir, strip_metadata=strip_metadata) if needs_sanitize else None
+    if strip_metadata:
+        log.info(f"    元数据抹除: 已清除 EXIF/PNG Info/工作流数据 (Civitai保留LoRA={not civitai_strip_all_metadata})")
     _raise_if_canceled(cancel_event)
 
     # Run auto-censor on the sanitized pixiv copy if engine present.
@@ -896,7 +919,7 @@ def create_upload_manifest(
                 # Per-platform mode: independent LLM call per copy platform
                 image_path_for_llm = Path(pixiv_clean.output_path) if pixiv_clean else image_path
                 image_age = (pixiv_payload or {}).get("age_restriction", "all_ages")
-                _llm_extra_ctx = _build_llm_extra_context(pixiv_payload, source_meta=source_meta)
+                _llm_extra_ctx = _build_llm_extra_context(pixiv_payload, source_meta=source_meta, user_hint=llm_user_hint)
                 copy_targets = [t for t in targets if PLATFORM_RULES.get(t, {}).get("needs_copy")]
                 for plat in copy_targets:
                     per_persona_id = llm_personas_by_platform.get(plat, "")
@@ -951,7 +974,7 @@ def create_upload_manifest(
                     )
                 else:
                     _raise_if_canceled(cancel_event)
-                    _ctx = _build_llm_extra_context(pixiv_payload, source_meta=source_meta)
+                    _ctx = _build_llm_extra_context(pixiv_payload, source_meta=source_meta, user_hint=llm_user_hint)
                     log.info(f"    LLM 反推: extra_context={_ctx!r}")
                     llm_reverse_result = infer_image_copy(
                         image_path=Path(pixiv_clean.output_path) if pixiv_clean else image_path,
@@ -1029,7 +1052,7 @@ def create_upload_manifest(
                 base_template=x_base_template,
                 age_restriction=(pixiv_payload or {}).get("age_restriction", "all_ages"),
                 copy=copy_block,
-                ai_tags_enabled=(ai_tags_by_platform or {}).get("x", True),
+                ai_tags_enabled=(ai_tags_by_platform or {}).get("x", False),
             )
         except Exception as exc:
             log.error(f"    X payload 构建失败: {exc}")
@@ -1283,6 +1306,18 @@ def cmd_upload(args):
         general_jp_data["_danbooru_map"] = danbooru_jp_map
         log.info(f"Danbooru→JP 词典已加载: {len(danbooru_jp_map)} 条")
     civitai_safety_cfg = load_json(files["civitai_safety"], {})
+    app_cfg = load_app_config()
+    _strip_meta_arg = getattr(args, "strip_metadata", None)
+    strip_metadata_enabled = (
+        bool(app_cfg.get("strip_metadata", True))
+        if _strip_meta_arg is None
+        else parse_bool_flag(_strip_meta_arg)
+    )
+    civitai_strip_all_meta = bool(
+        getattr(args, "civitai_strip_all_metadata", None)
+        if getattr(args, "civitai_strip_all_metadata", None) is not None
+        else app_cfg.get("civitai_strip_all_metadata", False)
+    )
     llm_reverse_config = load_llm_reverse_config()
     llm_reverse_enabled = bool(getattr(args, "llm_reverse", False)) and llm_reverse_config.get("enabled")
     if getattr(args, "llm_reverse", False) and not llm_reverse_enabled:
@@ -1469,6 +1504,295 @@ def cmd_upload(args):
                 log.debug(traceback.format_exc())
 
         _cancel_ev = getattr(args, "cancel_event", None)
+        _raw_gs = getattr(args, "group_size", None)
+        if _raw_gs is None:
+            _raw_gs = getattr(args, "x_group", 1)
+        try:
+            _group_size = int(_raw_gs)
+        except (TypeError, ValueError):
+            _group_size = 1
+
+        if _group_size != 1 and len(image_queue) > 1:
+            # Chunk image_queue into multi-image post groups (0 = all in 1 group per target set)
+            _groups = []
+            _cur_grp = []
+            _cur_tgts = None
+            for _idx, (_op, _et) in enumerate(image_queue, 1):
+                if _cur_grp and (_et != _cur_tgts or (_group_size > 0 and len(_cur_grp) >= _group_size)):
+                    _groups.append(_cur_grp)
+                    _cur_grp = []
+                _cur_grp.append((_idx, _op, _et))
+                _cur_tgts = _et
+            if _cur_grp:
+                _groups.append(_cur_grp)
+
+            log.info(f"多图合帖模式：共 {len(image_queue)} 张图，分为 {len(_groups)} 个帖子发布（group_size={'全部' if _group_size == 0 else _group_size}）")
+
+            for _grp in _groups:
+                if _cancel_ev and _cancel_ev.is_set():
+                    log.info("收到取消信号，停止上传")
+                    break
+                _grp_items = []
+                for index, orig_path, effective_targets in _grp:
+                    if _cancel_ev and _cancel_ev.is_set():
+                        break
+                    log.info(f"[{index}/{len(image_queue)}] {orig_path.name}")
+                    prior_successes = find_target_successes(files["manifests"], orig_path)
+                    skip_targets = {t for t in effective_targets if t in prior_successes}
+                    if skip_targets:
+                        log.info(f"    跳过已成功目标: {sorted(skip_targets)}（继承历史 post_url）")
+                    manifest_path = create_manifest_path(files["manifests"], orig_path)
+                    manifest, pixiv_ready = create_upload_manifest(
+                        image_path=orig_path,
+                        targets=effective_targets,
+                        files=files,
+                        hain_bridge=hain_bridge,
+                        alias_data=alias_data,
+                        popularity_data=popularity_data,
+                        age_rules=age_rules,
+                        civitai_dir=civitai_dir,
+                        pixiv_dir=pixiv_dir,
+                        pixiv_privacy=args.pixiv_privacy,
+                        pixiv_allow_tag_edits=parse_bool_flag(args.pixiv_allow_tag_edits),
+                        tagger_bridge=tagger_bridge,
+                        jp_alias_cache=jp_alias_cache,
+                        general_jp_data=general_jp_data,
+                        pixiv_page=pixiv_page,
+                        censor_engine=censor_engine,
+                        censor_secondary=censor_secondary,
+                        censor_classes=censor_classes,
+                        civitai_safety_cfg=civitai_safety_cfg,
+                        llm_reverse_config=llm_reverse_config if llm_reverse_enabled else None,
+                        llm_persona_id=getattr(args, "llm_persona", ""),
+                        llm_account_id=getattr(args, "llm_account", ""),
+                        llm_content_mode=getattr(args, "llm_content_mode", ""),
+                        llm_personas_by_platform=getattr(args, "llm_personas_by_platform", None),
+                        llm_content_modes_by_platform=getattr(args, "llm_content_modes_by_platform", None),
+                        llm_user_hint=" / ".join(filter(None, [
+                            str((getattr(args, "llm_hints_by_file", None) or {}).get(orig_path.name, "")).strip(),
+                            str(getattr(args, "llm_user_hint", "") or "").strip(),
+                        ])),
+                        x_dir=x_dir if "x" in effective_targets else None,
+                        x_settings=x_settings,
+                        x_templates=x_templates,
+                        x_base_template=x_base_template,
+                        xhs_dir=xhs_dir if "xhs" in effective_targets else None,
+                        xhs_settings=xhs_settings,
+                        xhs_templates=xhs_templates,
+                        xhs_base_template=xhs_base_template,
+                        ai_tags_by_platform=getattr(args, "ai_tags_by_platform", None),
+                        strip_metadata=strip_metadata_enabled,
+                        civitai_strip_all_metadata=civitai_strip_all_meta,
+                        watermark_service=watermark_service,
+                        watermark_spec=watermark_spec,
+                        cancel_event=_cancel_ev,
+                    )
+                    _raise_if_canceled(_cancel_ev)
+                    save_json(files["jp_aliases"], jp_alias_cache)
+                    manifest["dry_run"] = bool(args.dry_run)
+                    write_manifest(manifest_path, manifest)
+                    if "pixiv" in effective_targets:
+                        save_json(files["popularity"], popularity_data)
+                    if args.dry_run:
+                        for target in effective_targets:
+                            if manifest["status_by_target"].get(target) == "pending":
+                                manifest["status_by_target"][target] = "dry_run"
+                        write_manifest(manifest_path, manifest)
+                        success_count += 1
+                    else:
+                        _grp_items.append({
+                            "orig_path": orig_path,
+                            "effective_targets": effective_targets,
+                            "prior_successes": prior_successes,
+                            "skip_targets": skip_targets,
+                            "manifest_path": manifest_path,
+                            "manifest": manifest,
+                            "pixiv_ready": pixiv_ready,
+                        })
+
+                if args.dry_run or not _grp_items:
+                    continue
+
+                cancel_requested = False
+                _grp_targets = _grp_items[0]["effective_targets"]
+                log.info(f"    >> 开始合并发布本组 ({len(_grp_items)} 张): {', '.join(it['orig_path'].name for it in _grp_items)}")
+
+                # 1) Civitai group post
+                if "civitai" in _grp_targets:
+                    _civ_active = []
+                    for it in _grp_items:
+                        m = it["manifest"]
+                        if "civitai" in it["skip_targets"]:
+                            m["civitai"]["post_url"] = it["prior_successes"]["civitai"]
+                            m["status_by_target"]["civitai"] = "skipped_already_done"
+                        elif m["status_by_target"].get("civitai") == "skipped_civitai_safety":
+                            pass
+                        else:
+                            _civ_active.append(it)
+                    if _civ_active:
+                        _civ_copies = [Path(it["manifest"]["civitai"]["clean_copy_path"]) for it in _civ_active]
+                        try:
+                            civitai_url = create_civitai_post(civitai_page, _civ_copies, args.delay, cancel_event=_cancel_ev)
+                        except InterruptedError:
+                            cancel_requested = True
+                            civitai_url = None
+                        except Exception as exc:
+                            log.error(f"    Civitai 合帖发布异常: {exc}")
+                            civitai_url = None
+                        for it in _civ_active:
+                            m = it["manifest"]
+                            if civitai_url:
+                                m["civitai"]["post_url"] = civitai_url
+                                m["status_by_target"]["civitai"] = "success"
+                            elif cancel_requested:
+                                m["status_by_target"]["civitai"] = "canceled"
+                                m["errors"].append("Civitai upload canceled")
+                            else:
+                                m["status_by_target"]["civitai"] = "failed"
+                                m["errors"].append("Civitai upload failed")
+                        if civitai_url:
+                            log.info(f"    Civitai 合帖发布成功 ({len(_civ_copies)} 张): {civitai_url}")
+
+                # 2) Pixiv group post
+                if "pixiv" in _grp_targets:
+                    _px_active = []
+                    for it in _grp_items:
+                        m = it["manifest"]
+                        if "pixiv" in it["skip_targets"]:
+                            m["pixiv"]["post_url"] = it["prior_successes"]["pixiv"]
+                            m["status_by_target"]["pixiv"] = "skipped_already_done"
+                        elif not it["pixiv_ready"]:
+                            pass
+                        elif cancel_requested:
+                            m["status_by_target"]["pixiv"] = "canceled"
+                            m["errors"].append("Pixiv upload canceled")
+                        else:
+                            _px_active.append(it)
+                    if _px_active:
+                        _px_copies = [Path(it["manifest"]["pixiv"]["clean_copy_path"]) for it in _px_active]
+                        _merged_tags = []
+                        for it in _px_active:
+                            for tg in it["manifest"]["pixiv"].get("final_tags", []):
+                                if tg not in _merged_tags and len(_merged_tags) < 10:
+                                    _merged_tags.append(tg)
+                        _age_order = {"all_ages": 0, "r18": 1, "r18g": 2}
+                        _max_age = max(
+                            (it["manifest"]["pixiv"].get("age_restriction", "all_ages") for it in _px_active),
+                            key=lambda a: _age_order.get(a, 0),
+                        )
+                        _first_px = _px_active[0]["manifest"]["pixiv"]
+                        _px_payload = {
+                            "title_ja": next((it["manifest"]["pixiv"].get("title_ja", "") for it in _px_active if it["manifest"]["pixiv"].get("title_ja")), _first_px.get("title_ja", "")),
+                            "title_zh": next((it["manifest"]["pixiv"].get("title_zh", "") for it in _px_active if it["manifest"]["pixiv"].get("title_zh")), _first_px.get("title_zh", "")),
+                            "caption_ja": next((it["manifest"]["pixiv"].get("caption_ja", "") for it in _px_active if it["manifest"]["pixiv"].get("caption_ja")), _first_px.get("caption_ja", "")),
+                            "caption_zh": next((it["manifest"]["pixiv"].get("caption_zh", "") for it in _px_active if it["manifest"]["pixiv"].get("caption_zh")), _first_px.get("caption_zh", "")),
+                            "final_tags": _merged_tags,
+                            "age_restriction": _max_age,
+                            "privacy": _first_px.get("privacy", "public"),
+                            "allow_tag_edits": _first_px.get("allow_tag_edits", False),
+                            "domain": "fanart" if any(it["manifest"]["pixiv"].get("domain") == "fanart" for it in _px_active) else _first_px.get("domain", "original"),
+                        }
+                        try:
+                            pixiv_url, pixiv_steps = create_pixiv_post(
+                                pixiv_page, _px_payload, _px_copies, args.delay, log_dir=LOG_DIR, cancel_event=_cancel_ev,
+                            )
+                        except InterruptedError:
+                            cancel_requested = True
+                            pixiv_url, pixiv_steps = None, []
+                        except Exception as exc:
+                            log.error(f"    Pixiv 合帖发布异常: {exc}")
+                            pixiv_url, pixiv_steps = None, []
+                        post_was_clicked = any(getattr(s, "name", "") == "publish_click" and getattr(s, "ok", False) for s in pixiv_steps)
+                        for it in _px_active:
+                            m = it["manifest"]
+                            m["pixiv"]["upload_steps"] = [s.to_dict() for s in pixiv_steps]
+                            if cancel_requested and not pixiv_url:
+                                m["status_by_target"]["pixiv"] = "canceled"
+                                m["errors"].append("Pixiv upload canceled")
+                            elif pixiv_url:
+                                m["pixiv"]["post_url"] = pixiv_url
+                                m["status_by_target"]["pixiv"] = "success"
+                            elif post_was_clicked:
+                                m["pixiv"]["post_url"] = PIXIV_BASE
+                                m["status_by_target"]["pixiv"] = "maybe_posted"
+                            else:
+                                m["status_by_target"]["pixiv"] = "failed"
+                                m["errors"].append("Pixiv group upload failed")
+                        if pixiv_url:
+                            log.info(f"    Pixiv 合帖发布成功 ({len(_px_copies)} 张): {pixiv_url}")
+
+                # 3) X group post (chunked up to 4 images per tweet)
+                if "x" in _grp_targets:
+                    from x.support import create_x_post as _create_x_post
+                    _x_active = []
+                    for it in _grp_items:
+                        m = it["manifest"]
+                        if "x" in it["skip_targets"]:
+                            m["x"]["post_url"] = it["prior_successes"]["x"]
+                            m["status_by_target"]["x"] = "skipped_already_done"
+                        elif m["status_by_target"].get("x") in ("failed", "skipped_max_age"):
+                            pass
+                        elif cancel_requested:
+                            m["status_by_target"]["x"] = "canceled"
+                            m["errors"].append("X upload canceled")
+                        elif not m["x"].get("clean_copy_paths"):
+                            m["status_by_target"]["x"] = "failed"
+                            m["errors"].append("X payload missing")
+                        else:
+                            _x_active.append(it)
+                    for _start in range(0, len(_x_active), 4):
+                        _sub = _x_active[_start : _start + 4]
+                        _sub_paths = [Path(p) for it in _sub for p in it["manifest"]["x"]["clean_copy_paths"]][:4]
+                        _sub_payload = dict(_sub[0]["manifest"]["x"])
+                        _sub_payload["sensitive"] = any(it["manifest"]["x"].get("sensitive") for it in _sub)
+                        x_url = None
+                        try:
+                            x_url = _create_x_post(
+                                x_page, _sub_payload, _sub_paths, args.delay,
+                                settings=x_settings, log_dir=LOG_DIR, cancel_event=_cancel_ev,
+                            )
+                        except InterruptedError:
+                            cancel_requested = True
+                            x_url = None
+                        except Exception as exc:
+                            log.error(f"    X 合帖发布异常: {exc}")
+                            x_url = None
+                        for it in _sub:
+                            m = it["manifest"]
+                            if x_url:
+                                m["x"]["post_url"] = x_url
+                                m["status_by_target"]["x"] = "success"
+                            elif cancel_requested:
+                                m["status_by_target"]["x"] = "canceled"
+                                m["errors"].append("X upload canceled")
+                            else:
+                                m["status_by_target"]["x"] = "failed"
+                                m["errors"].append("X upload failed")
+                        if x_url:
+                            log.info(f"    X 合帖发布成功 ({len(_sub_paths)} 张): {x_url}")
+
+                # 4) Finalize manifests & move to done/
+                _ok_statuses = {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted", "skipped_max_age", "manual_ready"}
+                for it in _grp_items:
+                    m = it["manifest"]
+                    eff = it["effective_targets"]
+                    write_manifest(it["manifest_path"], m)
+                    for target in eff:
+                        st = m["status_by_target"].get(target)
+                        if st in {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted"}:
+                            target_success_counts[target] += 1
+                        elif st == "failed":
+                            target_fail_counts[target] += 1
+                    if all(m["status_by_target"].get(t) in {"success", "skipped_already_done", "skipped_civitai_safety", "maybe_posted", "skipped_max_age"} for t in eff):
+                        dest = move_to_done(it["orig_path"])
+                        log.info(f"    已移动到: {dest.name}")
+                        success_count += 1
+                        consecutive_failures = 0
+                    else:
+                        fail_count += 1
+
+            image_queue = []
+
         for index, (orig_path, effective_targets) in enumerate(image_queue, 1):
             if _cancel_ev and _cancel_ev.is_set():
                 log.info("收到取消信号，停止上传")
@@ -1507,6 +1831,10 @@ def cmd_upload(args):
                 llm_content_mode=getattr(args, "llm_content_mode", ""),
                 llm_personas_by_platform=getattr(args, "llm_personas_by_platform", None),
                 llm_content_modes_by_platform=getattr(args, "llm_content_modes_by_platform", None),
+                llm_user_hint=" / ".join(filter(None, [
+                    str((getattr(args, "llm_hints_by_file", None) or {}).get(orig_path.name, "")).strip(),
+                    str(getattr(args, "llm_user_hint", "") or "").strip(),
+                ])),
                 x_dir=x_dir if "x" in effective_targets else None,
                 x_settings=x_settings,
                 x_templates=x_templates,
@@ -1516,6 +1844,8 @@ def cmd_upload(args):
                 xhs_templates=xhs_templates,
                 xhs_base_template=xhs_base_template,
                 ai_tags_by_platform=getattr(args, "ai_tags_by_platform", None),
+                strip_metadata=strip_metadata_enabled,
+                civitai_strip_all_metadata=civitai_strip_all_meta,
                 watermark_service=watermark_service,
                 watermark_spec=watermark_spec,
                 cancel_event=_cancel_ev,
@@ -2002,10 +2332,12 @@ def main():
     sp_upload.add_argument("--llm-account", default="", help="LLM 账号 ID")
     sp_upload.add_argument("--llm-content-mode", default="", choices=["", "sfw", "nsfw"], help="LLM 文案模式")
     sp_upload.add_argument("--x-template", default="", choices=["", "jp_sfw", "en_sfw", "zh_sfw", "jp_nsfw", "en_nsfw", "zh_nsfw"], help="X 模板（默认 en_sfw；r18/r18g 自动切到 *_nsfw）")
-    sp_upload.add_argument("--x-group", type=int, default=1, choices=[1, 2, 3, 4], help="X 多图组队大小（1=每图单推；2-4=按文件名相邻组队，一条推挂多图）")
+    sp_upload.add_argument("--x-group", "--group-size", dest="x_group", type=int, default=1, choices=[0, 1, 2, 3, 4], help="多图合帖大小（1=每图单帖；2-4=每帖2-4张；0=全部选中图片合为1帖）")
     sp_upload.add_argument("--xhs-template", default="", help="小红书模板（默认 default）")
     sp_upload.add_argument("--xhs-manual", action="store_true", default=False, dest="xhs_manual_mode",
                            help="小红书手动模式：只生成内容，不启动浏览器")
+    sp_upload.add_argument("--strip-metadata", default=None, help="上传前自动抹除图片元数据（true/false，默认跟随配置开启）")
+    sp_upload.add_argument("--civitai-strip-all-metadata", action="store_true", default=None, help="Civitai 也彻底抹除全部参数与 LoRA 信息")
     sp_upload.add_argument("--no-ai-tags", default="", nargs="?", const="all",
                            help="不打 AI 标签。不带值=全部平台；带值=指定平台（逗号分隔，如 pixiv,x）")
     sp_upload.add_argument("--count", type=int, default=0, help="本次发几张（默认 0 = 随机 1-5）")
